@@ -95,7 +95,15 @@ void start_search(void){
 		return;
 
 	word = gtk_entry_get_text(GTK_ENTRY(word_entry));
-	euc_str = iconv_convert("utf-8", "euc-jp", word);
+	method = ebook_search_method();
+	/* EPWING lookups need EUC-JP (JIS X 0208), but File Search matches
+	 * several encodings itself and must keep the original UTF-8 word:
+	 * converting to EUC-JP first replaces characters outside JIS X 0208
+	 * (simplified Chinese, emoji) with placeholders. */
+	if(method == SEARCH_METHOD_GREP)
+		euc_str = g_strdup(word);
+	else
+		euc_str = iconv_convert("utf-8", "euc-jp", word);
 	remove_space(euc_str);
 	if(strlen(euc_str) == 0){
 		popup_warning(_("Please enter search word."));
@@ -105,7 +113,6 @@ void start_search(void){
 
 
 	if(strlen(euc_str) != 0){
-		method = ebook_search_method();
 		if(method == SEARCH_METHOD_INTERNET){
 			web_search();
 		} else 	if(method == SEARCH_METHOD_GREP){
@@ -250,6 +257,9 @@ static gint method_changed (GtkWidget *combo){
 		gtk_notebook_set_current_page(GTK_NOTEBOOK(note_bar), 0);
 
 	} else 	if(method == SEARCH_METHOD_GREP){
+		/* File Search needs the directory tree to pick a search scope. */
+		if(note_page != 3)
+			gtk_notebook_set_current_page(GTK_NOTEBOOK(note_tree), 3);
 		gtk_notebook_set_current_page(GTK_NOTEBOOK(note_bar), 1);
 	} else {
 		gtk_notebook_set_current_page(GTK_NOTEBOOK(note_bar), 0);
@@ -463,6 +473,8 @@ void go_down(){
 	LOG(LOG_DEBUG, "OUT : go_down()");
 }
 
+extern gboolean bshowing_result;
+
 void note_switch_page(GtkNotebook *notebook, gpointer *page, guint page_num, gpointer data)
 {
 	LOG(LOG_DEBUG, "IN : note_switch_page()");
@@ -479,7 +491,11 @@ void note_switch_page(GtkNotebook *notebook, gpointer *page, guint page_num, gpo
 			gtk_notebook_set_current_page(GTK_NOTEBOOK(note_bar), 0);
 			gtk_notebook_set_current_page(GTK_NOTEBOOK(note_text), 0);
 
-			if(strcmp(gtk_entry_get_text(GTK_ENTRY(GTK_COMBO(combo_method)->entry)), _("Automatic Search")) != 0)
+			/* show_result_tree() also lands on this page; do not rewrite
+			 * the selector then, or File Search results get mislabelled
+			 * (and rendered through the dictionary branch). */
+			if(!bshowing_result &&
+			   (strcmp(gtk_entry_get_text(GTK_ENTRY(GTK_COMBO(combo_method)->entry)), _("Automatic Search")) != 0))
 				gtk_entry_set_text(GTK_ENTRY(GTK_COMBO(combo_method)->entry), _("Automatic Search"));
 			break;
 

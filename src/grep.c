@@ -123,6 +123,9 @@ void remember_line(gchar *file, gint page, gint line, gint offset, gchar *headin
 	case KCODE_SJIS:
 		tmp = iconv_convert2("Shift_JIS", "utf-8", p);
 		break;
+	case KCODE_UTF8:
+		tmp = g_strdup(p);
+		break;
 	case KCODE_ASCII:
 		tmp = remove_non_ascii(heading);
 		break;
@@ -133,7 +136,8 @@ void remember_line(gchar *file, gint page, gint line, gint offset, gchar *headin
 		break;
 	}
 
-	rp->word = iconv_convert("euc-jp", "utf-8", word);
+	/* The search word is already UTF-8 (see start_search()). */
+	rp->word = g_strdup(word);
 
 	// Extract 10 characters before/ after keyword
 
@@ -185,8 +189,86 @@ enum {
 
 BMH_TABLE *bmh_euc[EBOOK_MAX_KEYWORDS];
 BMH_TABLE *bmh_sjis[EBOOK_MAX_KEYWORDS];
+BMH_TABLE *bmh_utf8[EBOOK_MAX_KEYWORDS];
 REG_TABLE *reg_euc=NULL;
 REG_TABLE *reg_sjis=NULL;
+REG_TABLE *reg_utf8=NULL;
+
+/* A valid UTF-8 stream containing non-ASCII bytes cannot also be a valid
+ * EUC-JP / Shift_JIS stream, so check for UTF-8 before the legacy
+ * guess_kanji() heuristic.  Pure ASCII stays on the legacy path. */
+static gint detect_code(const gchar *contents)
+{
+	const gchar *p;
+
+	if(contents == NULL)
+		return(KCODE_UNKNOWN);
+	if(g_utf8_validate(contents, -1, NULL)){
+		for(p = contents; *p != '\0'; p++)
+			if((guchar)*p >= 0x80)
+				return(KCODE_UTF8);
+	}
+	return(guess_kanji(max_bytes_to_guess, (guchar *)contents));
+}
+
+/* Directories that hold generated or third-party data, never prose. */
+static gboolean grep_skip_dir(const gchar *name)
+{
+	static const gchar *skip[] = {
+		".git", ".svn", ".hg", "node_modules", "__pycache__",
+		"CMakeFiles", "build", "dist", "target", "Cache", NULL
+	};
+	guint i;
+
+	for(i = 0; skip[i] != NULL; i++)
+		if(strcmp(name, skip[i]) == 0)
+			return(TRUE);
+	return(FALSE);
+}
+
+#define MAX_GREP_FILE_SIZE (2 * 1024 * 1024)
+#define MAX_GREP_DEPTH 32
+
+/* Reject oversized and binary files before they are read into memory. */
+static gboolean grep_acceptable_file(const gchar *path)
+{
+	struct stat st;
+	FILE *fp;
+	guchar buf[1024];
+	size_t n;
+
+	if(stat(path, &st) != 0 || !S_ISREG(st.st_mode))
+		return(FALSE);
+	if(st.st_size > MAX_GREP_FILE_SIZE)
+		return(FALSE);
+	fp = fopen(path, "rb");
+	if(fp == NULL)
+		return(FALSE);
+	n = fread(buf, 1, sizeof(buf), fp);
+	fclose(fp);
+	if(memchr(buf, '\0', n) != NULL)
+		return(FALSE);
+	return(TRUE);
+}
+
+/* Convert the UTF-8 search word for a legacy-encoded matcher.  g_convert()
+ * reports failures through GError instead of logging CRITICAL: a modal
+ * dialog at that point deadlocks against the search progress dialog, which
+ * owns a GTK grab.  Characters outside the target charset simply disable
+ * that matcher; UTF-8 files are still covered by bmh_utf8/reg_utf8. */
+static gchar *grep_convert_word(const gchar *word, const gchar *to_code)
+{
+	GError *error = NULL;
+	gchar *result = g_convert(word, -1, to_code, "utf-8", NULL, NULL, &error);
+
+	if(result == NULL){
+		LOG(LOG_INFO, "grep: no %s matcher for this word: %s",
+		    to_code, error ? error->message : "unknown error");
+		if(error)
+			g_error_free(error);
+	}
+	return(result);
+}
 
 void grep_file(gchar *file, gchar *word, gint method){
 	gchar *contents;
@@ -215,7 +297,7 @@ void grep_file(gchar *file, gchar *word, gint method){
 
 	// For higher performance, specially handle EUC and SJIS
 
-	code = guess_kanji(max_bytes_to_guess, contents);
+	code = detect_code(contents);
 
 	switch(code){
 		gchar *tmp;
@@ -246,6 +328,13 @@ void grep_file(gchar *file, gchar *word, gint method){
 		reg = reg_sjis;
 		break;
 
+	case KCODE_UTF8:
+		push_message(" (UTF-8)");
+		LOG(LOG_DEBUG, "UTF-8");
+		bmh = bmh_utf8;
+		reg = reg_utf8;
+		break;
+
 	case KCODE_ASCII:
 		push_message(" (ASCII)");
 		LOG(LOG_DEBUG, "ASCII");
@@ -259,6 +348,14 @@ void grep_file(gchar *file, gchar *word, gint method){
 		g_free(contents);
 		return;
 		break;
+	}
+
+	/* A pattern outside JIS X 0208 has no EUC-JP/Shift_JIS matcher; skip
+	 * those files instead of handing NULL to regex_search(). */
+	if((method == METHOD_REGEX) && (reg == NULL)){
+		push_message(" (pattern unsupported) ... skipped.");
+		g_free(contents);
+		return;
 	}
 
 	push_message(" ... ");
@@ -360,6 +457,13 @@ static void list_file_recursive(gchar *dirname, gint depth, gchar *pat)
 	}
 
 	while((name = g_dir_read_name(dir)) != NULL){
+		/* Skip dot files when the option says so, plus generated trees
+		 * that only produce noise and can be huge. */
+		if((name[0] == '.') && bsuppress_hidden_files)
+			continue;
+		if(grep_skip_dir(name))
+			continue;
+
 		if(strcmp(dirname,"/")==0){
 			sprintf(fullpath,"/%s",name);
 		} else if ((dirname[strlen(dirname) -1] == '\\') ||
@@ -370,6 +474,8 @@ static void list_file_recursive(gchar *dirname, gint depth, gchar *pat)
 		}
 
 		if(g_file_test(fullpath, G_FILE_TEST_IS_REGULAR) == TRUE){
+			if(!grep_acceptable_file(fullpath))
+				continue;
 			if(pat != NULL) {
 
 				// If it matches the pattern ?
@@ -381,7 +487,8 @@ static void list_file_recursive(gchar *dirname, gint depth, gchar *pat)
 			}
 
 		} else if(g_file_test(fullpath, G_FILE_TEST_IS_DIR) == TRUE){
-//			if(depth < 10)
+			/* Symlinked directories can form cycles. */
+			if(depth < MAX_GREP_DEPTH)
 				list_file_recursive(fullpath, depth+1, pat);
 		}
 	}
@@ -572,32 +679,51 @@ static void *grep_search_thread(void *arg)
 		push_message(_("Seems like ordinary text.\n"));
 	}
 
+	/* The search word is UTF-8 (see start_search()).  Derive one matcher
+	 * per target encoding; UTF-8 files are matched with the original. */
 	if(method == METHOD_BMH) {
 		for(i=0; i < EBOOK_MAX_KEYWORDS; i++) {
 			bmh_euc[i] = NULL;
 			bmh_sjis[i] = NULL;
+			bmh_utf8[i] = NULL;
 		}
 
 		split_word(l_word, keywords);
 		for(i=0, j=0; i < EBOOK_MAX_KEYWORDS; i++){
+			gchar *euc_word;
+
 			if(keywords[i] == NULL)
 				break;
 			if(keywords[i][0] != '\0'){
-				bmh_euc[j] = bmh_prepare(keywords[i], bignore_case);
-				sjis_word = iconv_convert("euc-jp", "Shift_JIS", keywords[i]);
-				bmh_sjis[j] = bmh_prepare(sjis_word, bignore_case);
+				euc_word = grep_convert_word(keywords[i], "euc-jp");
+				bmh_euc[j] = (euc_word && *euc_word)
+					     ? bmh_prepare((guchar *)euc_word, bignore_case)
+					     : NULL;
+				g_free(euc_word);
+				sjis_word = grep_convert_word(keywords[i], "Shift_JIS");
+				bmh_sjis[j] = (sjis_word && *sjis_word)
+					      ? bmh_prepare((guchar *)sjis_word, bignore_case)
+					      : NULL;
 				g_free(sjis_word);
+				bmh_utf8[j] = bmh_prepare((guchar *)keywords[i], bignore_case);
 				j++;
 			}
 		}
 		free_words(keywords);
 	}
 	else if (method == METHOD_REGEX) {
-		reg_euc = regex_prepare(l_word, bignore_case);
-		sjis_word = iconv_convert("euc-jp", "Shift_JIS", l_word);
-		reg_sjis = regex_prepare(sjis_word, bignore_case);
+		gchar *euc_word;
+
+		euc_word = grep_convert_word(l_word, "euc-jp");
+		reg_euc = (euc_word && *euc_word)
+			  ? regex_prepare((guchar *)euc_word, bignore_case) : NULL;
+		g_free(euc_word);
+		sjis_word = grep_convert_word(l_word, "Shift_JIS");
+		reg_sjis = (sjis_word && *sjis_word)
+			   ? regex_prepare((guchar *)sjis_word, bignore_case) : NULL;
 		g_free(sjis_word);
-		if((reg_euc == NULL) || (reg_sjis == NULL)){
+		reg_utf8 = regex_prepare((guchar *)l_word, bignore_case);
+		if(reg_utf8 == NULL){
 			push_message(_("Failed to compile pattern.\n"));
 			goto END;
 		}
@@ -645,11 +771,14 @@ static void *grep_search_thread(void *arg)
 				bmh_free(bmh_euc[i]);
 			if(bmh_sjis[i] != NULL) 
 				bmh_free(bmh_sjis[i]);
+			if(bmh_utf8[i] != NULL)
+				bmh_free(bmh_utf8[i]);
 		}
 	}
 	else if (method == METHOD_REGEX){
-		regex_free(reg_euc);
-		regex_free(reg_sjis);
+		if(reg_euc != NULL) regex_free(reg_euc);
+		if(reg_sjis != NULL) regex_free(reg_sjis);
+		if(reg_utf8 != NULL) regex_free(reg_utf8);
 	}
 
 	push_message(_("\nFile search completed.\n"));
@@ -696,7 +825,7 @@ void show_file(RESULT *rp)
 	if(contents == NULL)
 		return;
 
-	code = guess_kanji(max_bytes_to_guess, contents);
+	code = detect_code(contents);
 
 	switch(code){
 		gchar *tmp;
@@ -708,6 +837,8 @@ void show_file(RESULT *rp)
 		contents = tmp;
 		break;
 	case KCODE_SJIS:
+		break;
+	case KCODE_UTF8:
 		break;
 	case KCODE_ASCII:
 		break;
@@ -769,6 +900,9 @@ void show_file(RESULT *rp)
 
 	if(code == KCODE_SJIS){
 		utf_str = iconv_convert("Shift_JIS", "utf-8", segment);
+	} else if(code == KCODE_UTF8){
+		/* Already UTF-8; converting again would mojibake it. */
+		utf_str = g_strdup(segment);
 	} else {
 		utf_str = iconv_convert("euc-jp", "utf-8", segment);
 	}
@@ -802,6 +936,9 @@ void show_file(RESULT *rp)
 
 	gtk_text_buffer_delete_mark(text_buffer, mark);
 
+	/* Iterators are invalidated by any buffer modification; scrolling can
+	 * run main-loop handlers that insert text.  Re-acquire by line number. */
+	gtk_text_buffer_get_iter_at_line(text_buffer, &iter, line_no);
 
 	bol = gtk_text_iter_copy(&iter);
 	gtk_text_iter_forward_line(&iter);

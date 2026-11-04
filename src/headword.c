@@ -38,6 +38,10 @@ static GtkTreeViewColumn *dict_column;
 static GtkWidget *button_prev_hit;
 static GtkWidget *button_next_hit;
 static gint num_heading;
+
+/* Set while show_result_tree() switches notebook pages, so note_switch_page()
+ * knows the switch is programmatic and must not rewrite the method selector. */
+gboolean bshowing_result = FALSE;
 static 	GtkWidget *image_next;
 static 	GtkWidget *image_prev;
 
@@ -96,6 +100,7 @@ void show_result_tree()
 	gint i;
 	gchar buff[5];
 	gint heading_count;
+	gboolean is_grep;
 
 
 	LOG(LOG_DEBUG, "IN : show_result_tree()");
@@ -126,7 +131,15 @@ void show_result_tree()
 		return;
 	}
 
+	/* Switching to the result page fires note_switch_page(), which used to
+	 * rewrite the method selector to "Automatic Search".  Remember the
+	 * method first, and flag the switch so the selector is left alone. */
+	is_grep = (ebook_search_method() == SEARCH_METHOD_GREP);
+
+	bshowing_result = TRUE;
 	gtk_notebook_set_current_page(GTK_NOTEBOOK(note_tree), 0);
+	bshowing_result = FALSE;
+
 	gtk_adjustment_set_value(
 		gtk_scrolled_window_get_vadjustment(GTK_SCROLLED_WINDOW(tree_scroll)), 0);
 
@@ -136,7 +149,7 @@ void show_result_tree()
 
 	}
 
-	if(ebook_search_method() == SEARCH_METHOD_GREP)
+	if(is_grep)
 		goto GREP;
 
 
@@ -204,6 +217,8 @@ void show_result_tree()
 		}
 
 		rp = (RESULT *)(l->data);
+		if(rp->type != RESULT_TYPE_EB)
+			continue;
 
 		// Dictionary name is different than former result.
 

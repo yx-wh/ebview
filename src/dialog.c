@@ -137,6 +137,21 @@ void popup_error(char *message){
 
 extern GtkTextBuffer *text_buffer;
 
+/* Search workers run in pthreads and log their progress with push_message().
+ * GTK widgets must only be touched from the thread owning the main loop:
+ * inserting into a GtkTextBuffer off-thread invalidates iterators held by
+ * the UI and can crash it.  Queue the text for the main loop instead. */
+static gboolean push_message_idle(gpointer data)
+{
+	GtkTextIter iter;
+	gchar *str = data;
+
+	gtk_text_buffer_get_end_iter(text_buffer, &iter);
+	gtk_text_buffer_insert(text_buffer, &iter, str, -1);
+	g_free(str);
+	return(FALSE);
+}
+
 void push_message(gchar *str){
 	GtkTextIter iter;
 
@@ -145,9 +160,14 @@ void push_message(gchar *str){
 	return;
 #endif
 
+	if(!g_main_context_is_owner(g_main_context_default())){
+		g_idle_add(push_message_idle, g_strdup(str));
+		return;
+	}
+
 	gtk_text_buffer_get_end_iter(text_buffer, &iter);
 	gtk_text_buffer_insert(
-		text_buffer, &iter, 
+		text_buffer, &iter,
 		str, -1);
 }
 

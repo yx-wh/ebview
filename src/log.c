@@ -25,6 +25,7 @@
 #include "log.h"
 
 extern gint bstarting_up;
+extern gint thread_running;
 
 #define STDERR stderr
 
@@ -78,7 +79,9 @@ void log_func(const gchar *file, gint line, LOG_LEVEL level, const gchar *messag
 	// A broken dictionary can emit thousands of errors while rendering;
 	// show each source location at most once and cap the total, so modal
 	// dialogs can never monopolise the main loop and hang the UI.
-	if(level <= LOG_MESSAGE && !bstarting_up){
+	/* The search progress dialog owns a GTK grab; a modal dialog opened
+	 * during a search would never receive input and freeze the UI. */
+	if(level <= LOG_MESSAGE && !bstarting_up && !thread_running){
 		static GHashTable *popup_seen = NULL;
 		static guint popup_count = 0;
 		const guint MAX_ERROR_POPUPS = 5;
