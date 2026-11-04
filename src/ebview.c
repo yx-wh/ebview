@@ -106,12 +106,11 @@ static void sig_handler(int sig){
 	switch(sig){
 	case SIGTERM:
 	case SIGINT:
-		/* During start-up GTK is not ready and calling GTK/GLib from a
-		 * signal handler is not async-signal-safe either. */
-		if(bstarting_up)
-			_exit(128 + sig);
-		exit_program(NULL, NULL);
-		break;
+		/* GTK/GLib/pthread calls are not async-signal-safe. Calling
+		 * exit_program() here caused intermittent SIGSEGV on Ctrl+C /
+		 * SIGTERM. Normal quit (menu / window close) still goes through
+		 * exit_program() and saves preferences. */
+		_exit(128 + sig);
 	default:
 		break;
 	}
