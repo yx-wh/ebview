@@ -8,7 +8,7 @@ cmake --build build --parallel "$(nproc)"
 
 echo
 echo "Build finished: build/ebview"
-echo "Run without installing:"
-echo "  EBVIEW_DATADIR=\"$PWD/build/share/ebview\" ./build/ebview"
+echo "Run without installing (data dir is auto-detected):"
+echo "  ./build/ebview"
 echo "Or install system-wide:"
 echo "  sudo cmake --install build"

@@ -24,7 +24,7 @@
 | 字体度量 | `pango_xft_get_font_map()` + 裸 X11 `Display` | `pango_cairo_font_map_get_default()`，去掉 Xft 依赖 |
 | 外部程序默认值 | `gnome-moz-remote`、`plaympeg`、`playwave`、`emacs`（现代系统均已不存在） | `xdg-open` |
 | 首次运行复制配置 | `system("cp ...")`，路径含空格即出错且依赖 coreutils | GLib `g_file_get_contents` / `g_file_set_contents` |
-| 数据目录 | 写死 `configure --prefix` | 支持 `EBVIEW_DATADIR` 覆盖，可直接从构建目录运行 |
+| 数据目录 | 写死 `configure --prefix` | 自动探测可执行文件旁的数据目录，并支持 `EBVIEW_DATADIR` 覆盖 |
 | 安装集成 | Debian 补丁里手工维护 | `cmake --install` 安装二进制、数据、帮助文档、日语翻译、图标与 `.desktop` |
 | 构建入口 | `./autogen.sh && ./configure && make` | `./build.sh` |
 
@@ -68,7 +68,13 @@ sudo apt install build-essential cmake pkg-config \
 ./build.sh                       # 生成 build/
 ```
 
-免安装直接运行（推荐先这样试）：
+直接运行即可，程序会自动探测可执行文件旁的 `share/ebview`，无需安装：
+
+```sh
+./build/ebview
+```
+
+如需手动指定数据目录（例如移动过构建产物），仍可用 `EBVIEW_DATADIR` 覆盖：
 
 ```sh
 EBVIEW_DATADIR="$PWD/build/share/ebview" ./build/ebview
@@ -77,7 +83,7 @@ EBVIEW_DATADIR="$PWD/build/share/ebview" ./build/ebview
 或用真实 HOME 之外的隔离目录做测试：
 
 ```sh
-HOME=/tmp/ebview-home EBVIEW_DATADIR="$PWD/build/share/ebview" ./build/ebview
+HOME=/tmp/ebview-home ./build/ebview
 ```
 
 安装到系统：

@@ -98,6 +98,64 @@ struct pref_def prefs[] = {
 
 
 
+#ifndef __WIN32__
+/* Find the directory holding the bundled default configuration files.
+ *
+ * A plain `./build/ebview` used to fail because PACKAGEDIR points at the
+ * install prefix. Probe these locations in order instead:
+ *   1. $EBVIEW_DATADIR              (explicit override)
+ *   2. <exe-dir>/share/ebview      (CMake build tree)
+ *   3. <exe-dir>/../share/ebview  (relocated install prefix)
+ *   4. PACKAGEDIR                  (system-wide install, original behaviour)
+ * A candidate is only accepted when it really contains shortcut.xml.
+ */
+static gchar *locate_package_dir(void)
+{
+	const gchar *env_data_dir = g_getenv("EBVIEW_DATADIR");
+	gchar *exe_dir = NULL;
+	gchar *candidates[3];
+	gchar *result = NULL;
+	guint i;
+
+	if(env_data_dir && *env_data_dir)
+		return g_strdup(env_data_dir);
+
+#ifdef __linux__
+	{
+		gchar buf[512];
+		ssize_t n = readlink("/proc/self/exe", buf, sizeof(buf) - 1);
+		if(n > 0){
+			buf[n] = '\0';
+			exe_dir = g_path_get_dirname(buf);
+		}
+	}
+#endif
+	if(exe_dir == NULL)
+		exe_dir = g_path_get_dirname(exe_path ? exe_path : PACKAGE);
+
+	candidates[0] = g_build_filename(exe_dir, "share", "ebview", NULL);
+	candidates[1] = g_build_filename(exe_dir, "..", "share", "ebview", NULL);
+	candidates[2] = NULL;
+
+	for(i = 0; candidates[i] != NULL; i++){
+		gchar *probe = g_build_filename(candidates[i], "shortcut.xml", NULL);
+		if(g_file_test(probe, G_FILE_TEST_IS_REGULAR)){
+			result = g_strdup(candidates[i]);
+			g_free(probe);
+			break;
+		}
+		g_free(probe);
+	}
+	if(result == NULL)
+		result = g_strdup(PACKAGEDIR);
+
+	g_free(candidates[0]);
+	g_free(candidates[1]);
+	g_free(exe_dir);
+	return result;
+}
+#endif /* !__WIN32__ */
+
 void initialize_preference(){
 	gchar *home_dir;
 	GDir *dir;
@@ -284,13 +342,7 @@ void initialize_preference(){
 
 #else
 	home_dir = getenv("HOME");
-	/* Allow running from a build tree or a relocated install without
-	 * requiring a system-wide installation. */
-	{
-		const gchar *env_data_dir = g_getenv("EBVIEW_DATADIR");
-		package_dir = g_strdup(env_data_dir && *env_data_dir
-				       ? env_data_dir : PACKAGEDIR);
-	}
+	package_dir = locate_package_dir();
 
 	user_dir = g_strdup_printf("%s%s.%s", home_dir, DIR_DELIMITER, PACKAGE);
 	temp_dir = g_strdup_printf("%s%stmp", user_dir, DIR_DELIMITER);
