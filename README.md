@@ -111,6 +111,16 @@ sudo cmake --install build
 Debian 仓库中的 `edict-fpw` 等包提供可用的 EPWING 数据。
 支持同时挂载多本词典进行串刺搜索。
 
+## 菜单栏隐藏后怎么恢复
+
+菜单里可以关掉 `Menu Bar`，但关掉之后就没菜单可用了。任选一种方式恢复：
+
+- **`Ctrl+M`**：硬编码的切换快捷键，不依赖快捷键配置，任何状态下都可用。
+- **右键 / 中键点击正文区域 → `Display` → `Menu bar`**：弹出菜单里的这一项只负责显示，不会再隐藏。
+- **改配置**：先**完全退出程序**，再编辑 `~/.ebview/preference.xml`，把
+  `<show_menu_bar>0</show_menu_bar>` 改成 `1`。必须先退出，否则程序退出时
+  `save_preference()` 会把当前状态写回去，覆盖你的修改。
+
 ## 目录结构
 
 ```

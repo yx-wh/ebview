@@ -2260,7 +2260,10 @@ gint check_gaiji_size(BOOK_INFO *binfo, gint prefered_size){
 	}
 
 	if(size != prefered_size){
-		LOG(LOG_CRITICAL, "Cannot find %d dot gaiji. Use %d dot instead",
+		/* A missing larger font is a normal automatic fallback. Logging it
+		 * as CRITICAL used to pop up one modal dialog per gaiji from
+		 * inside the text-rendering path. */
+		LOG(LOG_INFO, "Cannot find %d dot gaiji. Use %d dot instead",
 			prefered_size, size);
 	}
 

@@ -555,6 +555,15 @@ static void style_set_event( GtkWidget *widget,
 
 static gint key_press_event(GtkWidget *widget, GdkEventKey *event){
 
+	/* Hard-wired escape hatch: hiding the menu bar also hides the only
+	 * menu item that can bring it back. Ctrl+M works regardless of the
+	 * shortcut configuration (it is not bound to anything else). */
+	if((event->state & GDK_CONTROL_MASK) &&
+	   (event->keyval == GDK_m || event->keyval == GDK_M)){
+		toggle_menu_bar();
+		return(TRUE);
+	}
+
 	if(entry_focus_in)
 		return(FALSE);
 

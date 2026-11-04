@@ -113,12 +113,11 @@ void popup_warning(char *message){
 
 	LOG(LOG_DEBUG, "IN : popup_warning");
 
-	strcpy(g_message, message);
-#if 0
-	g_idle_add(idle_warning, (gpointer)message);
-#else
-	idle_warning(NULL);
-#endif
+	strncpy(g_message, message, sizeof(g_message) - 1);
+	g_message[sizeof(g_message) - 1] = '\0';
+	/* Errors can be logged from a draw callback. Running a modal dialog
+	 * synchronously there re-enters GTK and may crash; defer it instead. */
+	g_idle_add(idle_warning, NULL);
 
 	LOG(LOG_DEBUG, "OUT : popup_warning");
 }
@@ -127,13 +126,10 @@ void popup_error(char *message){
 
 	LOG(LOG_DEBUG, "IN : popup_error");
 
-	strcpy(g_message, message);
-
-#if 0
-	g_idle_add(idle_error, (gpointer)message);
-#else
-	idle_error(NULL);
-#endif
+	strncpy(g_message, message, sizeof(g_message) - 1);
+	g_message[sizeof(g_message) - 1] = '\0';
+	/* See popup_warning(): never open a modal dialog from a draw callback. */
+	g_idle_add(idle_error, NULL);
 
 	LOG(LOG_DEBUG, "OUT : popup_error");
 }

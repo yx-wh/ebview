@@ -419,10 +419,16 @@ static void draw_gaiji(CANVAS *canvas, BOOK_INFO *binfo, TAG *tag, gchar *code)
 
 	pixbuf = load_xbm(binfo, code, &width, &height, color);
 
+	if(pixbuf == NULL){
+		/* The dictionary may not have the requested gaiji font at all.
+		 * Skip it instead of passing NULL to GTK, which used to crash. */
+		return;
+	}
+
 	gtk_text_buffer_insert_pixbuf(
 			canvas->buffer, canvas->iter,
 			pixbuf);
-	g_object_unref(G_OBJECT(pixbuf));
+	g_object_unref(pixbuf);
 
 	end_iter = *(canvas->iter);
 	start_iter = *(canvas->iter);
