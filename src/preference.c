@@ -58,8 +58,8 @@
 #define DEFAULT_WINDOW_WIDTH    670
 #define DEFAULT_WINDOW_HEIGHT   440
 
-#define PREF_DIALOG_WIDTH 640
-#define PREF_DIALOG_HEIGHT 480
+#define PREF_DIALOG_WIDTH 860
+#define PREF_DIALOG_HEIGHT 560
 
 extern gchar *exe_path;
 
@@ -599,6 +599,10 @@ void show_preference()
 
 	pref_dlg = gtk_dialog_new();
 	gtk_window_set_position(GTK_WINDOW(pref_dlg), GTK_WIN_POS_CENTER_ALWAYS);
+	/* Let the dialog grow with the screen/window instead of being locked to
+	 * the minimum size; the notebook pages expand with it. */
+	gtk_window_set_default_size(GTK_WINDOW(pref_dlg), 900, 620);
+	gtk_window_set_resizable(GTK_WINDOW(pref_dlg), TRUE);
 
 	g_signal_connect(G_OBJECT (pref_dlg), "delete_event",
 			 G_CALLBACK(delete_event), NULL);
