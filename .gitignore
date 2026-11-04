@@ -1,0 +1,8 @@
+build/
+*.o
+*.a
+*.mo
+
+# upstream/ is an external clone; keep its source snapshot, not its own
+# repository metadata (which would otherwise be committed as a gitlink).
+upstream/.git/

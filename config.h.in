@@ -1,0 +1,28 @@
+#ifndef EBVIEW_CONFIG_H
+#define EBVIEW_CONFIG_H
+
+#define PACKAGE "@PACKAGE@"
+#define PACKAGE_NAME "@PACKAGE_NAME@"
+#define PACKAGE_VERSION "@PROJECT_VERSION@"
+#define PACKAGE_STRING "@PACKAGE_STRING@"
+#define VERSION "@PROJECT_VERSION@"
+#define GETTEXT_PACKAGE "@GETTEXT_PACKAGE@"
+
+#define LOCALEDIR "@LOCALEDIR@"
+#define PACKAGEDIR "@PACKAGEDIR@"
+
+#cmakedefine HAVE_UNISTD_H 1
+#cmakedefine HAVE_FCNTL_H 1
+#cmakedefine HAVE_SYS_IOCTL_H 1
+#cmakedefine HAVE_SYS_TIME_H 1
+#cmakedefine HAVE_ICONV_H 1
+#cmakedefine HAVE_LIBINTL_H 1
+#cmakedefine HAVE_DIRENT_H 1
+
+#define HAVE_STRDUP 1
+#define HAVE_STRTOL 1
+#define HAVE_MKDIR 1
+#define HAVE_SELECT 1
+#define STDC_HEADERS 1
+
+#endif /* EBVIEW_CONFIG_H */

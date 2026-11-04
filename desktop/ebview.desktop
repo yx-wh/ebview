@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=EBView
+GenericName=EPWING Dictionary Viewer
+Comment=Search EPWING CD-ROM dictionaries
+Exec=ebview
+Icon=ebview
+Terminal=false
+Categories=Education;Utility;Office;
+Keywords=dictionary;EPWING;Japanese;
