@@ -2253,7 +2253,7 @@ gint check_gaiji_size(BOOK_INFO *binfo, gint prefered_size){
 			size = 16;
 			break;
 		}
-		LOG(LOG_CRITICAL, "Failed to find 16 dot gaiji : subbook=%s",
+		LOG(LOG_INFO, "Failed to find 16 dot gaiji : subbook=%s",
 			binfo->subbook_title);
 		return(-1);
 
@@ -2444,6 +2444,12 @@ static gchar **ebook_bitmap_to_xpm(const gchar *bitmap, gint width, gint height,
 }
 
 
+/* Both read_gaiji_as_bitmap() and read_gaiji_as_xpm() used to report missing
+ * font data as CRITICAL.  A subbook may declare fonts it does not actually
+ * provide, so a single article can fail once per gaiji; every failure queued
+ * a modal dialog from the rendering path and left the UI unresponsive.
+ * These are data deficiencies, not program errors: render.c already skips a
+ * NULL bitmap gracefully.  Keep them at LOG_INFO (silent by default). */
 gchar **read_gaiji_as_xpm(BOOK_INFO *binfo, gchar *name, gint size, gint *width, gint *height, gchar *color)
 {
 	EB_Error_Code error_code = EB_SUCCESS;
@@ -2477,7 +2483,7 @@ gchar **read_gaiji_as_xpm(BOOK_INFO *binfo, gchar *name, gint size, gint *width,
 	}
 
 	if (error_code != EB_SUCCESS) {
-		LOG(LOG_CRITICAL, "Failed to set font : subbook=%s\n%s",
+		LOG(LOG_INFO, "Failed to set font : subbook=%s\n%s",
 			binfo->subbook_title, 
 			ebook_error_message(error_code));
 				return(NULL);
@@ -2486,7 +2492,7 @@ gchar **read_gaiji_as_xpm(BOOK_INFO *binfo, gchar *name, gint size, gint *width,
 
 	error_code = eb_font_height(binfo->book, &image_height);
 	if (error_code != EB_SUCCESS) {
-		LOG(LOG_CRITICAL, "Failed to get font height : subbook=%s\n%s",
+		LOG(LOG_INFO, "Failed to get font height : subbook=%s\n%s",
 			binfo->subbook_title, 
 			ebook_error_message(error_code));
 		return(NULL);
@@ -2495,13 +2501,13 @@ gchar **read_gaiji_as_xpm(BOOK_INFO *binfo, gchar *name, gint size, gint *width,
 	
 	if(name[0] == 'h'){
 		if (!eb_have_narrow_font(binfo->book)){
-			LOG(LOG_CRITICAL, "%s does not have narrow font",
+			LOG(LOG_INFO, "%s does not have narrow font",
 				binfo->subbook_title);
 			return(NULL);
 		}
 		error_code = eb_narrow_font_width(binfo->book, &image_width);
 		if (error_code != EB_SUCCESS) {
-			LOG(LOG_CRITICAL, "Failed to get font width : subbook=%s\n%s",
+			LOG(LOG_INFO, "Failed to get font width : subbook=%s\n%s",
 				binfo->subbook_title, 
 				ebook_error_message(error_code));
 			return(NULL);
@@ -2511,7 +2517,7 @@ gchar **read_gaiji_as_xpm(BOOK_INFO *binfo, gchar *name, gint size, gint *width,
 			char_no,
 			bitmap_data);
 		if (error_code != EB_SUCCESS) {
-			LOG(LOG_CRITICAL, "Failed to read narrow font : subbook=%s, character=0x%04x\n%s",
+			LOG(LOG_INFO, "Failed to read narrow font : subbook=%s, character=0x%04x\n%s",
 				binfo->subbook_title, 
 				char_no,
 				ebook_error_message(error_code));
@@ -2520,13 +2526,13 @@ gchar **read_gaiji_as_xpm(BOOK_INFO *binfo, gchar *name, gint size, gint *width,
 		}
 	} else {
 		if (!eb_have_wide_font(binfo->book)){
-			LOG(LOG_CRITICAL, "%s does not have wide font",
+			LOG(LOG_INFO, "%s does not have wide font",
 				binfo->subbook_title);
 			return(NULL);
 		}
 		error_code = eb_wide_font_width(binfo->book, &image_width);
 		if (error_code != EB_SUCCESS) {
-			LOG(LOG_CRITICAL, "Failed to get font width : subbook=%s\n%s",
+			LOG(LOG_INFO, "Failed to get font width : subbook=%s\n%s",
 				binfo->subbook_title, 
 				ebook_error_message(error_code));
 			return(NULL);
@@ -2536,7 +2542,7 @@ gchar **read_gaiji_as_xpm(BOOK_INFO *binfo, gchar *name, gint size, gint *width,
 			char_no,
 			bitmap_data);
 		if (error_code != EB_SUCCESS) {
-			LOG(LOG_CRITICAL, "Failed to read wide font : subbook=%s, character=0x%04x\n%s",
+			LOG(LOG_INFO, "Failed to read wide font : subbook=%s, character=0x%04x\n%s",
 				binfo->subbook_title, 
 				char_no,
 				ebook_error_message(error_code));

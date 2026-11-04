@@ -75,22 +75,26 @@ void log_func(const gchar *file, gint line, LOG_LEVEL level, const gchar *messag
 
 	// Show dialog box. During start-up the main window does not exist yet,
 	// so a modal dialog here would block (or crash) before gtk_main().
-	// A single dictionary can emit thousands of identical errors while
-	// rendering; show each source location at most once so we never queue
-	// a storm of modal dialogs (which used to hang and exhaust memory).
+	// A broken dictionary can emit thousands of errors while rendering;
+	// show each source location at most once and cap the total, so modal
+	// dialogs can never monopolise the main loop and hang the UI.
 	if(level <= LOG_MESSAGE && !bstarting_up){
 		static GHashTable *popup_seen = NULL;
+		static guint popup_count = 0;
+		const guint MAX_ERROR_POPUPS = 5;
 		gchar *key;
 
 		if(popup_seen == NULL)
 			popup_seen = g_hash_table_new_full(g_str_hash, g_str_equal,
 							   g_free, NULL);
 		key = g_strdup_printf("%s:%d", file, line);
-		if(g_hash_table_contains(popup_seen, key)){
+		if(g_hash_table_contains(popup_seen, key) ||
+		   popup_count >= MAX_ERROR_POPUPS){
 			g_free(key);
 			return;
 		}
 		g_hash_table_add(popup_seen, key);
+		popup_count++;
 
 		va_start(ap, message);
 		vsprintf(str, message, ap);
