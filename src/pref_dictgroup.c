@@ -1464,9 +1464,12 @@ GtkWidget *pref_start_dictgroup()
 	// 右半分
 
 	frame = gtk_frame_new(NULL);
+	/* Keep the right-hand details pane wide enough for dictionary paths;
+	 * the tree on the left keeps the remaining (expandable) space. */
+	gtk_widget_set_size_request(frame, 320, -1);
 	gtk_box_pack_start (GTK_BOX(hbox)
 			    , frame,TRUE, TRUE, 0);
-	
+
 	vbox_r = gtk_vbox_new(FALSE,5);
 	gtk_container_set_border_width(GTK_CONTAINER(vbox_r), 5);
 	gtk_container_add(GTK_CONTAINER(frame), vbox_r);
@@ -1484,15 +1487,17 @@ GtkWidget *pref_start_dictgroup()
 	gtk_box_pack_start (GTK_BOX(vbox_r), label,
 			    FALSE, FALSE, 0);
 
-	/* This is display-only. A GtkEntry truncated long dictionary paths;
-	 * a wrapping, selectable label shows the whole path and allows copy. */
+	/* Read-only display. A bare wrapping GtkLabel under-negotiates its
+	 * height in GTK2 boxes and clipped the middle lines of long paths;
+	 * give it an explicit minimum box so all wrapped lines are drawn. */
 	label_book_path = gtk_label_new(NULL);
 	gtk_label_set_line_wrap(GTK_LABEL(label_book_path), TRUE);
 	/* Paths contain no spaces, so WORD wrap alone would not break them. */
 	gtk_label_set_line_wrap_mode(GTK_LABEL(label_book_path),
 				    PANGO_WRAP_WORD_CHAR);
 	gtk_label_set_selectable(GTK_LABEL(label_book_path), TRUE);
-	gtk_misc_set_alignment(GTK_MISC(label_book_path), 0.0, 0.5);
+	gtk_misc_set_alignment(GTK_MISC(label_book_path), 0.0, 0.0);
+	gtk_widget_set_size_request(label_book_path, 300, 80);
 	gtk_box_pack_start (GTK_BOX(vbox_r), label_book_path,
 			    FALSE, FALSE, 0);
 
