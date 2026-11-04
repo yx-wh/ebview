@@ -38,10 +38,6 @@ static GtkTreeViewColumn *dict_column;
 static GtkWidget *button_prev_hit;
 static GtkWidget *button_next_hit;
 static gint num_heading;
-
-/* Set while show_result_tree() switches notebook pages, so note_switch_page()
- * knows the switch is programmatic and must not rewrite the method selector. */
-gboolean bshowing_result = FALSE;
 static 	GtkWidget *image_next;
 static 	GtkWidget *image_prev;
 
@@ -136,9 +132,7 @@ void show_result_tree()
 	 * method first, and flag the switch so the selector is left alone. */
 	is_grep = (ebook_search_method() == SEARCH_METHOD_GREP);
 
-	bshowing_result = TRUE;
 	gtk_notebook_set_current_page(GTK_NOTEBOOK(note_tree), 0);
-	bshowing_result = FALSE;
 
 	gtk_adjustment_set_value(
 		gtk_scrolled_window_get_vadjustment(GTK_SCROLLED_WINDOW(tree_scroll)), 0);
