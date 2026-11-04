@@ -192,7 +192,7 @@ gboolean save_preference()
 
 	sprintf(filename, "%s%s%s", user_dir, DIR_DELIMITER, FILENAME_PREFERENCE);
 	doc = xml_doc_new();
-	doc->encoding = strdup("euc-jp");
+	doc->encoding = strdup("utf-8");
 	doc->version = strdup("1.0");
 
 	xpreference = xml_add_child(doc->root, "preference", NULL);
@@ -441,7 +441,7 @@ gboolean save_dictgroup()
 	sprintf(filename, "%s%s%s", user_dir, DIR_DELIMITER, FILENAME_DICTGROUP);
 
 	doc = xml_doc_new();
-	doc->encoding = strdup("euc-jp");
+	doc->encoding = strdup("utf-8");
 	doc->version = strdup("1.0");
 
 	xdictgroup = xml_add_child(doc->root, "dictgroup", NULL);
@@ -725,7 +725,7 @@ gboolean save_stemming_en()
 	sprintf(filename, "%s%s%s", user_dir, DIR_DELIMITER, FILENAME_STEMMING_EN);
 
 	doc = xml_doc_new();
-	doc->encoding = strdup("euc-jp");
+	doc->encoding = strdup("utf-8");
 	doc->version = strdup("1.0");
 
 	xending = xml_add_child(doc->root, "endinglist", NULL);
@@ -777,7 +777,7 @@ gboolean save_stemming_ja()
 	sprintf(filename, "%s%s%s", user_dir, DIR_DELIMITER, FILENAME_STEMMING_JA);
 
 	doc = xml_doc_new();
-	doc->encoding = strdup("euc-jp");
+	doc->encoding = strdup("utf-8");
 	doc->version = strdup("1.0");
 
 	xending = xml_add_child(doc->root, "endinglist", NULL);
@@ -974,7 +974,7 @@ gboolean save_weblist()
 	sprintf(filename, "%s%s%s", user_dir, DIR_DELIMITER, FILENAME_WEBLIST);
 
 	doc = xml_doc_new();
-	doc->encoding = strdup("euc-jp");
+	doc->encoding = strdup("utf-8");
 	doc->version = strdup("1.0");
 
 	xsearchengine = xml_add_child(doc->root, "searchengine", NULL);
@@ -1178,7 +1178,7 @@ gboolean save_shortcut()
 	sprintf(filename, "%s%s%s", user_dir, DIR_DELIMITER, FILENAME_SHORTCUT);
 
 	doc = xml_doc_new();
-	doc->encoding = strdup("euc-jp");
+	doc->encoding = strdup("utf-8");
 	doc->version = strdup("1.0");
 
 	xshortcutdef = xml_add_child(doc->root, "shortcutdef", NULL);
@@ -1224,7 +1224,7 @@ gboolean save_history()
 	sprintf(filename, "%s%s%s", user_dir, DIR_DELIMITER, FILENAME_HISTORY);
 
 	doc = xml_doc_new();
-	doc->encoding = strdup("euc-jp");
+	doc->encoding = strdup("utf-8");
 	doc->version = strdup("1.0");
 
 	xword = xml_add_child(doc->root, "word", NULL);
@@ -1310,7 +1310,7 @@ gboolean save_dirlist()
 	sprintf(filename, "%s%s%s", user_dir, DIR_DELIMITER, FILENAME_DIRLIST);
 
 	doc = xml_doc_new();
-	doc->encoding = strdup("euc-jp");
+	doc->encoding = strdup("utf-8");
 	doc->version = strdup("1.0");
 
 
@@ -1504,7 +1504,7 @@ gboolean save_filter()
 	sprintf(filename, "%s%s%s", user_dir, DIR_DELIMITER, FILENAME_FILTER);
 
 	doc = xml_doc_new();
-	doc->encoding = strdup("euc-jp");
+	doc->encoding = strdup("utf-8");
 	doc->version = strdup("1.0");
 
 	xfilterdef = xml_add_child(doc->root, "filterdef", NULL);
@@ -1557,7 +1557,7 @@ gboolean save_dirgroup()
 	sprintf(filename, "%s%s%s", user_dir, DIR_DELIMITER, FILENAME_DIRGROUP);
 
 	doc = xml_doc_new();
-	doc->encoding = strdup("euc-jp");
+	doc->encoding = strdup("utf-8");
 	doc->version = strdup("1.0");
 
 	xdirgroup = xml_add_child(doc->root, "dirgroup", NULL);
