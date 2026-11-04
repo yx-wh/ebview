@@ -316,8 +316,17 @@ void set_search_method(gint method)
 					      (method == SEARCH_METHOD_GREP) ? 1 : 0);
 
 	label = method_label(method);
-	if(label != NULL && combo_method != NULL)
-		gtk_entry_set_text(GTK_ENTRY(GTK_COMBO(combo_method)->entry), label);
+	if(combo_method != NULL){
+		if(label != NULL)
+			gtk_entry_set_text(GTK_ENTRY(GTK_COMBO(combo_method)->entry), label);
+
+		/* The three page-based methods have no dictionary search method to
+		 * choose, so hide the selector instead of showing a stale label. */
+		if(method_is_dictionary(method))
+			gtk_widget_show(combo_method);
+		else
+			gtk_widget_hide(combo_method);
+	}
 
 	if(handler_method != 0)
 		g_signal_handler_unblock(G_OBJECT(GTK_COMBO(combo_method)->entry),
@@ -876,9 +885,15 @@ GtkWidget *create_dict_window()
 	gtk_widget_set_size_request(GTK_WIDGET(combo_method), 150, 10);
 	gtk_editable_set_editable(GTK_EDITABLE(GTK_COMBO(combo_method)->entry), FALSE);
 
+	/* Only dictionary-style methods belong in this selector.  Multiword,
+	 * Internet and File Search each own a notebook page and their own input
+	 * widgets; they are entered from the tabs or the Search Method menu, and
+	 * this drop-down is hidden while one of them is active. */
 	for(i=0 ; ; i ++){
 		if(search_method[i].name == NULL)
 			break;
+		if(!method_is_dictionary(search_method[i].code))
+			continue;
 		method_list = g_list_append(method_list, search_method[i].name);
 	}
 	if(i != 0)
