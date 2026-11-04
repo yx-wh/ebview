@@ -50,6 +50,16 @@ void center_dialog(GtkWidget *window, GtkWidget *dialog){
 	
 }
 
+static void dialog_response(GtkWidget *dialog, gint response, gpointer data)
+{
+	gtk_widget_destroy(dialog);
+}
+
+static void dialog_destroyed(GtkWidget *dialog, gpointer data)
+{
+	active = FALSE;
+}
+
 gboolean idle_warning(gpointer data){
 	GtkWidget *dialog;
 	GtkWidget *parent;
@@ -70,9 +80,15 @@ gboolean idle_warning(gpointer data){
 					GTK_MESSAGE_WARNING,
 					GTK_BUTTONS_OK,
 					"%s", g_message);
-	gtk_dialog_run(GTK_DIALOG(dialog));
-	gtk_widget_destroy(dialog);
-	active  = FALSE;
+	/* Shown non-modally on purpose: gtk_dialog_run() starts a nested main
+	 * loop, and if anything else holds a GTK grab (the search progress
+	 * dialog does) that loop never receives input and the whole UI looks
+	 * frozen until killed.  Close still works normally. */
+	g_signal_connect(G_OBJECT(dialog), "response",
+			 G_CALLBACK(dialog_response), NULL);
+	g_signal_connect(G_OBJECT(dialog), "destroy",
+			 G_CALLBACK(dialog_destroyed), NULL);
+	gtk_widget_show(dialog);
 
  END:
 	LOG(LOG_DEBUG, "OUT : idle_warning");
@@ -100,9 +116,15 @@ gboolean idle_error(gpointer data){
 					GTK_BUTTONS_CLOSE,
 					"%s", g_message);
 					
-	gtk_dialog_run(GTK_DIALOG(dialog));
-	gtk_widget_destroy(dialog);
-	active  = FALSE;
+	/* Shown non-modally on purpose: gtk_dialog_run() starts a nested main
+	 * loop, and if anything else holds a GTK grab (the search progress
+	 * dialog does) that loop never receives input and the whole UI looks
+	 * frozen until killed.  Close still works normally. */
+	g_signal_connect(G_OBJECT(dialog), "response",
+			 G_CALLBACK(dialog_response), NULL);
+	g_signal_connect(G_OBJECT(dialog), "destroy",
+			 G_CALLBACK(dialog_destroyed), NULL);
+	gtk_widget_show(dialog);
 
  END:
 	LOG(LOG_DEBUG, "OUT : idle_error");
