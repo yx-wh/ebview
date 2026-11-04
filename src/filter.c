@@ -203,7 +203,7 @@ gchar *get_cache_file(gchar *path)
 
 	outfile = create_dir_hier(path);
 	if(outfile == NULL){
-		LOG(LOG_CRITICAL, "Failed to create cache for %s", path);
+		LOG(LOG_INFO, "Failed to create cache for %s", path);
 		push_message("failed to create cache.\n");
 		return(NULL);
 	}
@@ -211,7 +211,7 @@ gchar *get_cache_file(gchar *path)
 	r = stat(path, &istat);
 	if(r != 0) {
 		// Cannot happen.
-		LOG(LOG_CRITICAL, "file %s does not exist", path);
+		LOG(LOG_INFO, "file %s does not exist", path);
 		push_message("unknown error.\n");
 		g_free(command);
 		return(NULL);
@@ -238,7 +238,7 @@ gchar *get_cache_file(gchar *path)
 	} else {
 		if(unlink(outfile) != 0){
 			g_free(command);
-			LOG(LOG_CRITICAL, "Failed to unlink %s", outfile);
+			LOG(LOG_INFO, "Failed to unlink %s", outfile);
 			push_message("failed to unlink cache.\n");
 			return(NULL);
 		}
@@ -331,7 +331,7 @@ static void list_file_recursive(gchar *dirname, gint depth)
 
 	
 	if((dir = g_dir_open(dirname, 0, NULL)) == NULL){
-		LOG(LOG_CRITICAL, "Failed to open directory %s", dirname);
+		LOG(LOG_INFO, "Failed to open directory %s", dirname);
 		LOG(LOG_DEBUG, "OUT : list_file_recursive()");
 		return;
 	}
@@ -346,7 +346,7 @@ static void list_file_recursive(gchar *dirname, gint depth)
 		if(g_file_test(fullpath, G_FILE_TEST_IS_REGULAR) == TRUE){
 			r = stat(fullpath, &fstat);
 			if(r != 0){
-				LOG(LOG_CRITICAL, "Failed to stat file %s : %s", fullpath, strerror(errno));
+				LOG(LOG_INFO, "Failed to stat file %s : %s", fullpath, strerror(errno));
 				return;
 			}
 			cache = g_new(CACHE_INFO, 1);
