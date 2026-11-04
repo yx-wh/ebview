@@ -145,7 +145,7 @@ void push_message(gchar *str){
 	GtkTextIter iter;
 
 #ifdef __WIN32__
-	// Windows ¤À¤È¤Ê¤¼¤«»à¤Ì
+	// Windows ã ã¨ãªãœã‹æ­»ã¬
 	return;
 #endif
 

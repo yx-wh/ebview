@@ -1,15 +1,15 @@
 /*
- * »ÈÍÑÊıË¡:
+ * ä½¿ç”¨æ–¹æ³•:
  *     text <book-path> <subbook-index> <number>
- * Îã:
+ * ä¾‹:
  *     text /cdrom 0 10
- * ÀâÌÀ:
- *     <book-path> ¤Ç»ØÄê¤·¤¿ CD-ROM ½ñÀÒ¤«¤éÆÃÄê¤ÎÉûËÜ¤òÁª¤Ó¡¢ËÜÊ¸
- *     ¤ÎÀèÆ¬¤«¤é <number> ¸ÄÊ¬¤ÎÃ±¸ì¤ÎÀâÌÀ¤ò½ĞÎÏ¤·¤Ş¤¹¡£
+ * èª¬æ˜:
+ *     <book-path> ã§æŒ‡å®šã—ãŸ CD-ROM æ›¸ç±ã‹ã‚‰ç‰¹å®šã®å‰¯æœ¬ã‚’é¸ã³ã€æœ¬æ–‡
+ *     ã®å…ˆé ­ã‹ã‚‰ <number> å€‹åˆ†ã®å˜èªã®èª¬æ˜ã‚’å‡ºåŠ›ã—ã¾ã™ã€‚
  *
- *     <subbook-index> ¤Ë¤Ï¡¢¸¡º÷ÂĞ¾İ¤ÎÉûËÜ¤Î¥¤¥ó¥Ç¥Ã¥¯¥¹¤ò»ØÄê¤·¤Ş
- *     ¤¹¡£¥¤¥ó¥Ç¥Ã¥¯¥¹¤Ï¡¢½ñÀÒ¤ÎºÇ½é¤ÎÉûËÜ¤«¤é½ç¤Ë 0¡¢1¡¢2 ... ¤Ë
- *     ¤Ê¤ê¤Ş¤¹¡£
+ *     <subbook-index> ã«ã¯ã€æ¤œç´¢å¯¾è±¡ã®å‰¯æœ¬ã®ã‚¤ãƒ³ãƒ‡ãƒƒã‚¯ã‚¹ã‚’æŒ‡å®šã—ã¾
+ *     ã™ã€‚ã‚¤ãƒ³ãƒ‡ãƒƒã‚¯ã‚¹ã¯ã€æ›¸ç±ã®æœ€åˆã®å‰¯æœ¬ã‹ã‚‰é †ã« 0ã€1ã€2 ... ã«
+ *     ãªã‚Šã¾ã™ã€‚
  */
 #include "config.h"
 
@@ -55,7 +55,7 @@ char *argv[];
 	char *result;
 	int i;
 	
-	/* ¥³¥Ş¥ó¥É¹Ô°ú¿ô¤ò¥Á¥§¥Ã¥¯¡£*/
+	/* ã‚³ãƒãƒ³ãƒ‰è¡Œå¼•æ•°ã‚’ãƒã‚§ãƒƒã‚¯ã€‚*/
 	if (argc != 4) {
 		fprintf(stderr, "Usage: %s book-path subbook-index block-number\n",
 			argv[0]);
@@ -64,11 +64,11 @@ char *argv[];
 	
 	block_no = strtol(argv[3], NULL, 16);
 	
-	/* EB ¥é¥¤¥Ö¥é¥ê¤È `book' ¤ò½é´ü²½¡£*/
+	/* EB ãƒ©ã‚¤ãƒ–ãƒ©ãƒªã¨ `book' ã‚’åˆæœŸåŒ–ã€‚*/
 	eb_initialize_library();
 	eb_initialize_book(&book);
 	
-	/* ½ñÀÒ¤ò `book' ¤Ë·ë¤ÓÉÕ¤±¤ë¡£*/
+	/* æ›¸ç±ã‚’ `book' ã«çµã³ä»˜ã‘ã‚‹ã€‚*/
 	error_code = eb_bind(&book, argv[1]);
 	if (error_code != EB_SUCCESS) {
 		fprintf(stderr, "%s: failed to bind the book, %s: %s\n",
@@ -76,7 +76,7 @@ char *argv[];
 		goto die;
 	}
 	
-	/* ÉûËÜ¤Î°ìÍ÷¤ò¼èÆÀ¡£*/
+	/* å‰¯æœ¬ã®ä¸€è¦§ã‚’å–å¾—ã€‚*/
 	error_code = eb_subbook_list(&book, subbook_list, &subbook_count);
 	if (error_code != EB_SUCCESS) {
 		fprintf(stderr, "%s: failed to get the subbbook list, %s\n",
@@ -84,10 +84,10 @@ char *argv[];
 		goto die;
 	}
 	
-	/* ÉûËÜ¤Î¥¤¥ó¥Ç¥Ã¥¯¥¹¤ò¼èÆÀ¡£*/
+	/* å‰¯æœ¬ã®ã‚¤ãƒ³ãƒ‡ãƒƒã‚¯ã‚¹ã‚’å–å¾—ã€‚*/
 	subbook_index = atoi(argv[2]);
 	
-	/*¡Ö¸½ºß¤ÎÉûËÜ (current subbook)¡×¤òÀßÄê¡£*/
+	/*ã€Œç¾åœ¨ã®å‰¯æœ¬ (current subbook)ã€ã‚’è¨­å®šã€‚*/
 	if (eb_set_subbook(&book, subbook_list[subbook_index]) < 0) {
 		fprintf(stderr, "%s: failed to set the current subbook, %s\n",
 			argv[0], eb_error_message(error_code));
@@ -113,7 +113,7 @@ char *argv[];
 	
 	for( i = 0 ;  i < EB_SIZE_PAGE ; i=i+2){
 		
-                // ¥¢¥É¥ì¥¹¤òÉ½¼¨
+                // ã‚¢ãƒ‰ãƒ¬ã‚¹ã‚’è¡¨ç¤º
 		if((i % 16) == 0){
 			p_hex = hex_buff;
 			p_char = char_buff;
@@ -149,12 +149,12 @@ char *argv[];
 	
 	
         
-	/* ½ñÀÒ¤È EB ¥é¥¤¥Ö¥é¥ê¤ÎÍøÍÑ¤ò½ªÎ»¡£*/
+	/* æ›¸ç±ã¨ EB ãƒ©ã‚¤ãƒ–ãƒ©ãƒªã®åˆ©ç”¨ã‚’çµ‚äº†ã€‚*/
 	eb_finalize_book(&book);
 	eb_finalize_library();
 	exit(0);
 	
-	/* ¥¨¥é¡¼È¯À¸¤Ç½ªÎ»¤¹¤ë¤È¤­¤Î½èÍı¡£*/
+	/* ã‚¨ãƒ©ãƒ¼ç™ºç”Ÿã§çµ‚äº†ã™ã‚‹ã¨ãã®å‡¦ç†ã€‚*/
  die:
 	eb_finalize_book(&book);
 	eb_finalize_library();
