@@ -32,6 +32,7 @@ gint ebook_search(const char *g_word, gint method);
 gint ebook_search_auto(char *g_word, gint method);
 gint ebook_simple_search(BOOK_INFO *binfo, char *word, gint method, gchar *title);
 gint ebook_search_method();
+void ebook_set_search_method(gint method);
 
 gchar *ebook_get_heading(BOOK_INFO *binfo, int page, int offset);
 gchar *ebook_get_text(BOOK_INFO *binfo, int page, int offset);

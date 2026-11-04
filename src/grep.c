@@ -1156,7 +1156,7 @@ static gint dirgroup_changed (GtkWidget *combo){
 	    if((note_tree != NULL) && 
 	       ( ebook_search_method() == SEARCH_METHOD_GREP) &&
 	       (gtk_notebook_get_current_page(GTK_NOTEBOOK(note_tree)) != 3))
-			gtk_notebook_set_current_page(GTK_NOTEBOOK(note_tree), 3);
+			set_tree_page(3);
 
 		if(gtk_tree_model_get_iter_first(GTK_TREE_MODEL(dirgroup_store), &iter) == TRUE){
 			do { 

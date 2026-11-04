@@ -35,6 +35,9 @@ void show_dict(RESULT *result, gboolean bsave_history, gboolean breverse_keyword
 void toggle_auto();
 void toggle_popup();
 
+void set_search_method(gint method);
+void set_tree_page(gint page);
+
 void select_any_search();
 void select_exactword_search();
 void select_word_search();

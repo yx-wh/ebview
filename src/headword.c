@@ -127,12 +127,11 @@ void show_result_tree()
 		return;
 	}
 
-	/* Switching to the result page fires note_switch_page(), which used to
-	 * rewrite the method selector to "Automatic Search".  Remember the
-	 * method first, and flag the switch so the selector is left alone. */
+	/* Showing results must not change the search method: File Search stays
+	 * active while its hits are displayed on the dictionary page. */
 	is_grep = (ebook_search_method() == SEARCH_METHOD_GREP);
 
-	gtk_notebook_set_current_page(GTK_NOTEBOOK(note_tree), 0);
+	set_tree_page(0);
 
 	gtk_adjustment_set_value(
 		gtk_scrolled_window_get_vadjustment(GTK_SCROLLED_WINDOW(tree_scroll)), 0);
