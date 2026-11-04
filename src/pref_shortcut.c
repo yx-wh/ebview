@@ -61,7 +61,7 @@ static void shortcut_next_heading(void) { next_heading(NULL, NULL); }
 static void shortcut_previous_heading(void) { previous_heading(NULL, NULL); }
 
 struct _shortcut_command commands[] = {
-	{ N_("Toggle Menu Mar"), toggle_menu_bar},
+	{ N_("Toggle Menu Bar"), toggle_menu_bar},
 	{ N_("Toggle Status Bar"), toggle_status_bar},
 	{ N_("Toggle Dictionary Bar"), toggle_dict_bar},
 	{ N_("Switch Pane Direction"), switch_direction},
