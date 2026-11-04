@@ -22,6 +22,7 @@
 
 GtkWidget *create_main_menu();
 void toggle_menu_bar();
+void update_menu_accels(void);
 void show_menu_bar();
 void hide_menu_bar();
 

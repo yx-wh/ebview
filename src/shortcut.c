@@ -18,6 +18,7 @@
 #include "defs.h"
 #include "global.h"
 #include "shortcut.h"
+#include "mainmenu.h"
 
 #include <gdk/gdkkeysyms.h>
 
@@ -108,7 +109,80 @@ void install_shortcut(){
 		} while (gtk_tree_model_iter_next(GTK_TREE_MODEL(shortcut_store), &iter) == TRUE);
 	}
 
+	update_menu_accels();
+
 	LOG(LOG_DEBUG, "OUT : install_shortcut()");
+}
+
+/* Attach the key configured for a command to a menu item, so GTK renders it on
+ * the right-hand side of the entry.  Only the accel map entry is registered
+ * for display: key dispatch still goes through install_shortcut(), otherwise a
+ * shortcut would fire twice. */
+void apply_shortcut_to_menuitem(GtkWidget *item, void (*func)(void))
+{
+	GtkTreeIter iter;
+	guint state, keyval;
+	gchar *keystr;
+	struct _shortcut_command *command;
+	const gchar *label;
+	gchar *base, *tab, *new_label;
+
+	if(item == NULL || shortcut_store == NULL)
+		return;
+
+	label = gtk_menu_item_get_label(GTK_MENU_ITEM(item));
+	if(label == NULL)
+		return;
+
+	/* A previous call may have appended a key; start from the plain text. */
+	base = g_strdup(label);
+	tab = strchr(base, '\t');
+	if(tab != NULL)
+		*tab = '\0';
+
+	new_label = NULL;
+
+	if(gtk_tree_model_get_iter_first(GTK_TREE_MODEL(shortcut_store), &iter)){
+		do {
+			command = NULL;
+			keystr = NULL;
+			gtk_tree_model_get(GTK_TREE_MODEL(shortcut_store), &iter,
+					   SHORTCUT_STATE_COLUMN, &state,
+					   SHORTCUT_KEYVAL_COLUMN, &keyval,
+					   SHORTCUT_KEYSTR_COLUMN, &keystr,
+					   SHORTCUT_COMMAND_COLUMN, &command,
+					   -1);
+
+			if(command == NULL || command->func != func){
+				g_free(keystr);
+				continue;
+			}
+
+			/* Same rule as install_shortcut(): a bare Return is not
+			 * treated as a shortcut. */
+			if((state == 0) && (keyval == GDK_Return)){
+				g_free(keystr);
+				continue;
+			}
+
+			if(keystr != NULL && keystr[0] != '\0')
+				new_label = g_strdup_printf("%s\t%s", base, keystr);
+			g_free(keystr);
+			break;
+
+		} while(gtk_tree_model_iter_next(GTK_TREE_MODEL(shortcut_store), &iter));
+	}
+
+	/* GtkAccelLabel splits the text at the tab and right-aligns what follows,
+	 * which is how GTK renders accelerator hints in menus. */
+	if(new_label == NULL)
+		gtk_menu_item_set_label(GTK_MENU_ITEM(item), base);
+	else{
+		gtk_menu_item_set_label(GTK_MENU_ITEM(item), new_label);
+		g_free(new_label);
+	}
+
+	g_free(base);
 }
 
 void install_shortcut_old(){

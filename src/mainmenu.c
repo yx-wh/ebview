@@ -30,6 +30,7 @@
 #include "pref_io.h"
 #include "selection.h"
 #include "shortcut.h"
+#include "shortcutfunc.h"
 #include "statusbar.h"
 #include "textview.h"
 
@@ -47,6 +48,13 @@ static GtkWidget *menuitem_copyright;
 static GtkWidget *menuitem_fulltext;
 static GtkWidget *menuitem_internet;
 static GtkWidget *menuitem_grep;
+
+static GtkWidget *menuitem_exit;
+static GtkWidget *menuitem_usage;
+static GtkWidget *menuitem_increase;
+static GtkWidget *menuitem_decrease;
+static GtkWidget *menuitem_expand;
+static GtkWidget *menuitem_shrink;
 
 GtkWidget *display_menubar;
 GtkWidget *display_statusbar;
@@ -464,6 +472,47 @@ void change_search_menu(gint method)
 	LOG(LOG_DEBUG, "OUT : change_search_menu()");
 }
 
+/* Menu entries that correspond to an assignable command.  The accel path is
+ * what GTK looks the key up with when rendering the label, so each one must be
+ * stable and unique for the lifetime of the process. */
+static struct {
+	GtkWidget **item;
+	void (*func)(void);
+} menu_accels[] = {
+	{ &menuitem_exit,	quit },
+	{ &menuitem_usage,	show_usage },
+	{ &menuitem_increase,	increase_font_size },
+	{ &menuitem_decrease,	decrease_font_size },
+	{ &menuitem_expand,	expand_lines },
+	{ &menuitem_shrink,	shrink_lines },
+	{ &display_menubar,	toggle_menu_bar },
+	{ &display_dictbar,	toggle_dict_bar },
+	{ &display_statusbar,	toggle_status_bar },
+	{ &menuitem_automatic,	select_any_search },
+	{ &menuitem_exactword,	select_exactword_search },
+	{ &menuitem_word,	select_word_search },
+	{ &menuitem_endword,	select_endword_search },
+	{ &menuitem_keyword,	select_keyword_search },
+	{ &menuitem_multi,	select_multi_search },
+	{ &menuitem_fulltext,	select_fulltext_search },
+	{ &menuitem_internet,	select_internet_search },
+	{ &menuitem_grep,	select_grep_search },
+	{ NULL,			NULL }
+};
+
+/* Refresh the shortcut labels shown next to the menu entries.  Called after
+ * the shortcut table is loaded or edited. */
+void update_menu_accels(void)
+{
+	int i;
+
+	for(i=0 ; menu_accels[i].item != NULL ; i ++){
+		if(*(menu_accels[i].item) != NULL)
+			apply_shortcut_to_menuitem(*(menu_accels[i].item),
+						   menu_accels[i].func);
+	}
+}
+
 static GtkWidget *create_search_menu()
 {
 	GtkWidget *menu;
@@ -590,10 +639,10 @@ GtkWidget *create_main_menu()
 	// Program menu
 	menu = gtk_menu_new();
 
-	item = gtk_menu_item_new_with_label(_("Exit"));
-	gtk_menu_shell_append(GTK_MENU_SHELL(menu), item);
-	g_signal_connect(G_OBJECT(item), "activate",
-			 G_CALLBACK(menuitem_handler), 
+	menuitem_exit = gtk_menu_item_new_with_label(_("Exit"));
+	gtk_menu_shell_append(GTK_MENU_SHELL(menu), menuitem_exit);
+	g_signal_connect(G_OBJECT(menuitem_exit), "activate",
+			 G_CALLBACK(menuitem_handler),
 			 (gpointer)"file.exit");
 	item = gtk_menu_item_new_with_label(_("File"));
 	gtk_menu_item_set_submenu (GTK_MENU_ITEM (item), menu);
@@ -675,15 +724,15 @@ GtkWidget *create_main_menu()
 
 
 	// text size
-	item = gtk_menu_item_new_with_label(_("Increase Font Size"));	
-	gtk_menu_shell_append(GTK_MENU_SHELL(contents_menu), item);
-	g_signal_connect(G_OBJECT(item), "activate",
+	menuitem_increase = gtk_menu_item_new_with_label(_("Increase Font Size"));
+	gtk_menu_shell_append(GTK_MENU_SHELL(contents_menu), menuitem_increase);
+	g_signal_connect(G_OBJECT(menuitem_increase), "activate",
 			 G_CALLBACK(menuitem_handler),
 			 (gpointer)"view.increase");
 
-	item = gtk_menu_item_new_with_label(_("Decrease Font Size"));	
-	gtk_menu_shell_append(GTK_MENU_SHELL(contents_menu), item);
-	g_signal_connect(G_OBJECT(item), "activate",
+	menuitem_decrease = gtk_menu_item_new_with_label(_("Decrease Font Size"));
+	gtk_menu_shell_append(GTK_MENU_SHELL(contents_menu), menuitem_decrease);
+	g_signal_connect(G_OBJECT(menuitem_decrease), "activate",
 			 G_CALLBACK(menuitem_handler),
 			 (gpointer)"view.decrease");
 
@@ -692,15 +741,15 @@ GtkWidget *create_main_menu()
 	gtk_menu_shell_append(GTK_MENU_SHELL(contents_menu), item);
 
 	// Space between lines
-	item = gtk_menu_item_new_with_label(_("Expand Lines"));	
-	gtk_menu_shell_append(GTK_MENU_SHELL(contents_menu), item);
-	g_signal_connect(G_OBJECT(item), "activate",
+	menuitem_expand = gtk_menu_item_new_with_label(_("Expand Lines"));
+	gtk_menu_shell_append(GTK_MENU_SHELL(contents_menu), menuitem_expand);
+	g_signal_connect(G_OBJECT(menuitem_expand), "activate",
 			 G_CALLBACK(menuitem_handler),
 			 (gpointer)"view.expand");
 
-	item = gtk_menu_item_new_with_label(_("Shrink Lines"));	
-	gtk_menu_shell_append(GTK_MENU_SHELL(contents_menu), item);
-	g_signal_connect(G_OBJECT(item), "activate",
+	menuitem_shrink = gtk_menu_item_new_with_label(_("Shrink Lines"));
+	gtk_menu_shell_append(GTK_MENU_SHELL(contents_menu), menuitem_shrink);
+	g_signal_connect(G_OBJECT(menuitem_shrink), "activate",
 			 G_CALLBACK(menuitem_handler),
 			 (gpointer)"view.shrink");
 
@@ -985,9 +1034,9 @@ GtkWidget *create_main_menu()
 	// Help menu
 	menu = gtk_menu_new();
 
-	item = gtk_menu_item_new_with_label(_("Usage"));
-	gtk_menu_shell_append(GTK_MENU_SHELL(menu), item);
-	g_signal_connect(G_OBJECT(item), "activate",
+	menuitem_usage = gtk_menu_item_new_with_label(_("Usage"));
+	gtk_menu_shell_append(GTK_MENU_SHELL(menu), menuitem_usage);
+	g_signal_connect(G_OBJECT(menuitem_usage), "activate",
 			 G_CALLBACK(menuitem_handler),
 			 (gpointer)"help.usage");
 
@@ -1011,6 +1060,8 @@ GtkWidget *create_main_menu()
 
 
 	gtk_widget_show_all(menubar);
+
+	update_menu_accels();
 
 	LOG(LOG_DEBUG, "OUT : create_main_menu()");
 
