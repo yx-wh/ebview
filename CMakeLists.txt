@@ -5,6 +5,10 @@ project(ebview
     DESCRIPTION "EPWING CD-ROM dictionary viewer (modernized build)"
     LANGUAGES C)
 
+# Export build/compile_commands.json so clangd/IDE can resolve the
+# generated config.h and the GTK/GLib include paths.
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
 include(GNUInstallDirs)
 include(CheckIncludeFile)
 
@@ -131,3 +135,13 @@ message(STATUS "  GTK         : ${GTK2_VERSION}")
 message(STATUS "  EB library  : ${EB_LIBRARY}")
 message(STATUS "  Data dir    : ${PACKAGEDIR}")
 message(STATUS "  Run datadir : ${EBVIEW_RUN_DATADIR}")
+
+# clangd looks for compile_commands.json in the source tree itself, not in
+# build/. Mirror the generated database at the project root so IDE
+# diagnostics resolve config.h and the GTK/GLib headers out of the box.
+set(_db_link "${CMAKE_SOURCE_DIR}/compile_commands.json")
+if(IS_SYMLINK "${_db_link}" OR EXISTS "${_db_link}")
+    file(REMOVE "${_db_link}")
+endif()
+file(CREATE_LINK "${CMAKE_BINARY_DIR}/compile_commands.json" "${_db_link}"
+     SYMBOLIC RESULT _db_link_result)

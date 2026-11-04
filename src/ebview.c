@@ -75,12 +75,16 @@ void exit_program( GtkWidget *widget,
 
 	ebook_end();
 
-	gdk_window_get_root_origin(main_window->window, &window_x, &window_y);
-	window_width = main_window->allocation.width;
-	window_height = main_window->allocation.height;
+	/* main_window/note_tree only exist after create_main_window(); this
+	 * function can also be reached from a signal during start-up. */
+	if(main_window != NULL && note_tree != NULL){
+		gdk_window_get_root_origin(main_window->window, &window_x, &window_y);
+		window_width = main_window->allocation.width;
+		window_height = main_window->allocation.height;
 
-	tree_width = note_tree->allocation.width;
-	tree_height = note_tree->allocation.height;
+		tree_width = note_tree->allocation.width;
+		tree_height = note_tree->allocation.height;
+	}
 
 	save_preference();
 	gtk_main_quit ();
@@ -99,11 +103,13 @@ void exit_program( GtkWidget *widget,
 }
 
 static void sig_handler(int sig){
-	gint status;
-
 	switch(sig){
 	case SIGTERM:
 	case SIGINT:
+		/* During start-up GTK is not ready and calling GTK/GLib from a
+		 * signal handler is not async-signal-safe either. */
+		if(bstarting_up)
+			_exit(128 + sig);
 		exit_program(NULL, NULL);
 		break;
 	default:

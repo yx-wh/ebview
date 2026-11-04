@@ -154,10 +154,12 @@ static gint watch_thread(gpointer data){
 
 //	if(ebook_search_method() != SEARCH_METHOD_GREP)
 		select_first_item();
-	gtk_grab_remove(cancel_dialog);
-	gtk_widget_destroy(cancel_dialog);
-	cancel_dialog=NULL;
-	label_cancel=NULL;
+	if(cancel_dialog != NULL){
+		gtk_grab_remove(cancel_dialog);
+		gtk_widget_destroy(cancel_dialog);
+		cancel_dialog = NULL;
+	}
+	label_cancel = NULL;
 
 
 	pthread_mutex_destroy(&mutex);
@@ -172,7 +174,6 @@ void thread_search(gboolean cancelable, gchar *text, void *(*func)(void *), void
 {
 	gint rc;
 	pthread_attr_t thread_attr;
-	void *p;
 
 	LOG(LOG_DEBUG, "IN : thread_search(%s)", arg);
 
@@ -198,16 +199,9 @@ void thread_search(gboolean cancelable, gchar *text, void *(*func)(void *), void
 	LOG(LOG_DEBUG, "thread_created");
 	pthread_attr_destroy(&thread_attr);
 
-	if(cancelable == TRUE) {
-		tag_timeout = gtk_timeout_add(WATCH_INTERVAL, watch_thread, NULL);
-//		pthread_join(tid, &p);
-
-	} else {
-		pthread_join(tid, &p);
-		thread_running = 0;
-		show_result_tree();
-		select_first_item();
-	}
+	/* Always monitor from the GTK main loop. Joining the worker on the
+	 * main thread freezes the whole UI for the duration of the search. */
+	tag_timeout = gtk_timeout_add(WATCH_INTERVAL, watch_thread, NULL);
 
 	LOG(LOG_DEBUG, "OUT : thread_search()");
 

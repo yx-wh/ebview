@@ -24,6 +24,8 @@
 #include "dialog.h"
 #include "log.h"
 
+extern gint bstarting_up;
+
 #define STDERR stderr
 
 
@@ -67,12 +69,13 @@ void log_func(const gchar *file, gint line, LOG_LEVEL level, const gchar *messag
 		g_vprintf(format, ap);
 		va_end(ap);
 		g_printf("\n");
+		fflush(stdout);
 		//g_logv(G_LOG_DOMAIN, level, format, ap);
 	}
 
-	// Show dialog box.
-
-	if(level <= LOG_MESSAGE){
+	// Show dialog box. During start-up the main window does not exist yet,
+	// so a modal dialog here would block (or crash) before gtk_main().
+	if(level <= LOG_MESSAGE && !bstarting_up){
 		va_start(ap, message);
 		vsprintf(str, message, ap);
 		va_end(ap);

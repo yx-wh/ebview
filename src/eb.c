@@ -149,7 +149,8 @@ BOOK_INFO *load_book(const char *book_path, int subbook_no, gchar *appendix_path
 	error_code = eb_bind(binfo->book, 
 			     book_path);
 	if(error_code != EB_SUCCESS){
-		LOG(LOG_CRITICAL, "Failed to bind the book : %s",
+		LOG(LOG_CRITICAL, "Failed to bind the book '%s' : %s",
+			book_path ? book_path : "(null)",
 			ebook_error_message(error_code));
 		goto FAILED;
 	}
@@ -1578,11 +1579,14 @@ static void *ebook_search_thread(void *arg)
 				} else {
 					ebook_search2(word, &iter);
 				}
-				thread_end();
 				break;
 			}
 	       } while (gtk_tree_model_iter_next(GTK_TREE_MODEL(dict_store), &iter) == TRUE);
 	}
+
+	/* Always signal completion. Without an active dictionary the loop above
+	 * never reaches this, leaving the UI waiting forever. */
+	thread_end();
 
 	LOG(LOG_DEBUG, "OUT : ebook_search_thread()");
 
