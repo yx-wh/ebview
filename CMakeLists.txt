@@ -96,17 +96,22 @@ file(COPY "${CMAKE_CURRENT_SOURCE_DIR}/doc/ja" DESTINATION "${EBVIEW_RUN_DATADIR
 
 # Translations
 if(MSGFMT_EXECUTABLE)
-    set(_mo "${CMAKE_CURRENT_BINARY_DIR}/locale/ja/LC_MESSAGES/${GETTEXT_PACKAGE}.mo")
-    add_custom_command(OUTPUT "${_mo}"
-        COMMAND ${CMAKE_COMMAND} -E make_directory
-            "${CMAKE_CURRENT_BINARY_DIR}/locale/ja/LC_MESSAGES"
-        COMMAND ${MSGFMT_EXECUTABLE} -o "${_mo}"
-            "${CMAKE_CURRENT_SOURCE_DIR}/po/ja.po"
-        DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/po/ja.po"
-        COMMENT "Compiling Japanese translation")
-    add_custom_target(translations ALL DEPENDS "${_mo}")
-    install(FILES "${_mo}"
-        DESTINATION "${CMAKE_INSTALL_LOCALEDIR}/ja/LC_MESSAGES")
+    set(EBVIEW_LINGUAS ja zh_CN zh_TW)
+    set(_mos "")
+    foreach(_lang ${EBVIEW_LINGUAS})
+        set(_mo "${CMAKE_CURRENT_BINARY_DIR}/locale/${_lang}/LC_MESSAGES/${GETTEXT_PACKAGE}.mo")
+        add_custom_command(OUTPUT "${_mo}"
+            COMMAND ${CMAKE_COMMAND} -E make_directory
+                "${CMAKE_CURRENT_BINARY_DIR}/locale/${_lang}/LC_MESSAGES"
+            COMMAND ${MSGFMT_EXECUTABLE} -o "${_mo}"
+                "${CMAKE_CURRENT_SOURCE_DIR}/po/${_lang}.po"
+            DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/po/${_lang}.po"
+            COMMENT "Compiling ${_lang} translation")
+        list(APPEND _mos "${_mo}")
+        install(FILES "${_mo}"
+            DESTINATION "${CMAKE_INSTALL_LOCALEDIR}/${_lang}/LC_MESSAGES")
+    endforeach()
+    add_custom_target(translations ALL DEPENDS ${_mos})
 endif()
 
 install(TARGETS ebview RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})

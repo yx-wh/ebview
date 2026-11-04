@@ -346,7 +346,20 @@ int main( int   argc,
 #ifdef __WIN32__
 	bindtextdomain(PACKAGE,package_dir);
 #else
-	bindtextdomain(PACKAGE,LOCALEDIR);
+	/* An uninstalled build keeps its catalogues next to the binary
+	 * (build/locale/...), which LOCALEDIR would never point at.  Use that
+	 * directory when present so translations can be tested without
+	 * installing; installed builds have no such directory. */
+	{
+		gchar *exe_dir = g_path_get_dirname(exe_path);
+		gchar *locale_dir = g_build_filename(exe_dir, "locale", NULL);
+		if(g_file_test(locale_dir, G_FILE_TEST_IS_DIR))
+			bindtextdomain(PACKAGE, locale_dir);
+		else
+			bindtextdomain(PACKAGE, LOCALEDIR);
+		g_free(locale_dir);
+		g_free(exe_dir);
+	}
 #endif
 
 	bind_textdomain_codeset(PACKAGE, "UTF-8");

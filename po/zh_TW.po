@@ -1,0 +1,1236 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: EBView 0.1.6\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-11-05 12:00+0900\n"
+"PO-Revision-Date: 2026-11-05 12:00+0900\n"
+"Last-Translator: EBView contributors\n"
+"Language-Team: Traditional Chinese\n"
+"Language: zh_TW\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+
+msgid "Text"
+msgstr "文本"
+
+#: src/cellrendererebook.c:162
+msgid "Text to render"
+msgstr "要顯示的文本"
+
+#: src/cellrendererebook.c:170
+msgid "BookInfo"
+msgstr "書目資訊"
+
+#: src/cellrendererebook.c:171
+msgid "Book Information"
+msgstr "書目資訊"
+
+#: src/dictbar.c:246
+msgid "Push to enable this dictionary."
+msgstr "按此按鈕啟用該辭典。"
+
+#: src/dictbar.c:412
+msgid "Select dictionary group."
+msgstr "選擇辭典組。"
+
+#: src/dirtree.c:842
+msgid "Tick the checkbox (or Ctrl+click a row) to add a directory to the search scope."
+msgstr "勾選核取方塊（或按住 Ctrl 單擊某行）可將目錄加入檢索範圍。"
+
+#: src/dump.c:217 src/dump.c:356
+msgid "Close"
+msgstr "關閉"
+
+#: src/dump.c:229 src/dump.c:367
+msgid "page"
+msgstr "頁"
+
+#: src/dump.c:376
+msgid "offset"
+msgstr "偏移"
+
+#: src/eb.c:374 src/eb.c:441 src/mainmenu.c:478
+msgid "Automatic Search"
+msgstr "自動檢索"
+
+#: src/eb.c:379 src/eb.c:445 src/mainmenu.c:486
+msgid "Exactword Search"
+msgstr "完全一致檢索"
+
+#: src/eb.c:385 src/eb.c:449 src/mainmenu.c:492
+msgid "Forward Search"
+msgstr "前方一致檢索"
+
+#: src/eb.c:391 src/eb.c:453 src/mainmenu.c:499
+msgid "Backward Search"
+msgstr "後方一致檢索"
+
+#: src/eb.c:397 src/eb.c:457 src/mainmenu.c:506
+msgid "Keyword Search"
+msgstr "關鍵字檢索"
+
+#: src/eb.c:403 src/eb.c:461 src/mainmenu.c:513
+msgid "Multiword Search"
+msgstr "複合檢索"
+
+#: src/eb.c:422 src/eb.c:475
+msgid "Full Text Search"
+msgstr "全文檢索"
+
+#: src/eb.c:426 src/eb.c:479 src/mainmenu.c:547 src/preference.c:94
+msgid "Internet Search"
+msgstr "網路檢索"
+
+#: src/eb.c:430 src/eb.c:483 src/grep.c:77 src/mainmenu.c:554
+#: src/preference.c:88
+msgid "File Search"
+msgstr "檔案檢索"
+
+#: src/eb.c:1607 src/eb.c:1611
+msgid "Fulltext search"
+msgstr "全文檢索"
+
+#: src/ebview.c:361
+msgid "Loading ..."
+msgstr "正在載入……"
+
+#: src/external.c:35 src/external.c:43
+msgid "Failed to execute command. Please check setting."
+msgstr "命令執行失敗，請檢查設定。"
+
+#: src/external.c:164
+msgid "Web browser not set"
+msgstr "未設定瀏覽器"
+
+#: src/grep.c:549
+msgid "Listing files..."
+msgstr "正在列出檔案……"
+
+#: src/grep.c:563 src/grep.c:1155 src/grep.c:1292 src/grep.c:1319
+#: src/pref_io.c:1575 src/shortcutfunc.c:85 src/shortcutfunc.c:113
+#: src/shortcutfunc.c:189 src/shortcutfunc.c:234
+msgid "Manual Select"
+msgstr "手動選擇"
+
+#: src/grep.c:652
+msgid "done\n"
+msgstr "完成\n"
+
+#: src/grep.c:662
+msgid "Force ordinary text.\n"
+msgstr "強制按普通文本處理。\n"
+
+#: src/grep.c:667
+msgid "Seems like regular expression.\n"
+msgstr "看起來是正規表示式。\n"
+
+#: src/grep.c:674
+msgid "Force regular expression.\n"
+msgstr "強制按正規表示式處理。\n"
+
+#: src/grep.c:679
+msgid "Seems like ordinary text.\n"
+msgstr "看起來是普通文本。\n"
+
+#: src/grep.c:727
+msgid "Failed to compile pattern.\n"
+msgstr "正規表示式編譯失敗。\n"
+
+#: src/grep.c:734
+msgid "\nSearching following files...\n"
+msgstr "\n正在檢索以下檔案……\n"
+
+#: src/grep.c:784
+msgid "\nFile search completed.\n"
+msgstr "\n檔案檢索完成。\n"
+
+#: src/grep.c:1250
+msgid "Suppress Hidden Files"
+msgstr "隱藏點開頭的檔案"
+
+#: src/grep.c:1256
+msgid "Suppress files whose name start with dot."
+msgstr "隱藏檔名以點開頭的檔案。"
+
+#: src/grep.c:1258
+msgid "Ignore Case"
+msgstr "忽略大小寫"
+
+#: src/grep.c:1264
+msgid "When checked, uppercase letters and lowercase letters are regarded as identical."
+msgstr "勾選後，不區分大小寫字母。"
+
+#: src/headword.c:784
+msgid "Go to previous hit list."
+msgstr "跳到上一組命中。"
+
+#: src/headword.c:803
+msgid "Go to next hit list."
+msgstr "跳到下一組命中。"
+
+#: src/mainmenu.c:520
+msgid "Fulltext Search"
+msgstr "全文檢索"
+
+#: src/mainmenu.c:530
+msgid "Menu"
+msgstr "選單"
+
+#: src/mainmenu.c:537
+msgid "Copyright"
+msgstr "版權"
+
+#: src/mainmenu.c:593
+msgid "Exit"
+msgstr "退出"
+
+#: src/mainmenu.c:598
+msgid "File"
+msgstr "檔案"
+
+#: src/mainmenu.c:606
+msgid "Show/Hide"
+msgstr "顯示/隱藏"
+
+#: src/mainmenu.c:613
+msgid "Menu Bar"
+msgstr "選單列"
+
+#: src/mainmenu.c:622
+msgid "Dictionary Selection Bar"
+msgstr "辭典選擇列"
+
+#: src/mainmenu.c:631
+msgid "Status Bar"
+msgstr "狀態列"
+
+#: src/mainmenu.c:638
+msgid "Tree Pane Tab"
+msgstr "樹窗格標籤"
+
+#: src/mainmenu.c:649
+msgid "Contents"
+msgstr "正文"
+
+#: src/mainmenu.c:656
+msgid "Emphasize Keyword"
+msgstr "突出顯示關鍵字"
+
+#: src/mainmenu.c:664
+msgid "Show Image Inline"
+msgstr "內嵌顯示圖片"
+
+#: src/mainmenu.c:678 src/pref_shortcut.c:108
+msgid "Increase Font Size"
+msgstr "增大字號"
+
+#: src/mainmenu.c:684 src/pref_shortcut.c:109
+msgid "Decrease Font Size"
+msgstr "減小字號"
+
+#: src/mainmenu.c:695 src/pref_shortcut.c:110
+msgid "Expand Lines"
+msgstr "增加行距"
+
+#: src/mainmenu.c:701 src/pref_shortcut.c:111
+msgid "Shrink Lines"
+msgstr "減小行距"
+
+#: src/mainmenu.c:709
+msgid "Result List"
+msgstr "結果列表"
+
+#: src/mainmenu.c:716
+msgid "Sort By Dictionary"
+msgstr "按辭典排序"
+
+#: src/mainmenu.c:725
+msgid "Show Filename"
+msgstr "顯示檔名"
+
+#: src/mainmenu.c:740
+msgid "Pane Direction"
+msgstr "窗格方向"
+
+#: src/mainmenu.c:749
+msgid "Horizontal"
+msgstr "水平"
+
+#: src/mainmenu.c:762
+msgid "Vertical"
+msgstr "垂直"
+
+#: src/mainmenu.c:778
+msgid "Tab Position"
+msgstr "標籤位置"
+
+#: src/mainmenu.c:786
+msgid "Top"
+msgstr "頂部"
+
+#: src/mainmenu.c:796
+msgid "Bottom"
+msgstr "底部"
+
+#: src/mainmenu.c:806
+msgid "Left"
+msgstr "左側"
+
+#: src/mainmenu.c:816
+msgid "Right"
+msgstr "右側"
+
+#: src/mainmenu.c:826
+msgid "View"
+msgstr "檢視"
+
+#: src/mainmenu.c:834
+msgid "Search Method"
+msgstr "檢索方式"
+
+#: src/mainmenu.c:841
+msgid "Tools"
+msgstr "工具"
+
+#: src/mainmenu.c:896 src/preference.c:85
+msgid "Selection"
+msgstr "選區"
+
+#: src/mainmenu.c:904
+msgid "Do Nothing"
+msgstr "不操作"
+
+#: src/mainmenu.c:914
+msgid "Copy Only"
+msgstr "僅複製"
+
+#: src/mainmenu.c:924
+msgid "Search In Main Window"
+msgstr "在主視窗檢索"
+
+#: src/mainmenu.c:934
+msgid "Search In Main Window + Top"
+msgstr "在主視窗檢索並置頂"
+
+#: src/mainmenu.c:944
+msgid "Search In Popup"
+msgstr "在彈出視窗檢索"
+
+#: src/mainmenu.c:954
+msgid "Dump"
+msgstr "轉儲"
+
+#: src/mainmenu.c:961
+msgid "Hex Dump"
+msgstr "十六進位制轉儲"
+
+#: src/mainmenu.c:967
+msgid "Text Dump"
+msgstr "文本轉儲"
+
+#: src/mainmenu.c:978
+msgid "Options..."
+msgstr "選項……"
+
+#: src/mainmenu.c:988
+msgid "Usage"
+msgstr "使用方法"
+
+#: src/mainmenu.c:994
+msgid "Show EBView Home"
+msgstr "開啟 EBView 主頁"
+
+#: src/mainmenu.c:1000
+msgid "About"
+msgstr "關於"
+
+#: src/mainmenu.c:1007
+msgid "Help"
+msgstr "幫助"
+
+#: src/mainwindow.c:111
+msgid "This search method supports Japanese/English text only."
+msgstr "該檢索方式僅支援日文/英文。"
+
+#: src/mainwindow.c:113 src/websearch.c:107
+msgid "Please enter search word."
+msgstr "請輸入檢索詞。"
+
+#: src/mainwindow.c:129 src/selection.c:169 src/textview.c:84
+#: src/thread_search.c:64 src/thread_search.c:150
+msgid "No hit."
+msgstr "沒有命中。"
+
+#: src/mainwindow.c:401 src/misc.c:141
+#, c-format
+msgid "Couldn't find %s. Check installation."
+msgstr "找不到 %s，請檢查安裝。"
+
+#: src/mainwindow.c:440
+msgid "Help will be shown in external web browser."
+msgstr "幫助將用外部瀏覽器開啟。"
+
+#: src/mainwindow.c:835
+msgid "Search Word"
+msgstr "檢索詞"
+
+#: src/mainwindow.c:855
+msgid "Type word here. You can type multiple space-separated words for keyword search. For file search, specify words or regular expression."
+msgstr "在此輸入檢索詞。關鍵字檢索可輸入多個以空格分隔的詞；檔案檢索可指定詞或正規表示式。"
+
+#: src/mainwindow.c:871 src/multi.c:294
+msgid "Start search"
+msgstr "開始檢索"
+
+#: src/mainwindow.c:903
+msgid "Select search method."
+msgstr "選擇檢索方式。"
+
+#: src/mainwindow.c:929
+msgid "When enabled, X selection is searched automatically"
+msgstr "啟用後自動檢索 X 選區"
+
+#: src/mainwindow.c:947
+msgid "When enabled, result of X selection search will be shown in popup window"
+msgstr "啟用後，X 選區檢索的結果顯示在彈出視窗中"
+
+#: src/mainwindow.c:963
+msgid "Previous Item"
+msgstr "上一項"
+
+#: src/mainwindow.c:975
+msgid "Next Item"
+msgstr "下一項"
+
+#: src/mainwindow.c:990
+msgid "show next in history"
+msgstr "在歷史中前進"
+
+#: src/mainwindow.c:1001
+msgid "show previous in history"
+msgstr "在歷史中後退"
+
+#: src/mainwindow.c:1087
+msgid "Candidate"
+msgstr "候選"
+
+#: src/menu.c:70
+msgid "menu"
+msgstr "選單"
+
+#: src/menu.c:130
+msgid "copyright"
+msgstr "版權"
+
+#: src/misc.c:154
+#, c-format
+msgid "Couldn't read %s: %s"
+msgstr "無法讀取 %s：%s"
+
+#: src/misc.c:160
+#, c-format
+msgid "Couldn't write %s: %s"
+msgstr "無法寫入 %s：%s"
+
+#: src/misc.c:172
+#, c-format
+msgid "Couldn't open %s. Check installation."
+msgstr "無法開啟 %s，請檢查安裝。"
+
+#: src/multi.c:241 src/pref_color.c:238
+msgid "Keyword"
+msgstr "關鍵字"
+
+#: src/multi.c:283 src/multi.c:303
+msgid "Candidates"
+msgstr "候選"
+
+#: src/pref_color.c:95 src/pref_dictgroup.c:1159
+msgid "Choose Color"
+msgstr "選擇顏色"
+
+#: src/pref_color.c:220
+msgid "Link"
+msgstr "連結"
+
+#: src/pref_color.c:230 src/pref_color.c:248 src/pref_color.c:266
+#: src/pref_color.c:283 src/pref_color.c:301 src/pref_color.c:321
+#: src/pref_font.c:176 src/pref_font.c:193 src/pref_font.c:210
+#: src/pref_font.c:227
+msgid "Choose"
+msgstr "選擇"
+
+#: src/pref_color.c:256
+msgid "Sound"
+msgstr "聲音"
+
+#: src/pref_color.c:272
+msgid "Movie"
+msgstr "動畫"
+
+#: src/pref_color.c:290
+msgid "Emphasis"
+msgstr "強調"
+
+#: src/pref_color.c:310
+msgid "Reverse Background"
+msgstr "反色背景"
+
+#: src/pref_dictgroup.c:147 src/pref_dirgroup.c:132 src/pref_weblist.c:201
+msgid "Please select group."
+msgstr "請選擇辭典組。"
+
+#: src/pref_dictgroup.c:162 src/pref_dictgroup.c:314
+msgid "Failed to load dictionary."
+msgstr "辭典載入失敗。"
+
+#: src/pref_dictgroup.c:382 src/pref_dictgroup.c:502 src/pref_weblist.c:75
+#: src/pref_weblist.c:111
+msgid "Please select dictionary."
+msgstr "請選擇辭典。"
+
+#: src/pref_dictgroup.c:688
+msgid "Failed to get subbook directory."
+msgstr "獲取子書目錄失敗。"
+
+#: src/pref_dictgroup.c:697
+msgid "Failed to get title."
+msgstr "獲取標題失敗。"
+
+#: src/pref_dictgroup.c:720
+msgid "Failed to load book."
+msgstr "書籍載入失敗。"
+
+#: src/pref_dictgroup.c:846
+msgid "Please enter directory name"
+msgstr "請輸入目錄名"
+
+#: src/pref_dictgroup.c:898
+msgid "Please specify title."
+msgstr "請指定標題。"
+
+#: src/pref_dictgroup.c:904
+msgid "Please specify book path."
+msgstr "請指定書籍路徑。"
+
+#: src/pref_dictgroup.c:914
+msgid "Subbook number incorrect."
+msgstr "子書編號不正確。"
+
+#: src/pref_dictgroup.c:1069 src/pref_dictgroup.c:1071
+#: src/pref_dictgroup.c:1074 src/pref_dictgroup.c:1076
+#: src/pref_dictgroup.c:1122 src/pref_dictgroup.c:1124
+#: src/pref_dictgroup.c:1127 src/pref_dictgroup.c:1129
+#: src/pref_dictgroup.c:1199 src/pref_dictgroup.c:1537
+#, c-format
+msgid "Sample"
+msgstr "示例"
+
+#: src/pref_dictgroup.c:1285 src/pref_dictgroup.c:1478 src/pref_dirgroup.c:315
+#: src/pref_weblist.c:535
+msgid "Name"
+msgstr "名稱"
+
+#: src/pref_dictgroup.c:1387 src/pref_weblist.c:480
+msgid "Group name"
+msgstr "組名"
+
+#: src/pref_dictgroup.c:1397 src/pref_dirgroup.c:355 src/pref_grep.c:285
+#: src/pref_shortcut.c:446 src/pref_shortcut.c:538 src/pref_stemming.c:232
+#: src/pref_weblist.c:488 src/pref_weblist.c:613
+msgid "Add"
+msgstr "新增"
+
+#: src/pref_dictgroup.c:1404 src/pref_dirgroup.c:368 src/pref_grep.c:292
+#: src/pref_shortcut.c:427 src/pref_stemming.c:239 src/pref_weblist.c:499
+msgid "Remove"
+msgstr "刪除"
+
+#: src/pref_dictgroup.c:1411 src/pref_weblist.c:506
+msgid "Up"
+msgstr "上移"
+
+#: src/pref_dictgroup.c:1417 src/pref_weblist.c:512
+msgid "Down"
+msgstr "下移"
+
+#: src/pref_dictgroup.c:1428 src/pref_dictgroup.c:1486
+msgid "Path"
+msgstr "路徑"
+
+#: src/pref_dictgroup.c:1439
+msgid "Depth"
+msgstr "深度"
+
+#: src/pref_dictgroup.c:1453
+msgid "Specify search depth. 0 means to search only specified directory."
+msgstr "指定檢索深度。0 表示只檢索指定目錄。"
+
+#: src/pref_dictgroup.c:1457
+msgid "Search Disk"
+msgstr "檢索磁碟"
+
+#: src/pref_dictgroup.c:1504
+msgid "Subbook Number"
+msgstr "子書編號"
+
+#: src/pref_dictgroup.c:1514
+msgid "Appendix Path"
+msgstr "附錄路徑"
+
+#: src/pref_dictgroup.c:1523
+msgid "Appendix Subbook Number"
+msgstr "附錄子書編號"
+
+#: src/pref_dictgroup.c:1542
+msgid "FG"
+msgstr "前景色"
+
+#: src/pref_dictgroup.c:1548
+msgid "BG"
+msgstr "背景色"
+
+#: src/pref_dictgroup.c:1554
+msgid "Clear"
+msgstr "清除"
+
+#: src/pref_dirgroup.c:209
+msgid "Select directory"
+msgstr "選擇目錄"
+
+#: src/pref_dirgroup.c:261
+msgid "Directory group list"
+msgstr "目錄組列表"
+
+#: src/pref_dirgroup.c:308
+msgid "Detail"
+msgstr "詳細"
+
+#: src/pref_dirgroup.c:323
+msgid "Enter the name of directory group."
+msgstr "輸入目錄組名稱。"
+
+#: src/pref_dirgroup.c:325
+msgid "Directory list"
+msgstr "目錄列表"
+
+#: src/pref_dirgroup.c:345
+msgid "Specify directory names one per line. You can specify extension of files that will be searched. For example, \"/some/dir/name,.txt\" searches all files under /some/dir/name which have the extension .txt."
+msgstr "每行指定一個目錄名。可以附加要檢索的副檔名，例如 \"/some/dir/name,.txt\" 會檢索該目錄下所有 .txt 檔案。"
+
+#: src/pref_dirgroup.c:361
+msgid "Change"
+msgstr "更改"
+
+#: src/pref_dirgroup.c:375
+msgid "Choose.."
+msgstr "選擇……"
+
+#: src/pref_external.c:80
+msgid "Play sound internally"
+msgstr "使用內建例程播放聲音"
+
+#: src/pref_external.c:84
+msgid "Use internal routine to play sound. Valid only on windows."
+msgstr "使用內建例程播放聲音，僅在 Windows 上有效。"
+
+#: src/pref_external.c:94
+msgid "Command to play sound "
+msgstr "播放聲音的命令 "
+
+#: src/pref_external.c:106
+#, c-format
+msgid "External command to play WAVE sound. %f will be replaced by data file name."
+msgstr "播放 WAVE 聲音的外部命令。%f 會被替換為資料檔名。"
+
+#: src/pref_external.c:116
+msgid "Command to play movie "
+msgstr "播放動畫的命令 "
+
+#: src/pref_external.c:128
+#, c-format
+msgid "External command to play MPEG movie. %f will be replaced by data file name."
+msgstr "播放 MPEG 動畫的外部命令。%f 會被替換為資料檔名。"
+
+#: src/pref_external.c:138
+msgid "Command to launch web browser "
+msgstr "啟動瀏覽器的命令 "
+
+#: src/pref_external.c:150
+#, c-format
+msgid "External command to launch Web browser. %f will be replaced by URL."
+msgstr "啟動瀏覽器的外部命令。%f 會被替換為 URL。"
+
+#: src/pref_external.c:161
+msgid "Standard command to open file "
+msgstr "開啟檔案的標準命令 "
+
+#: src/pref_external.c:173
+msgid "Standard command to open file. %f will be replaced by filename, %l by line number."
+msgstr "開啟檔案的標準命令。%f 會被替換為檔名，%l 會被替換為行號。"
+
+#: src/pref_font.c:166 src/pref_stemming.c:281
+msgid "Normal"
+msgstr "常規"
+
+#: src/pref_font.c:183
+msgid "Bold"
+msgstr "粗體"
+
+#: src/pref_font.c:200
+msgid "Italic"
+msgstr "斜體"
+
+#: src/pref_font.c:216
+msgid "Superscript"
+msgstr "上標"
+
+#: src/pref_grep.c:132
+msgid "Additional Lines To Display"
+msgstr "額外顯示行數"
+
+#: src/pref_grep.c:150
+msgid "In addition to matched line, additional lines will be shown in contents."
+msgstr "除命中行外，正文中還會額外顯示若干行。"
+
+#: src/pref_grep.c:157
+msgid "Additional Chars To Display"
+msgstr "額外顯示字元數"
+
+#: src/pref_grep.c:176
+msgid "When matched line is too long, several characters around keyword will be shown in heading."
+msgstr "命中行過長時，標題中會顯示關鍵字周圍的若干字元。"
+
+#: src/pref_grep.c:239
+msgid "Extension"
+msgstr "副檔名"
+
+#: src/pref_grep.c:250
+msgid "Filter Command"
+msgstr "過濾命令"
+
+#: src/pref_grep.c:261
+msgid "Open Command"
+msgstr "開啟命令"
+
+#: src/pref_grep.c:387
+msgid "Maximum Cache Size (MB)"
+msgstr "快取上限（MB）"
+
+#: src/pref_grep.c:406
+msgid "Specify maximum cache size in MB."
+msgstr "指定快取上限，單位為 MB。"
+
+#: src/pref_grep.c:408
+msgid "Clear Cache"
+msgstr "清除快取"
+
+#: src/pref_gui.c:75
+msgid "Maximum words in history"
+msgstr "歷史記錄上限"
+
+#: src/pref_gui.c:94
+msgid "Maximum number of words to remember in word history"
+msgstr "檢索歷史中保留的最大詞數"
+
+#: src/pref_gui.c:103
+msgid "Chars in dictionary bar"
+msgstr "辭典按鈕字數"
+
+#: src/pref_gui.c:122
+msgid "Specify the number of characters to display on top of each toggle buttons in dictionary bar."
+msgstr "指定辭典列各開關按鈕上顯示的字數。"
+
+#: src/pref_gui.c:126
+msgid "Show splash screen"
+msgstr "顯示啟動畫面"
+
+#: src/pref_gui.c:128
+msgid "Show splash screen on loading."
+msgstr "載入時顯示啟動畫面。"
+
+#: src/pref_gui.c:136
+msgid "Calculate heading automatically"
+msgstr "自動計算標題數量"
+
+#: src/pref_gui.c:138
+msgid "Calculate the number of cells in heading list to suit the window size."
+msgstr "按視窗大小自動計算標題列表的條目數。"
+
+#: src/pref_gui.c:152
+msgid "Maximum hits to display"
+msgstr "最大顯示命中數"
+
+#: src/pref_gui.c:171
+msgid "Maximum number of hits to be displayed at once.\nYou can go forward and backward using buttons. Valid only if automatic calculation is disabled."
+msgstr "一次顯示的最大命中數。\n可用按鈕前後翻頁。僅在關閉自動計算時有效。"
+
+#: src/pref_gui.c:174
+msgid "Enable dictionary button color"
+msgstr "啟用辭典按鈕顏色"
+
+#: src/pref_gui.c:176
+msgid "Enable background color of dictionary button."
+msgstr "啟用辭典按鈕的背景色。"
+
+#: src/pref_io.c:124
+msgid "Couldn't open preference. Will use default value."
+msgstr "無法開啟偏好設定，將使用預設值。"
+
+#: src/pref_io.c:130 src/pref_io.c:138 src/pref_io.c:269 src/pref_io.c:277
+#: src/pref_io.c:284 src/pref_io.c:299 src/pref_io.c:336 src/pref_io.c:539
+#: src/pref_io.c:548 src/pref_io.c:555 src/pref_io.c:573 src/pref_io.c:637
+#: src/pref_io.c:646 src/pref_io.c:653 src/pref_io.c:670 src/pref_io.c:844
+#: src/pref_io.c:853 src/pref_io.c:861 src/pref_io.c:875 src/pref_io.c:898
+#: src/pref_io.c:906 src/pref_io.c:1079 src/pref_io.c:1087 src/pref_io.c:1094
+#: src/pref_io.c:1111 src/pref_io.c:1263 src/pref_io.c:1271 src/pref_io.c:1281
+#: src/pref_io.c:1349 src/pref_io.c:1357 src/pref_io.c:1367 src/pref_io.c:1412
+#: src/pref_io.c:1420 src/pref_io.c:1427 src/pref_io.c:1447 src/pref_io.c:1640
+#: src/pref_io.c:1649 src/pref_io.c:1658 src/pref_io.c:1675
+#, c-format
+msgid "Failed to parse %s. Check contents."
+msgstr "解析 %s 失敗，請檢查內容。"
+
+#: src/pref_io.c:376
+msgid "Loading dictionary..."
+msgstr "正在載入辭典……"
+
+#: src/pref_search.c:66
+msgid "Maximum hits to search"
+msgstr "最大檢索命中數"
+
+#: src/pref_search.c:84
+msgid "Maximum number of hits to be searched.\nIf you increase this number, it takes time to search."
+msgstr "檢索的最大命中數。\n增大該數值會增加檢索耗時。"
+
+#: src/pref_search.c:87
+msgid "Perform word search in automatic search"
+msgstr "自動檢索時執行前方一致檢索"
+
+#: src/pref_search.c:89
+msgid "Perform word search in automatic search."
+msgstr "自動檢索時也執行前方一致檢索。"
+
+#: src/pref_selection.c:72
+msgid "Lookup interval (ms)"
+msgstr "檢索間隔（毫秒）"
+
+#: src/pref_selection.c:91
+msgid "Interval to check selection. \nIncreasing this number may eat up your CPU.\nIgnored on Windows."
+msgstr "檢查選區的間隔。\n增大該值可能佔用更多 CPU。\n在 Windows 上忽略此項。"
+
+#: src/pref_selection.c:99
+msgid "Minimum chars for selection lookup"
+msgstr "選區檢索的最小字數"
+
+#: src/pref_selection.c:120
+msgid "When the number of characters in selection is less than this number, it will not be looked up."
+msgstr "選區字數少於該值時不做檢索。"
+
+#: src/pref_selection.c:130
+msgid "Maximum chars for automatic lookup"
+msgstr "自動檢索的最大字數"
+
+#: src/pref_selection.c:151
+msgid "When the number of characters in selection is larger than this number, it will not be looked up."
+msgstr "選區字數大於該值時不做檢索。"
+
+#: src/pref_selection.c:161
+msgid "Popup window size"
+msgstr "彈出視窗大小"
+
+#: src/pref_selection.c:213
+msgid "Show popup title"
+msgstr "顯示彈出視窗標題"
+
+#: src/pref_selection.c:215
+msgid "Show title of popup window."
+msgstr "顯示彈出視窗的標題。"
+
+#: src/pref_selection.c:230
+msgid "Beep on no hit"
+msgstr "無命中時發出提示音"
+
+#: src/pref_selection.c:232
+msgid "Beep when no hit."
+msgstr "沒有命中時發出提示音。"
+
+#: src/pref_shortcut.c:64
+msgid "Toggle Menu Bar"
+msgstr "顯示/隱藏選單列"
+
+#: src/pref_shortcut.c:65
+msgid "Toggle Status Bar"
+msgstr "顯示/隱藏狀態列"
+
+#: src/pref_shortcut.c:66
+msgid "Toggle Dictionary Bar"
+msgstr "顯示/隱藏辭典列"
+
+#: src/pref_shortcut.c:67
+msgid "Switch Pane Direction"
+msgstr "切換窗格方向"
+
+#: src/pref_shortcut.c:68
+msgid "Select Automatic Search"
+msgstr "選擇自動檢索"
+
+#: src/pref_shortcut.c:69
+msgid "Select Exactword Search"
+msgstr "選擇完全一致檢索"
+
+#: src/pref_shortcut.c:70
+msgid "Select Word Search"
+msgstr "選擇前方一致檢索"
+
+#: src/pref_shortcut.c:71
+msgid "Select Endword Search"
+msgstr "選擇後方一致檢索"
+
+#: src/pref_shortcut.c:72
+msgid "Select Keyword Search"
+msgstr "選擇關鍵字檢索"
+
+#: src/pref_shortcut.c:73
+msgid "Select Multi Search"
+msgstr "選擇複合檢索"
+
+#: src/pref_shortcut.c:74
+msgid "Select Fulltext Search"
+msgstr "選擇全文檢索"
+
+#: src/pref_shortcut.c:75
+msgid "Select Internet Search"
+msgstr "選擇網路檢索"
+
+#: src/pref_shortcut.c:76
+msgid "Select File Search"
+msgstr "選擇檔案檢索"
+
+#: src/pref_shortcut.c:77
+msgid "Next Dictionary Group"
+msgstr "下一個辭典組"
+
+#: src/pref_shortcut.c:78
+msgid "Previous Dictionary Group"
+msgstr "上一個辭典組"
+
+#: src/pref_shortcut.c:79
+msgid "Toggle Dictionary No. 1"
+msgstr "開關辭典 1"
+
+#: src/pref_shortcut.c:80
+msgid "Toggle Dictionary No. 2"
+msgstr "開關辭典 2"
+
+#: src/pref_shortcut.c:81
+msgid "Toggle Dictionary No. 3"
+msgstr "開關辭典 3"
+
+#: src/pref_shortcut.c:82
+msgid "Toggle Dictionary No. 4"
+msgstr "開關辭典 4"
+
+#: src/pref_shortcut.c:83
+msgid "Toggle Dictionary No. 5"
+msgstr "開關辭典 5"
+
+#: src/pref_shortcut.c:84
+msgid "Toggle Dictionary No. 6"
+msgstr "開關辭典 6"
+
+#: src/pref_shortcut.c:85
+msgid "Toggle Dictionary No. 7"
+msgstr "開關辭典 7"
+
+#: src/pref_shortcut.c:86
+msgid "Toggle Dictionary No. 8"
+msgstr "開關辭典 8"
+
+#: src/pref_shortcut.c:87
+msgid "Toggle Dictionary No. 9"
+msgstr "開關辭典 9"
+
+#: src/pref_shortcut.c:88
+msgid "Toggle Dictionary No. 10"
+msgstr "開關辭典 10"
+
+#: src/pref_shortcut.c:89
+msgid "Next Hit"
+msgstr "下一個命中"
+
+#: src/pref_shortcut.c:90
+msgid "Previous Hit"
+msgstr "上一個命中"
+
+#: src/pref_shortcut.c:91
+msgid "Copy To Clipboard"
+msgstr "複製到剪貼簿"
+
+#: src/pref_shortcut.c:92
+msgid "Paste From Clipboard"
+msgstr "從剪貼簿貼上"
+
+#: src/pref_shortcut.c:93
+msgid "Start Search"
+msgstr "開始檢索"
+
+#: src/pref_shortcut.c:94
+msgid "Go Back In History"
+msgstr "歷史後退"
+
+#: src/pref_shortcut.c:95
+msgid "Go Forward In History"
+msgstr "歷史前進"
+
+#: src/pref_shortcut.c:96
+msgid "Show Previous Text"
+msgstr "顯示上一個詞條"
+
+#: src/pref_shortcut.c:97
+msgid "Show Next Text"
+msgstr "顯示下一個詞條"
+
+#: src/pref_shortcut.c:100
+msgid "Show Help"
+msgstr "顯示幫助"
+
+#: src/pref_shortcut.c:101
+msgid "Clear Word"
+msgstr "清空檢索詞"
+
+#: src/pref_shortcut.c:102
+msgid "Quit Program"
+msgstr "退出程式"
+
+#: src/pref_shortcut.c:103
+msgid "Iconify Window"
+msgstr "最小化視窗"
+
+#: src/pref_shortcut.c:104
+msgid "Scroll Mainview Down"
+msgstr "正文向下滾動"
+
+#: src/pref_shortcut.c:105
+msgid "Scroll Mainview Up"
+msgstr "正文向上滾動"
+
+#: src/pref_shortcut.c:106
+msgid "Next Hits"
+msgstr "下一組命中"
+
+#: src/pref_shortcut.c:107
+msgid "Prev. Hits"
+msgstr "上一組命中"
+
+#: src/pref_shortcut.c:382 src/preference.c:93
+msgid "Shortcut"
+msgstr "快捷鍵"
+
+#: src/pref_shortcut.c:405
+msgid "Key"
+msgstr "按鍵"
+
+#: src/pref_shortcut.c:413 src/pref_shortcut.c:527
+msgid "Command"
+msgstr "命令"
+
+#: src/pref_shortcut.c:469
+msgid "Grab"
+msgstr "捕獲"
+
+#: src/pref_shortcut.c:545
+msgid "Ignore locks"
+msgstr "忽略鎖定鍵"
+
+#: src/pref_shortcut.c:549
+msgid "Ignore Caps Lock and Num Lock key."
+msgstr "忽略 Caps Lock 和 Num Lock 鍵。"
+
+#: src/pref_stemming.c:166
+msgid "Perform stemming"
+msgstr "執行詞幹處理"
+
+#: src/pref_stemming.c:168
+msgid "When ending of each words matches the pattern in the list, normal form of the word will also be tried. It takes longer."
+msgstr "當詞尾與列表中的模式匹配時，還會嘗試該詞的原形。這會增加耗時。"
+
+#: src/pref_stemming.c:175
+msgid "Stemming only when no hit"
+msgstr "僅在無命中時做詞幹處理"
+
+#: src/pref_stemming.c:177
+msgid "Do not perform stemming when original words hit."
+msgstr "原詞有命中時不做詞幹處理。"
+
+#: src/pref_stemming.c:187
+msgid "English"
+msgstr "英文"
+
+#: src/pref_stemming.c:190
+msgid "Japanese"
+msgstr "日文"
+
+#: src/pref_stemming.c:211 src/pref_stemming.c:273
+msgid "Pattern"
+msgstr "模式"
+
+#: src/pref_stemming.c:224
+msgid "Correction"
+msgstr "修正"
+
+#: src/pref_weblist.c:352
+msgid "Please specify name"
+msgstr "請指定名稱"
+
+#: src/pref_weblist.c:359
+msgid "Please specify pre string"
+msgstr "請指定前置字串"
+
+#: src/pref_weblist.c:428
+msgid "Search engines"
+msgstr "搜尋引擎"
+
+#: src/pref_weblist.c:519
+msgid "Search engine"
+msgstr "搜尋引擎"
+
+#: src/pref_weblist.c:545
+msgid "Homepage"
+msgstr "主頁"
+
+#: src/pref_weblist.c:555
+msgid "Pre string"
+msgstr "前置字串"
+
+#: src/pref_weblist.c:565
+msgid "Post string"
+msgstr "後置字串"
+
+#: src/pref_weblist.c:575
+msgid "Glue string"
+msgstr "連線字串"
+
+#: src/pref_weblist.c:586
+msgid "Character Code"
+msgstr "字元編碼"
+
+#: src/preference.c:79
+msgid "Appearance"
+msgstr "外觀"
+
+#: src/preference.c:80
+msgid "Font"
+msgstr "字型"
+
+#: src/preference.c:81
+msgid "Color"
+msgstr "顏色"
+
+#: src/preference.c:82 src/preference.c:92
+msgid "Misc."
+msgstr "其他"
+
+#: src/preference.c:83
+msgid "Dictionary Search"
+msgstr "辭典檢索"
+
+#: src/preference.c:84
+msgid "Dictionary Group"
+msgstr "辭典組"
+
+#: src/preference.c:86
+msgid "Stemming"
+msgstr "詞幹處理"
+
+#: src/preference.c:87
+msgid "Misc"
+msgstr "其他"
+
+#: src/preference.c:89
+msgid "Directory Group"
+msgstr "目錄組"
+
+#: src/preference.c:90
+msgid "Filter"
+msgstr "過濾器"
+
+#: src/preference.c:91
+msgid "Cache"
+msgstr "快取"
+
+#: src/preference.c:95
+msgid "External Program"
+msgstr "外部程式"
+
+#: src/preference.c:628
+msgid "Items"
+msgstr "專案"
+
+#: src/preference.c:689
+msgid "Ok"
+msgstr "確定"
+
+#: src/render.c:875
+msgid " [Movie] "
+msgstr " [動畫] "
+
+#: src/textview.c:47
+msgid "/Search This Word"
+msgstr "/檢索此詞"
+
+#: src/textview.c:48
+msgid "/Copy To Clipboard"
+msgstr "/複製到剪貼簿"
+
+#: src/textview.c:49
+msgid "/Display"
+msgstr "/顯示"
+
+#: src/textview.c:50
+msgid "/Display/Menu bar"
+msgstr "/顯示/選單列"
+
+#: src/textview.c:51
+msgid "/Display/Dictionary Selection Bar"
+msgstr "/顯示/辭典選擇列"
+
+#: src/textview.c:52
+msgid "/Display/Status Bar"
+msgstr "/顯示/狀態列"
+
+#: src/textview.c:53
+msgid "/Display/Tree Frame Tab"
+msgstr "/顯示/樹窗格標籤"
+
+#: src/thread_search.c:61
+msgid "Canceled"
+msgstr "已取消"
+
+#: src/thread_search.c:100
+msgid "Cancel"
+msgstr "取消"
+
+#: src/thread_search.c:106
+msgid "Searching"
+msgstr "正在檢索"
+
+#: src/thread_search.c:136
+#, c-format
+msgid "%d hit"
+msgstr "%d 條命中"
+
+#: src/websearch.c:42
+msgid "/Go Home"
+msgstr "/返回主頁"
+
+#: src/websearch.c:43
+msgid "/Search"
+msgstr "/檢索"
+
+#: src/websearch.c:115 src/websearch.c:177
+msgid "Please select web site"
+msgstr "請選擇網站"
+
