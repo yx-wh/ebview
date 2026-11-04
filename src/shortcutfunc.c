@@ -239,31 +239,34 @@ void previous_dict_group(){
 extern GtkWidget *dict_box;
 
 void toggle_dictionary(gint number){
-	GList *children, *child;
+	GList *rows, *row, *buttons, *child;
 	GtkWidget *w;
 	gint idx;
 	gboolean active;
 
-	children = gtk_container_get_children(GTK_CONTAINER(dict_box));
+	/* dict_box is a vbox holding one hbox per row; walk both levels. */
+	rows = gtk_container_get_children(GTK_CONTAINER(dict_box));
 
 	idx = 0;
-	child = g_list_first(children);
-	while(child != NULL){
-		w = (GtkWidget *)(child->data);
-		if(GTK_IS_BUTTON(w)){
+	for(row = rows; row != NULL; row = row->next){
+		buttons = gtk_container_get_children(GTK_CONTAINER(row->data));
+		for(child = buttons; child != NULL; child = child->next){
+			w = (GtkWidget *)(child->data);
+			if(!GTK_IS_BUTTON(w))
+				continue;
 			if((number - 1) == idx){
 				active = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(w));
-				if(active == TRUE)
-					gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(w), FALSE);
-				else
-					gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(w), TRUE);
-				break;
+				gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(w), !active);
+				g_list_free(buttons);
+				goto DONE;
 			}
-			else
-				idx ++;
+			idx ++;
 		}
-		child = g_list_next(child);
+		g_list_free(buttons);
 	}
+
+ DONE:
+	g_list_free(rows);
 }
 
 void toggle_dictionary1(){

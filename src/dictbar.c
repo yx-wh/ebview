@@ -29,6 +29,17 @@ static GtkWidget *dict_bar;
 GtkWidget *dict_box;
 GtkWidget *combo_group;
 
+/* Width reserved for the group selector; also used to compute how much room
+ * is left for the dictionary buttons. */
+#define DICT_BAR_COMBO_WIDTH 150
+#define DICT_BAR_DROPDOWN_WIDTH 36
+#define DICT_BAR_SIDE_PADDING 16
+
+/* Width currently available for dictionary buttons, kept up to date by the
+ * size-allocate handler so the buttons re-flow when the window is resized. */
+static gint dict_bar_available_width = 0;
+static gboolean dict_bar_size_connected = FALSE;
+
 void show_dict_bar()
 {
 
@@ -124,6 +135,11 @@ static void add_dict_buttons(GtkWidget *bar)
 {
 	GtkWidget *toggle;
 	GtkWidget *label;
+	GtkWidget *row = NULL;
+	GtkRequisition req;
+	gint row_width = 0;
+	gint button_width;
+	gint available;
 	int idx;
 	char name[64];
 	char buff[256];
@@ -132,6 +148,15 @@ static void add_dict_buttons(GtkWidget *bar)
 	GtkTreeIter   child_iter;
 
 	LOG(LOG_DEBUG, "IN : add_dict_buttons()");
+
+	/* Before the first size-allocate there is no measured width, so start
+	 * from the saved window size (or a sane fallback). */
+	available = dict_bar_available_width;
+	if(available < 120)
+		available = (window_width > 0 ? window_width : 670)
+			    - DICT_BAR_COMBO_WIDTH - DICT_BAR_SIDE_PADDING;
+	if(available < 120)
+		available = 120;
 
 	idx = 0;
 
@@ -195,7 +220,25 @@ static void add_dict_buttons(GtkWidget *bar)
 								 G_CALLBACK(dict_toggled),
 								 GINT_TO_POINTER(idx));
 				
-						gtk_box_pack_start(GTK_BOX(bar), toggle, FALSE, FALSE, 2);
+						/* GTK2 boxes do not wrap: start a new row hbox
+						 * whenever the next button would overflow.
+						 * size_request ignores children that are not shown,
+						 * so show the label first; otherwise the button
+						 * reports only its borders and nothing ever wraps. */
+						gtk_widget_show(label);
+						gtk_widget_size_request(toggle, &req);
+						button_width = req.width >= 40 ? req.width : 80;
+						if(row == NULL ||
+						   (row_width > 0 &&
+						    row_width + button_width > available)){
+							row = gtk_hbox_new(FALSE, 0);
+							gtk_box_pack_start(GTK_BOX(bar), row,
+									   FALSE, FALSE, 0);
+							row_width = 0;
+						}
+						gtk_box_pack_start(GTK_BOX(row), toggle,
+								   FALSE, FALSE, 2);
+						row_width += button_width + 4;
 						if(binfo->available == FALSE) {
 							gtk_widget_set_sensitive(toggle, FALSE);
 						}
@@ -218,28 +261,47 @@ static void add_dict_buttons(GtkWidget *bar)
 
 static void update_dict_button()
 {
-	GList *children;
-	GtkBoxChild *child;
-	
+	GList *rows, *node;
+
 	LOG(LOG_DEBUG, "IN : update_dict_button()");
 
 	gtk_widget_hide(dict_box);
 
-	// Re-creaet buttons
-
-	children = GTK_BOX(dict_box)->children;
-	while(children){
-		child = children->data;
-		children = children->next;
-		if(GTK_IS_TOGGLE_BUTTON(child->widget))
-			gtk_widget_destroy(child->widget);
-	}
+	/* dict_box is a vbox of row hboxes; destroying a row also destroys
+	 * the toggle buttons packed inside it. */
+	rows = gtk_container_get_children(GTK_CONTAINER(dict_box));
+	for(node = rows; node != NULL; node = node->next)
+		gtk_widget_destroy(GTK_WIDGET(node->data));
+	g_list_free(rows);
 
 	add_dict_buttons(dict_box);
 	gtk_widget_show_all(dict_box);
 
 	LOG(LOG_DEBUG, "OUT : update_dict_button()");
 
+}
+
+/* Re-flow the buttons whenever the window width changes.  The width comes
+ * from the parent, so rebuilding rows cannot change it again; the guard
+ * below also prevents a size-allocate feedback loop. */
+static void dict_bar_size_allocate(GtkWidget *widget, GtkAllocation *allocation,
+				   gpointer data)
+{
+	gint available = allocation->width - DICT_BAR_COMBO_WIDTH
+			 - DICT_BAR_SIDE_PADDING;
+	gint delta;
+
+	if(available < 120)
+		return;
+	delta = available - dict_bar_available_width;
+	if(delta < 0)
+		delta = -delta;
+	if(delta < 12)
+		return;
+
+	dict_bar_available_width = available;
+	if(dict_box != NULL)
+		update_dict_button();
 }
 
 static gint group_changed (GtkWidget *combo){
@@ -317,9 +379,33 @@ GtkWidget *create_dict_bar()
 	}
 	
 	combo_group = gtk_combo_new();
-	gtk_widget_set_size_request(GTK_WIDGET(combo_group), 120, 10);
+	/* Give the selector the same height as a row of dictionary buttons. */
+	gtk_widget_set_size_request(GTK_WIDGET(combo_group),
+				    DICT_BAR_COMBO_WIDTH, 28);
 	gtk_editable_set_editable(GTK_EDITABLE(GTK_COMBO(combo_group)->entry), FALSE);
-	gtk_box_pack_start(GTK_BOX(dict_bar), combo_group, FALSE, FALSE, 0);
+	/* GtkCombo's drop-down button is barely wider than its arrow by
+	 * default.  Locate it through the public container API (the matching
+	 * struct field is private) and make it a comfortable click target. */
+	{
+		GList *combo_children, *node;
+
+		combo_children = gtk_container_get_children(GTK_CONTAINER(combo_group));
+		for(node = combo_children; node != NULL; node = node->next){
+			if(GTK_IS_BUTTON(node->data))
+				gtk_widget_set_size_request(GTK_WIDGET(node->data),
+							    DICT_BAR_DROPDOWN_WIDTH, -1);
+		}
+		g_list_free(combo_children);
+	}
+	/* An hbox centres its children vertically.  Wrap the selector in a vbox
+	 * so it stays aligned with the first row when the buttons wrap. */
+	{
+		GtkWidget *combo_holder = gtk_vbox_new(FALSE, 0);
+		gtk_box_pack_start(GTK_BOX(combo_holder), combo_group,
+				   FALSE, FALSE, 0);
+		gtk_box_pack_start(GTK_BOX(dict_bar), combo_holder,
+				   FALSE, FALSE, 0);
+	}
 
 	gtk_container_set_border_width(GTK_CONTAINER(dict_bar), 1);
 
@@ -397,9 +483,18 @@ GtkWidget *create_dict_bar()
 
 
 	// Re-create buttons
-	dict_box = gtk_hbox_new(FALSE, 0);
-	gtk_box_pack_start(GTK_BOX (dict_bar), dict_box, FALSE, FALSE, 0);
+	/* A vbox of hbox rows lets buttons wrap instead of disappearing past
+	 * the right edge of the window.  Let it expand so size-allocate sees
+	 * the full width available beside the group selector. */
+	dict_box = gtk_vbox_new(FALSE, 0);
+	gtk_box_pack_start(GTK_BOX (dict_bar), dict_box, TRUE, TRUE, 0);
 	add_dict_buttons(dict_box);
+
+	if(dict_bar_size_connected == FALSE){
+		g_signal_connect(G_OBJECT(dict_bar), "size-allocate",
+				 G_CALLBACK(dict_bar_size_allocate), NULL);
+		dict_bar_size_connected = TRUE;
+	}
 
 	gtk_widget_show_all(dict_bar);
 
