@@ -184,6 +184,24 @@ static gint reverse_compare_func(gconstpointer a, gconstpointer b){
 }
 
 
+/* Remove a path from the active search scope.  g_list_remove() frees the
+ * matched list node, so reading l->data afterwards is a use-after-free
+ * (it used to abort with "free(): invalid pointer"). */
+static void remove_active_dir(const gchar *dirname)
+{
+	GList *l;
+
+	for(l = g_list_first(active_dir_list); l != NULL; l = g_list_next(l)){
+		if(strcmp(l->data, dirname) == 0){
+			gchar *data = l->data;
+
+			active_dir_list = g_list_delete_link(active_dir_list, l);
+			g_free(data);
+			return;
+		}
+	}
+}
+
 static gint button_press_event(GtkWidget *widget, GdkEventButton *event)
 {
 	GtkTreeIter iter;
@@ -203,13 +221,21 @@ static gint button_press_event(GtkWidget *widget, GdkEventButton *event)
 			return(FALSE);
 		}
 
+		/* Let GTK's default handler see ordinary clicks so the toggle
+		 * renderer actually receives them.  Returning TRUE here used to
+		 * swallow the event, leaving the checkbox dead and Ctrl+click as
+		 * the only way to activate a directory. */
+		if((event->state & GDK_CONTROL_MASK) == 0){
+			gtk_tree_path_free(path);
+			return(FALSE);
+		}
+
 		selection = gtk_tree_view_get_selection(GTK_TREE_VIEW(directory_view));
 		gtk_tree_selection_select_path(selection, path);
 
-		if(event->state & GDK_CONTROL_MASK){
+		{
 			gboolean active;
 			gchar *dirname;
-			GList *l;
 
 			dirname = compose_full_path(path);
 
@@ -221,16 +247,8 @@ static gint button_press_event(GtkWidget *widget, GdkEventButton *event)
 						   DIR_ACTIVE_COLUMN, FALSE,
 						   -1);
 
-				l = g_list_first(active_dir_list);
-				while(l){
-					if(strcmp(l->data, dirname) == 0){
-						active_dir_list = g_list_remove(active_dir_list, l->data);
-						g_free(l->data);
-						g_free(dirname);
-						break;
-					}
-					l = g_list_next(l);
-				}
+				remove_active_dir(dirname);
+				g_free(dirname);
 			} else {
 				gtk_tree_store_set(directory_store, 
 						   &iter,
@@ -241,7 +259,8 @@ static gint button_press_event(GtkWidget *widget, GdkEventButton *event)
 
 			}
 		}
-		
+
+		gtk_tree_path_free(path);
 		return(TRUE);
 	}
 
@@ -516,7 +535,6 @@ static void item_toggled (GtkCellRendererToggle *cell, gchar *path_str, gpointer
 	gboolean toggle_item;
 
 	gchar *dirname;
-	GList *l;
 
 	LOG(LOG_DEBUG, "IN : item_toggled()");
 
@@ -533,16 +551,8 @@ static void item_toggled (GtkCellRendererToggle *cell, gchar *path_str, gpointer
 	if(toggle_item)
 		active_dir_list = g_list_append(active_dir_list, dirname);
 	else {
-		l = g_list_first(active_dir_list);
-		while(l){
-			if(strcmp(l->data, dirname) == 0){
-				active_dir_list = g_list_remove(active_dir_list, l->data);
-				g_free(l->data);
-				g_free(dirname);
-				break;
-			}
-			l = g_list_next(l);
-		}
+		remove_active_dir(dirname);
+		g_free(dirname);
 	}
 
 	gtk_tree_path_free (path);
@@ -778,9 +788,10 @@ static void expand_history()
 
 	l = g_list_first(remove_list);
 	while(l){
-		active_dir_list = g_list_remove(active_dir_list, l->data);
-		LOG(LOG_DEBUG, "%s removed from history", l->data);
-		g_free(l->data);
+		gchar *data = l->data;
+
+		LOG(LOG_DEBUG, "%s removed from history", data);
+		remove_active_dir(data);
 		l = g_list_next(l);
 	}
 
@@ -827,6 +838,8 @@ GtkWidget *create_directory_tree()
 
 	directory_view = gtk_tree_view_new_with_model(GTK_TREE_MODEL(directory_store));
 	gtk_tree_view_set_headers_visible(GTK_TREE_VIEW(directory_view), FALSE);
+	gtk_widget_set_tooltip_text(directory_view,
+		_("Tick the checkbox (or Ctrl+click a row) to add a directory to the search scope."));
 
 	gtk_container_add (GTK_CONTAINER (scroll), directory_view);
 
