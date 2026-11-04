@@ -248,10 +248,12 @@ void initialize_preference(){
 	fontset_italic = strdup("times new roman Italic 9");
 	fontset_superscript = strdup("ms gothic 7");
 #else
-	fontset_normal = strdup("Kochi Mincho 12");
-	fontset_bold = strdup("Kochi Gothic 12");
-	fontset_italic = strdup("Sans Italic 12");
-	fontset_superscript = strdup("Kochi Gothic 8");
+	/* Kochi Mincho/Gothic are long gone. Noto CJK JP keeps Japanese
+	 * glyphs in one family instead of relying on font fallback. */
+	fontset_normal = strdup("Noto Serif CJK JP 12");
+	fontset_bold = strdup("Noto Sans CJK JP Bold 12");
+	fontset_italic = strdup("Noto Serif CJK JP Italic 12");
+	fontset_superscript = strdup("Noto Sans CJK JP 8");
 #endif
 	color_str[COLOR_LINK] = strdup("#0000c0");
 	color_str[COLOR_KEYWORD] = strdup("#c00000");

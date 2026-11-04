@@ -369,22 +369,28 @@ int main( int   argc,
 	load_dirlist();
 	load_dirgroup();
 
-	// Convert older font description.
-	if(fontset_normal[0] == '-'){
+	/* Upgrade legacy font descriptions: old X11 strings ("-*-...") and the
+	 * exact Kochi defaults. Only exact matches are replaced, so a font the
+	 * user picked explicitly is never overwritten. */
+	if(fontset_normal[0] == '-' ||
+	   strcmp(fontset_normal, "Kochi Mincho 12") == 0){
 		g_free(fontset_normal);
-		fontset_normal = strdup("Kochi Mincho 12");
+		fontset_normal = strdup("Noto Serif CJK JP 12");
 	}
-	if(fontset_bold[0] == '-'){
+	if(fontset_bold[0] == '-' ||
+	   strcmp(fontset_bold, "Kochi Gothic 12") == 0){
 		g_free(fontset_bold);
-		fontset_bold = strdup("Kochi Gothic 12");
+		fontset_bold = strdup("Noto Sans CJK JP Bold 12");
 	}
-	if(fontset_italic[0] == '-'){
+	if(fontset_italic[0] == '-' ||
+	   strcmp(fontset_italic, "Sans Italic 12") == 0){
 		g_free(fontset_italic);
-		fontset_italic = strdup("Sans Italic 12");
+		fontset_italic = strdup("Noto Serif CJK JP Italic 12");
 	}
-	if(fontset_superscript[0] == '-'){
+	if(fontset_superscript[0] == '-' ||
+	   strcmp(fontset_superscript, "Kochi Gothic 8") == 0){
 		g_free(fontset_superscript);
-		fontset_superscript = strdup("Kochi Gothic 8");
+		fontset_superscript = strdup("Noto Sans CJK JP 8");
 	}
 
 	check_search_method();

@@ -27,6 +27,7 @@
 | 数据目录 | 写死 `configure --prefix` | 自动探测可执行文件旁的数据目录，并支持 `EBVIEW_DATADIR` 覆盖 |
 | 安装集成 | Debian 补丁里手工维护 | `cmake --install` 安装二进制、数据、帮助文档、日语翻译、图标与 `.desktop` |
 | 构建入口 | `./autogen.sh && ./configure && make` | `./build.sh` |
+| 默认字体 | `Kochi Mincho` / `Kochi Gothic`（已停用） | `Noto Serif CJK JP` / `Noto Sans CJK JP`；旧配置中的默认字体会自动迁移，用户自定义字体不受影响 |
 
 另外修复了 web 搜索 URL 拼接中的自重叠 `sprintf`（UB）和字体大小格式化的缓冲区溢出。
 
