@@ -16,6 +16,7 @@
 */
 
 #include <sys/types.h>
+#include <glib/gstdio.h>
 
 #ifndef __WIN32__
 #include <sys/wait.h>
@@ -232,16 +233,19 @@ static gboolean grep_skip_dir(const gchar *name)
 /* Reject oversized and binary files before they are read into memory. */
 static gboolean grep_acceptable_file(const gchar *path)
 {
-	struct stat st;
+	GStatBuf st;
 	FILE *fp;
 	guchar buf[1024];
 	size_t n;
 
-	if(stat(path, &st) != 0 || !S_ISREG(st.st_mode))
+	/* g_stat()/g_fopen() take UTF-8 paths on Windows (GLib converts to
+	 * UTF-16 internally); plain stat()/fopen() use the ANSI codepage and
+	 * fail on non-ASCII file names. */
+	if(g_stat(path, &st) != 0 || !S_ISREG(st.st_mode))
 		return(FALSE);
 	if(st.st_size > MAX_GREP_FILE_SIZE)
 		return(FALSE);
-	fp = fopen(path, "rb");
+	fp = g_fopen(path, "rb");
 	if(fp == NULL)
 		return(FALSE);
 	n = fread(buf, 1, sizeof(buf), fp);
@@ -1047,8 +1051,14 @@ void open_file(RESULT *rp)
 	   (strlen(open_command) == 0))	{
 #ifdef __WIN32__
 		HINSTANCE hi;
-		hi = ShellExecute(NULL, "open", filename, NULL, NULL, SW_SHOWNORMAL);
-		if((int)hi > 32){
+		gunichar2 *wfilename;
+		/* filename is UTF-8; ShellExecuteA() would interpret it in the
+		 * ANSI codepage and fail on non-ASCII names.  Use the wide API. */
+		wfilename = g_utf8_to_utf16(filename, -1, NULL, NULL, NULL);
+		hi = ShellExecuteW(NULL, L"open", (LPCWSTR)wfilename,
+				   NULL, NULL, SW_SHOWNORMAL);
+		g_free(wfilename);
+		if((INT_PTR)hi > 32){
 			LOG(LOG_DEBUG, "OUT : open_file() = ShellExecute");
 			return;
 		}

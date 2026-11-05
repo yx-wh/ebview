@@ -344,7 +344,23 @@ E:/git/EBView/src/dirtree.c:426 CRITICAL : Failed to convert filename from Shift
 - **验证方式**：在 UCRT64 终端 `./ebview.exe` → 文件搜索 → 展开任一驱动器/目录，
   观察不再出现上述两条 CRITICAL，目录能正常展开、子项文件名显示正确（含中文/日文）。
 
-## 6. 复现/验证清单
+## 6. 文件搜索对非 ASCII 路径的处理（已修复）
+
+补齐 §5 之后，文件搜索链路上仍有两处“窄字符 API + UTF-8 路径”的隐患，一并处理：
+
+- **`grep.c: grep_acceptable_file()`** 用裸 `stat()` / `fopen()` 判断文件大小与
+  是否二进制。Windows 下这两个函数按 ANSI 代码页解释路径，**非 ASCII 文件名会失败
+  （返回 FALSE）导致文件被静默跳过**。修复：改用 GLib 的 `g_stat()` / `g_fopen()`
+  （`<glib/gstdio.h>`；Windows 下内部转 UTF-16），类型用 `GStatBuf`。Linux 上
+  `g_stat`/`g_fopen` 是 `stat`/`fopen` 的宏，行为不变。
+- **`grep.c: open_file()`** 从搜索结果打开文件时用 `ShellExecute`（ANSI 版），
+  UTF-8 路径同样会失败；且 `(int)hi > 32` 把 64 位 `HINSTANCE` 截断成 32 位。修复：
+  用 `g_utf8_to_utf16()` 转宽字符后调 `ShellExecuteW()`，判据改 `(INT_PTR)hi > 32`。
+- 注：`filter.c: get_cache_file()` 的 `stat()`/`unlink()`/`rename()` 只在配置了
+  “过滤器”时才走到（普通文本文件搜索走 `g_file_get_contents()`，GLib 正确处理
+  UTF-8 路径），暂未改动；若后续用到过滤器再统一替换为 `g_stat`/`g_unlink`/`g_rename`。
+
+## 7. 复现/验证清单
 
 ```bash
 cd /e/git/EBView
@@ -355,4 +371,6 @@ cd build && ninja
 
 - 已验证：主窗口可正常显示（Pango 崩溃已根治）；`ldd build/ebview.exe` 无缺失 DLL
   （libeb 静态链接）；`gtkrc` 提示已消除。
-- 仍需处理：§5 的 Shift_JIS 文件名转换（文件搜索 / 目录树展开）。
+- 已修复：§3 Pango 启动崩溃、§4 gtkrc 提示、§5 Shift_JIS 文件名、§6 非 ASCII 路径
+  的 stat/fopen 与 ShellExecute。
+- 待你实测：文件搜索能否正常展开目录、命中非 ASCII 文件名的文件、并从结果打开文件。
