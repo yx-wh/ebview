@@ -5,6 +5,12 @@ project(ebview
     DESCRIPTION "EPWING CD-ROM dictionary viewer (modernized build)"
     LANGUAGES C)
 
+# Needed to compile the .rc that embeds the application icon into the
+# executable.  Unix ports get the icon from the installed desktop files.
+if(WIN32)
+    enable_language(RC)
+endif()
+
 # Export build/compile_commands.json so clangd/IDE can resolve the
 # generated config.h and the GTK/GLib include paths.
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
@@ -93,6 +99,15 @@ if(INTL_LIBRARY)
     target_link_libraries(ebview PRIVATE ${INTL_LIBRARY})
 endif()
 
+# Embed the application icon in the executable.  Without this the .ico sits
+# in the tree unused and Explorer/Alt-Tab show the generic program icon.
+if(WIN32)
+    set(EBVIEW_ICON_FILE "${CMAKE_CURRENT_SOURCE_DIR}/pixmaps/ebview.ico")
+    configure_file("${CMAKE_CURRENT_SOURCE_DIR}/src/ebview.rc.in"
+        "${CMAKE_CURRENT_BINARY_DIR}/ebview.rc" @ONLY)
+    target_sources(ebview PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/ebview.rc")
+endif()
+
 # Windows-specific system/compatibility libraries:
 #   winmm  - MCI multimedia (external.c: mciSendCommand)
 #   iconv  - GNU libiconv (jcode.c: libiconv_open / libiconv / libiconv_close)
@@ -159,6 +174,14 @@ install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/pixmaps/"
 install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/doc/en" "${CMAKE_CURRENT_SOURCE_DIR}/doc/ja"
     "${CMAKE_CURRENT_SOURCE_DIR}/doc/zh_CN" "${CMAKE_CURRENT_SOURCE_DIR}/doc/zh_TW"
     DESTINATION "${CMAKE_INSTALL_DATADIR}/ebview/help")
+
+# The hicolor theme is where desktop shells look up Icon=ebview, and having
+# every size is what keeps the icon sharp on HiDPI screens.  /usr/share/pixmaps
+# remains as a fallback for environments without icon theme support.
+install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/pixmaps/hicolor/"
+    DESTINATION "${CMAKE_INSTALL_DATADIR}/icons/hicolor")
+install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/pixmaps/ebview.svg"
+    DESTINATION "${CMAKE_INSTALL_DATADIR}/icons/hicolor/scalable/apps")
 install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/desktop/ebview.desktop"
     DESTINATION "${CMAKE_INSTALL_DATADIR}/applications")
 install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/pixmaps/ebview.xpm"
