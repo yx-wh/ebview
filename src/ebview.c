@@ -359,6 +359,95 @@ static void hide_own_console(void)
 }
 #endif
 
+/* ----------------------------------------------------------- command line --
+ *
+ * "ebview 見る" (or equivalently "ebview -s 見る") looks the word up as soon
+ * as the window is on screen, so a launcher or a file manager action can open
+ * the program straight on an entry.  Every argument that is not an option is
+ * part of the search string, which keeps "ebview foo bar" behaving like the
+ * AND search the GUI would run for the same input.
+ *
+ * This is deliberately start-up only: unlike the remote-control protocol in
+ * the #if 0 block above, it does not talk to an already running instance.
+ */
+
+static gchar *startup_search_word = NULL;
+
+/* argv holds bytes in the locale encoding, GTK wants UTF-8.  On Windows that
+ * means the ANSI code page, so the conversion is not optional there.  A
+ * UTF-8 locale - the normal case on Linux - makes it a no-op, and checking
+ * g_utf8_validate() first means a value GLib already converted is left
+ * alone. */
+static gchar *to_utf8(const gchar *text)
+{
+	gchar *converted;
+
+	if(text == NULL)
+		return(NULL);
+
+	if(g_utf8_validate(text, -1, NULL))
+		return(g_strdup(text));
+
+	converted = g_locale_to_utf8(text, -1, NULL, NULL, NULL);
+
+	return(converted != NULL ? converted : g_strdup(text));
+}
+
+static void add_startup_word(const gchar *text)
+{
+	gchar *word;
+	gchar *joined;
+
+	if(text == NULL)
+		return;
+
+	word = to_utf8(text);
+	if(word == NULL)
+		return;
+
+	if(*word == '\0'){
+		g_free(word);
+		return;
+	}
+
+	if(startup_search_word == NULL){
+		startup_search_word = word;
+		return;
+	}
+
+	joined = g_strconcat(startup_search_word, " ", word, NULL);
+	g_free(startup_search_word);
+	g_free(word);
+	startup_search_word = joined;
+}
+
+/* start_search() returns early unless the window is mapped, and the first
+ * idle callback can run before the map event has been processed - so retry
+ * for a couple of seconds instead of dropping the request. */
+static gboolean lookup_startup_word(gpointer data)
+{
+	static gint tries = 0;
+
+	if(startup_search_word == NULL)
+		return(FALSE);
+
+	if((main_window == NULL) || (word_entry == NULL))
+		return(FALSE);
+
+	if((GTK_WIDGET_MAPPED(main_window) != TRUE) && (tries++ < 100))
+		return(TRUE);
+
+	LOG(LOG_DEBUG, "IN : lookup_startup_word(%s)", startup_search_word);
+
+	gtk_entry_set_text(GTK_ENTRY(word_entry), startup_search_word);
+	start_search();
+
+	g_free(startup_search_word);
+	startup_search_word = NULL;
+
+	return(FALSE);
+}
+
 int main( int   argc,
 	  char *argv[] )
 {
@@ -415,7 +504,44 @@ int main( int   argc,
 	signal(SIGPIPE, sig_handler);
 #endif
 
-	gtk_init (&argc, &argv);
+	{
+		/* gtk_init_with_args() parses the GTK options, then ours, and
+		 * leaves the leftovers - the search words - in argv.  It also
+		 * gives -h/--help for free, and handles it before opening a
+		 * display, which is what makes `ebview --help` work over ssh. */
+		gboolean show_version = FALSE;
+		gchar *option_word = NULL;
+		GOptionEntry entries[] = {
+			{ "search", 's', 0, G_OPTION_ARG_STRING, &option_word,
+			  N_("look WORD up as soon as the window appears"),
+			  N_("WORD") },
+			{ "version", 'V', 0, G_OPTION_ARG_NONE, &show_version,
+			  N_("show the version and exit"), NULL },
+			{ NULL, 0, 0, 0, NULL, NULL, NULL }
+		};
+		GError *error = NULL;
+		gint i;
+
+		if(gtk_init_with_args(&argc, &argv, N_("[WORD...]"), entries,
+				      GETTEXT_PACKAGE, &error) != TRUE){
+			g_printerr("%s\n", error->message);
+			g_error_free(error);
+			return(1);
+		}
+
+		if(show_version){
+			g_print("%s\n", PACKAGE_STRING);
+			g_free(option_word);
+			return(0);
+		}
+
+		add_startup_word(option_word);
+		g_free(option_word);
+
+		for(i = 1; i < argc; i++)
+			add_startup_word(argv[i]);
+	}
+
 	exe_path = strdup(argv[0]);
 
 	initialize_preference();
@@ -523,6 +649,11 @@ int main( int   argc,
 	 * once, from inside the main loop. */
 	if(dictgroup_unavailable_count() > 0)
 		g_idle_add(show_unavailable_dicts, NULL);
+
+	/* A word given on the command line is looked up once the window is
+	 * actually on screen; the dictionaries are already loaded by now. */
+	if(startup_search_word != NULL)
+		g_timeout_add(50, lookup_startup_word, NULL);
 
 	gtk_main ();
 #ifndef __WIN32__
