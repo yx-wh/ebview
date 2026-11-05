@@ -102,6 +102,32 @@ cmake --build build
 sudo cmake --install build
 ```
 
+## 打包
+
+Debian / Ubuntu 二进制包。脚本会用一个独立的 `build-deb/` 以 `--prefix=/usr`
+重新配置并编译（程序里的 `LOCALEDIR`、`PACKAGEDIR` 是编译期写死的，
+用 `/usr/local` 前缀的构建树打包装到 `/usr` 会找不到数据），然后生成
+`control`、`md5sums`、`postinst`/`postrm` 与 `copyright`：
+
+```sh
+bash tools/make_deb.sh                  # -> build/dist/ebview_<version>_<arch>.deb
+sudo apt install ./build/dist/ebview_0.4.0_amd64.deb
+```
+
+发布用源码 tarball，内容与 git 标签完全一致（排除仅作对照用的 `upstream/`）：
+
+```sh
+git archive --format=tar --prefix=ebview-0.4.0/ v0.4.0 -- . ':(exclude)upstream' \
+    | xz -9e > build/dist/ebview-0.4.0.tar.xz
+```
+
+Windows 免安装包，需在 MSYS2 UCRT64 环境下执行（会收集依赖 DLL、gdk-pixbuf
+加载器与 fontconfig 配置）：
+
+```sh
+bash tools/pack_win.sh                  # -> build/dist/EBView-win64.zip
+```
+
 首次运行会在 `~/.ebview/` 生成 `preference.xml`、`dictgroup.xml`、
 `shortcut.xml`、`searchengines.xml`、`filter.xml` 等配置文件。
 
@@ -128,6 +154,7 @@ Debian 仓库中的 `edict-fpw` 等包提供可用的 EPWING 数据。
 CMakeLists.txt        现代构建定义
 config.h.in           由 CMake 生成的配置头模板
 build.sh              一键构建
+tools/                打包脚本（make_deb.sh / pack_win.sh）
 src/                  翻新后的源码（约 3 万行）
 data/ pixmaps/ doc/   运行时数据、图标、帮助文档
 po/                   日文翻译（ja.po）
