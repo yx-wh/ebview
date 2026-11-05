@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.16)
 
 project(ebview
-    VERSION 0.3.6.2
+    VERSION 0.4.0
     DESCRIPTION "EPWING CD-ROM dictionary viewer (modernized build)"
     LANGUAGES C)
 
@@ -60,6 +60,10 @@ configure_file(config.h.in "${CMAKE_CURRENT_BINARY_DIR}/config.h" @ONLY)
 file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/data")
 configure_file(data/about.en.in "${CMAKE_CURRENT_BINARY_DIR}/data/about.en" @ONLY)
 configure_file(data/about.jp.in "${CMAKE_CURRENT_BINARY_DIR}/data/about.jp" @ONLY)
+# AppStream metadata: the release version tracks PROJECT_VERSION so the
+# software centre never shows a stale version.
+configure_file(data/ebview.metainfo.xml.in
+    "${CMAKE_CURRENT_BINARY_DIR}/data/ebview.metainfo.xml" @ONLY)
 
 # ebview-client.c is an unfinished standalone remote-client experiment from
 # upstream; it was never part of the original Makefile.am target either.
@@ -184,6 +188,8 @@ install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/pixmaps/ebview.svg"
     DESTINATION "${CMAKE_INSTALL_DATADIR}/icons/hicolor/scalable/apps")
 install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/desktop/ebview.desktop"
     DESTINATION "${CMAKE_INSTALL_DATADIR}/applications")
+install(FILES "${CMAKE_CURRENT_BINARY_DIR}/data/ebview.metainfo.xml"
+    DESTINATION "${CMAKE_INSTALL_DATADIR}/metainfo")
 install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/pixmaps/ebview.xpm"
     DESTINATION "${CMAKE_INSTALL_DATADIR}/pixmaps")
 install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/README.md"

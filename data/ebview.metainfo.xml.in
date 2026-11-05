@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>ebview.desktop</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>GPL-2.0-or-later</project_license>
+
+  <name>EBView</name>
+  <summary>EPWING electronic dictionary viewer</summary>
+
+  <description>
+    <p>
+      EBView is a viewer for EPWING CD-ROM dictionaries, the format used by
+      most Japanese electronic dictionaries (広辞苑, 英辞郎, 中日辞典 and so on).
+      It is built on the EB Library and can open dictionaries straight from
+      their directory, without converting them first.
+    </p>
+    <p>Features:</p>
+    <ul>
+      <li>Search across several dictionaries at once and compare their entries</li>
+      <li>Forward, backward, keyword, full text and multi-word search</li>
+      <li>Look up a word selected in another application (X selection)</li>
+      <li>Renders gaiji, embedded images and color/emphasis markup</li>
+      <li>Dictionary groups, bookmarks, history and web search engines</li>
+      <li>Search a word from the command line: <code>ebview 辞書</code></li>
+    </ul>
+  </description>
+
+  <launchable type="desktop-id">ebview.desktop</launchable>
+
+  <categories>
+    <category>Education</category>
+    <category>Office</category>
+    <category>Utility</category>
+  </categories>
+
+  <provides>
+    <binary>ebview</binary>
+  </provides>
+
+  <developer>
+    <name>Kenichi Suto</name>
+  </developer>
+
+  <url type="homepage">https://github.com/fujii/ebview</url>
+
+  <releases>
+    <release version="@PROJECT_VERSION@" date="2026-11-05">
+      <description>
+        <p>Modernized build and the first release since the Debian package was removed:</p>
+        <ul>
+          <li>CMake based build for Linux and Windows</li>
+          <li>Search a word directly from the command line</li>
+          <li>Press Enter in the text view to search the selected text</li>
+          <li>Correct display of GB2312 Chinese text in mixed-encoding dictionaries</li>
+          <li>Fixes for 64-bit Windows (pronunciation playback, embedded icon)</li>
+        </ul>
+      </description>
+    </release>
+  </releases>
+
+  <content_rating type="oars-1.1"/>
+</component>

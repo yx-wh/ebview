@@ -1,3 +1,19 @@
+What's new in version 0.4.0
+New features
+  * Search a word directly from the command line: ebview WORD.
+  * Press Enter in the text view to search the selected text.
+  * Chinese (GB2312) text is now displayed correctly in dictionaries that
+    mix it into the EUC-JP stream (e.g. 小学館 中日-日中統合辞書).
+
+Bug-fix
+  * Crash when playing the pronunciation on 64-bit Windows.
+  * Application icon is now embedded in the executable (Windows).
+
+Build
+  * CMake based build for Linux and Windows (MSYS2 UCRT64).
+  * Builds with current gcc and CMake; GTK+ 2.10 or later is required.
+
+
 What's new in version 0.3.4
 Bug-fix
   * Search using Kanji character now correctly work.
