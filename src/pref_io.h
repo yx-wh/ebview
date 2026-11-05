@@ -24,6 +24,8 @@ gboolean load_preference();
 gboolean save_preference();
 gboolean load_dictgroup();
 gboolean save_dictgroup();
+gint dictgroup_unavailable_count();
+gchar *dictgroup_unavailable_summary();
 gboolean load_stemming_en();
 gboolean load_stemming_ja();
 gboolean save_stemming_en();

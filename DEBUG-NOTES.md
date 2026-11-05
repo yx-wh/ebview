@@ -786,7 +786,82 @@ Samba 上一个共享里可能有几十上百个词典目录，下面每一条�
 - 把"每个文件弹一次窗"改成"结束汇总一次"是这类扫描器的通用原则：用户要的
   是结果数量，不是几十条被逐个打断的失败原因。
 
-## 11. 复现/验证清单
+## 11. 配置里有、硬盘上没了的词典（已修复）
+
+`dictgroup.xml` 里还留着某本词典，但它的目录已经不在了（用户删了、盘没插、
+Samba 共享没挂上）。原来的处理方式是**静默丢弃**，而且会在下一次保存时把
+配置里的条目一起抹掉：
+
+1. `load_dictgroup()` 逐条 `load_book()`，`eb_bind()` 失败 → `LOG(LOG_CRITICAL)` →
+   `binfo = NULL`（`src/eb.c` 的 `FAILED:`）。
+2. `src/pref_io.c` 只有 `if(binfo != NULL)` 才 `gtk_tree_store_append()`，
+   所以这一条**根本不会进列表**——不是灰显，是凭空消失。
+3. 启动阶段 `bstarting_up == TRUE`，`log.c` 的弹窗分支被 `!bstarting_up` 短路，
+   只有一个控制台输出（exe 是 CUI 子系统，双击时那个控制台窗口里能看到）。
+4. 关键时刻：**`save_dictgroup()` 是唯一写这个文件的函数，而它只遍历
+   `dict_store`**。所以任何一次保存都会把这条永久删掉，触发点有三处：
+   `dictbar.c` 的 `dict_toggled()`（勾选/取消任一词典）、`group_changed()`
+   （切换词典组）、`pref_dictgroup.c` 的 `pref_end_dictgroup()`（关掉设置）。
+
+第 4 条才是真正危险的：挂载点暂时不可用和"真的删了"在程序眼里完全一样，
+用户随手点一下别的词典的勾，几十条配置就一起没了。
+
+### 现在的行为
+
+- 加载失败的条目仍然插进 `dict_store`，只是 `DICT_MEMBER_COLUMN == NULL`、
+  `DICT_AVAILABLE_COLUMN == FALSE`；名字列把 `"sensitive"` 绑到这个新列上，
+  于是该行**灰显**（不可编辑，但仍可选中、可删除）。
+- `save_dictgroup()` 对 `binfo == NULL` 的行改用 `DICT_PATH_COLUMN` /
+  `DICT_SUBBOOK_NO_COLUMN` 等列写回，配置**永不丢失**。
+- 所有搜索路径跳过 NULL：`eb.c` 本来就有 `if(binfo == NULL) continue;`，
+  这次又给 `menu.c`（菜单/版权）、`multi.c`（多词检索）补上了同样的保护；
+  `dictbar.c` 原本就有。
+- 启动完成后由 `g_idle_add()` 弹出**一条**汇总提示（`ebview.c` 的
+  `show_unavailable_dicts()`），列出前 5 本的名字。不能在 `gtk_main()` 之前弹，
+  否则会卡住启动——这也是 `log.c` 用 `bstarting_up` 抑制弹窗的原因。
+
+### 两个容易踩的实现细节
+
+- **不要用 `gtk_tree_view_column_set_cell_data_func()` 做灰显**。GTK2 里一旦挂了
+  cell data func，列上通过 `gtk_tree_view_insert_column_with_attributes()` 设的
+  `"text"` / `"editable"` 属性就**不再生效**，名字会全部空白，必须在 func 里
+  自己重设。改用 `gtk_tree_view_column_add_attribute(col, renderer,
+  "sensitive", DICT_AVAILABLE_COLUMN)` 最省事，属性绑定互不干扰。
+- `gtk_tree_view_insert_column_with_attributes()` 在 GTK2 返回的是**列号**
+  （`gint`），不是 `GtkTreeViewColumn *`。要拿列对象得再
+  `gtk_tree_view_get_column(view, index)`。
+
+### 顺带修掉的两个相关缺陷
+
+- `load_book()` 的 `FAILED:` 原来只写 `binfo->available = FALSE; return NULL;`，
+  既不 `eb_finalize_book()` 也不 free：每本读不出来的词典泄漏一个 `EB_Book`
+  （3.5 KB）+ 路径字符串，并且留下未关闭的文件句柄。整块 Samba 共享掉线时
+  一次泄漏几十份。
+- `sublist[binfo->subbook_no]` 没有和 `subcount` 比较。配置里的 `subbook=7`
+  配上只剩 1 本子书的新版词典，会把栈上未初始化的元素（数组 50 个，不越界
+  但值是垃圾）送进 `eb_subbook_directory2()`。现在越界直接报
+  `Subbook number %d is out of range`。
+
+### 怎么验证"保存后条目还在"
+
+这个修复的关键在于 `save_dictgroup()` 的行为，而它平时只在关闭设置对话框时
+触发。不想去点界面的话，用 gdb 直接调：
+
+```bash
+gdb -batch -q \
+ -ex "set confirm off" \
+ -ex "break gtk_main" \
+ -ex "run" \
+ -ex "call (int)save_dictgroup()" \
+ --args ./ebview.exe
+```
+
+断在 `gtk_main` 上时 `dict_store` 已经填好、GTK 主循环还没跑，此时 `call`
+是安全的。然后比对 `%APPDATA%\EBView\dictgroup.xml` 的条目数——
+修复后失效条目连同 `path`/`subbook`/`appendix_path`/`active`/`fg`/`bg`
+会原样写回。
+
+## 12. 复现/验证清单
 
 ```bash
 cd /e/git/EBView
@@ -802,7 +877,12 @@ cd build && ninja
   的 stat/fopen 与 ShellExecute、§7 Windows 绝对路径导致找不到词典 + 扫描无反馈、
   §8 结构体 ABI 不一致导致 `Search Disk` 后堆损坏崩溃、§9 libeb 窄字符
   `open()`/`opendir()` 导致非 ASCII 词典目录打不开、§10 Samba 共享上
-  `Search Disk` 弹窗后界面卡死（GTK grab 栈）。
+  `Search Disk` 弹窗后界面卡死（GTK grab 栈）、§11 配置里失效词典被静默删除。
+- 已验证（§11）：往 `dictgroup.xml` 注入一条指向不存在目录的条目，启动后
+  ①弹出一条汇总提示（文案正确、可点掉、主窗口不受影响）；②`gdb` 里
+  `call save_dictgroup()` 之后条目连同全部字段仍在文件里；③把真实词典的
+  `subbook` 改成 99，日志报 `Subbook number 99 is out of range ... has 1
+  subbook(s)` 而不是拿垃圾值去查子书。
 - 已验证（用户实测）：Dictionary Group 里 `Path=E:\daijirin`、`Depth=0`、点
   `Search Disk` 能出现在 “Disk Search Result” 组下并正常查词（§7/§8 修复后）。
 - 待验证（§10 修复后）：对整个 Samba 共享（`W:` → `\\192.168.2.119\yx`）做

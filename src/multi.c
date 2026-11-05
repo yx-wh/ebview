@@ -123,6 +123,12 @@ void show_multi()
 			if(active == FALSE)
 				continue;
 
+			/* An entry that is still in dictgroup.xml but could not
+			 * be loaded has no BOOK_INFO; skip it instead of
+			 * dereferencing NULL. */
+			if(binfo == NULL)
+				continue;
+
 			if(binfo->search_method[SEARCH_METHOD_MULTI] != TRUE)
 				continue;
 

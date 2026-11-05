@@ -319,6 +319,13 @@ enum
 	DICT_EDITABLE_COLUMN,
 	DICT_BGCOLOR_COLUMN,
 	DICT_FGCOLOR_COLUMN,
+	/* FALSE when the entry is still in dictgroup.xml but the book could not
+	 * be opened (its directory is gone, or the share is not mounted).  Such
+	 * a row has DICT_MEMBER_COLUMN == NULL, is drawn greyed out (the "Name"
+	 * cell binds "sensitive" to this column), is skipped by every search,
+	 * and -- most importantly -- is written back to the configuration
+	 * untouched instead of being silently dropped. */
+	DICT_AVAILABLE_COLUMN,
 	DICT_N_COLUMNS
 };
 

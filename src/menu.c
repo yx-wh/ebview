@@ -58,6 +58,10 @@ void show_menu()
 
 						if(active != TRUE)
 							continue;
+						/* Entries kept from the configuration
+						 * but not loadable have no BOOK_INFO. */
+						if(binfo == NULL)
+							continue;
 						if(binfo->search_method[SEARCH_METHOD_MENU] != TRUE)
 							continue;
 
@@ -117,6 +121,10 @@ void show_copyright()
 								   -1);
 
 						if(active != TRUE)
+							continue;
+						/* Entries kept from the configuration
+						 * but not loadable have no BOOK_INFO. */
+						if(binfo == NULL)
 							continue;
 						if(binfo->search_method[SEARCH_METHOD_COPYRIGHT] != TRUE)
 							continue;

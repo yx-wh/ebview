@@ -213,6 +213,17 @@ BOOK_INFO *load_book(const char *book_path, int subbook_no, gchar *appendix_path
 		goto FAILED;
 	}
 
+	/* The subbook number comes straight from dictgroup.xml, which may have
+	 * been written for a different build of the same dictionary.  Without
+	 * this check we would index sublist[] past the entries libeb filled in
+	 * and hand a garbage code to eb_subbook_directory2(). */
+	if((binfo->subbook_no < 0) || (binfo->subbook_no >= subcount)){
+		LOG(LOG_CRITICAL,
+		    "Subbook number %d is out of range : '%s' has %d subbook(s)",
+		    binfo->subbook_no, book_path, subcount);
+		goto FAILED;
+	}
+
 
 	error_code = eb_subbook_directory2(
 		binfo->book, 
@@ -311,6 +322,28 @@ BOOK_INFO *load_book(const char *book_path, int subbook_no, gchar *appendix_path
 
  FAILED:
 	binfo->available = FALSE;
+
+	/* Nothing of this book is handed back to the caller, so everything has
+	 * to be released here.  The old code just returned NULL, which leaked
+	 * an EB_Book (3.5 KB) plus every path string per unreadable dictionary
+	 * and left libeb's file handles open -- that adds up fast when a whole
+	 * network share is unavailable and every entry fails in turn.
+	 * eb_finalize_book() already unsets the current subbook itself. */
+	eb_finalize_book(binfo->book);
+	free(binfo->book);
+
+	if(binfo->appendix != NULL){
+		eb_finalize_appendix(binfo->appendix);
+		free(binfo->appendix);
+	}
+
+	free(binfo->book_path);
+	free(binfo->appendix_path);
+	free(binfo->subbook_dir);
+	free(binfo->subbook_title);
+	free(binfo->fg);
+	free(binfo->bg);
+	free(binfo);
 
 	LOG(LOG_DEBUG, "OUT : load_book() = NULL");
 

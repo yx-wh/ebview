@@ -37,6 +37,30 @@ extern GList *active_dir_list;
 #define PREF_TYPE_STRING   2
 #define PREF_TYPE_FLOAT   3
 
+/* Dictionary entries that are listed in dictgroup.xml but could not be
+ * opened during start-up.  They are kept in the tree (greyed out) so that
+ * saving the configuration does not silently discard them -- a temporarily
+ * unmounted share must not cost the user his whole dictionary list. */
+static gint unavailable_dict_count = 0;
+static GString *unavailable_dict_names = NULL;
+
+/* Number of entries that failed to load during the last load_dictgroup().
+ * 0 means everything was fine and the start-up notice can be skipped. */
+gint dictgroup_unavailable_count()
+{
+	return(unavailable_dict_count);
+}
+
+/* Human readable list of the first few unavailable dictionaries, used by
+ * the start-up notice.  Returns a newly allocated string. */
+gchar *dictgroup_unavailable_summary()
+{
+	if(unavailable_dict_names == NULL)
+		return(g_strdup(""));
+
+	return(g_strdup(unavailable_dict_names->str));
+}
+
 struct _preferences {
 	gchar *name;
 	gint type;
@@ -255,6 +279,12 @@ gboolean load_dictgroup()
 
 	LOG(LOG_DEBUG, "IN : load_dictgroup");
 
+	unavailable_dict_count = 0;
+	if(unavailable_dict_names != NULL){
+		g_string_free(unavailable_dict_names, TRUE);
+		unavailable_dict_names = NULL;
+	}
+
 
 	sprintf(filename, "%s%s%s", user_dir, DIR_DELIMITER, FILENAME_DICTGROUP);
 
@@ -392,6 +422,50 @@ gboolean load_dictgroup()
 						    DICT_EDITABLE_COLUMN, FALSE,
 						    DICT_FGCOLOR_COLUMN, fg,
 						    DICT_BGCOLOR_COLUMN, bg,
+						    DICT_AVAILABLE_COLUMN, TRUE,
+						    -1);
+			} else {
+				/* The book could not be opened: the directory was
+				 * removed, or the network share it lives on is not
+				 * mounted right now.  Dropping the entry here (the
+				 * old behaviour) meant that the next call to
+				 * save_dictgroup() -- which only walks this store --
+				 * would silently erase it from dictgroup.xml, so a
+				 * transient failure could destroy the whole list.
+				 * Keep the row instead: greyed out, with no
+				 * BOOK_INFO, skipped by every search. */
+				unavailable_dict_count++;
+
+				if(unavailable_dict_names == NULL)
+					unavailable_dict_names = g_string_new("");
+
+				if(unavailable_dict_count <= 5){
+					g_string_append_printf(
+						unavailable_dict_names, "%s\n  %s",
+						(unavailable_dict_count > 1) ? "," : "",
+						book_name ? book_name :
+						(book_path ? book_path : "?"));
+				} else if(unavailable_dict_count == 6){
+					g_string_append(unavailable_dict_names,
+							"\n  ...");
+				}
+
+				gtk_tree_store_append(dict_store, &child_iter, &parent_iter);
+				gtk_tree_store_set (dict_store, &child_iter,
+						    DICT_TYPE_COLUMN, 1,
+						    DICT_TITLE_COLUMN,
+						    book_name ? book_name :
+						    (book_path ? book_path : "?"),
+						    DICT_PATH_COLUMN, book_path,
+						    DICT_SUBBOOK_NO_COLUMN, subbook_no,
+						    DICT_APPENDIX_PATH_COLUMN, appendix_path,
+						    DICT_APPENDIX_SUBBOOK_NO_COLUMN, appendix_subbook_no,
+						    DICT_ACTIVE_COLUMN, active,
+						    DICT_MEMBER_COLUMN, NULL,
+						    DICT_EDITABLE_COLUMN, FALSE,
+						    DICT_FGCOLOR_COLUMN, fg,
+						    DICT_BGCOLOR_COLUMN, bg,
+						    DICT_AVAILABLE_COLUMN, FALSE,
 						    -1);
 			}
 
@@ -432,6 +506,10 @@ gboolean save_dictgroup()
 	gboolean active;
 	BOOK_INFO *binfo;
 	gchar *fg, *bg;
+	gchar *book_path;
+	gint subbook_no;
+	gchar *appendix_path;
+	gint appendix_subbook_no;
 
 	GtkTreeIter   parent_iter;
 	GtkTreeIter   child_iter;
@@ -473,12 +551,15 @@ gboolean save_dictgroup()
 							  DICT_TITLE_COLUMN, &title,
 							  DICT_ACTIVE_COLUMN, &active,
 							  DICT_MEMBER_COLUMN, &binfo,
+							  DICT_PATH_COLUMN, &book_path,
+							  DICT_SUBBOOK_NO_COLUMN, &subbook_no,
+							  DICT_APPENDIX_PATH_COLUMN, &appendix_path,
+							  DICT_APPENDIX_SUBBOOK_NO_COLUMN, &appendix_subbook_no,
 							  DICT_FGCOLOR_COLUMN, &fg,
 							  DICT_BGCOLOR_COLUMN, &bg,
 							  -1);
 
 				       g_assert(title != NULL);
-				       g_assert(binfo != NULL);
 				       g_assert(strlen(title) != 0);
 
 
@@ -486,16 +567,39 @@ gboolean save_dictgroup()
 				       g_assert(xdict != NULL);
 
 				       xml_add_child(xdict, "name", title);
-				       xml_add_child(xdict, "path", binfo->book_path);
-				       sprintf(buff, "%d", binfo->subbook_no);
-				       xml_add_child(xdict, "subbook", buff);
-				       xml_add_child(xdict, "appendix_path", binfo->appendix_path);
-				       sprintf(buff, "%d", binfo->appendix_subbook_no);
-				       xml_add_child(xdict, "appendix_subbook", buff);
+
+				       /* An entry that is currently unavailable has
+					* no BOOK_INFO; write it back from the
+					* columns it was loaded from, so that an
+					* unreachable share (or an unplugged
+					* drive) never costs the user a dictionary
+					* definition. */
+				       if(binfo != NULL){
+					       xml_add_child(xdict, "path", binfo->book_path);
+					       sprintf(buff, "%d", binfo->subbook_no);
+					       xml_add_child(xdict, "subbook", buff);
+					       xml_add_child(xdict, "appendix_path", binfo->appendix_path);
+					       sprintf(buff, "%d", binfo->appendix_subbook_no);
+					       xml_add_child(xdict, "appendix_subbook", buff);
+				       } else {
+					       xml_add_child(xdict, "path", book_path);
+					       sprintf(buff, "%d", subbook_no);
+					       xml_add_child(xdict, "subbook", buff);
+					       xml_add_child(xdict, "appendix_path", appendix_path);
+					       sprintf(buff, "%d", appendix_subbook_no);
+					       xml_add_child(xdict, "appendix_subbook", buff);
+				       }
+
 				       sprintf(buff, "%d", active);
 				       xml_add_child(xdict, "active", buff);
 				       xml_add_child(xdict, "bg", bg);
 				       xml_add_child(xdict, "fg", fg);
+
+				       g_free(book_path);
+				       g_free(appendix_path);
+				       g_free(fg);
+				       g_free(bg);
+				       g_free(title);
 
 			       } while (gtk_tree_model_iter_next(GTK_TREE_MODEL(dict_store), &child_iter) == TRUE);
 		       }
