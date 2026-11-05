@@ -861,7 +861,140 @@ gdb -batch -q \
 修复后失效条目连同 `path`/`subbook`/`appendix_path`/`active`/`fg`/`bg`
 会原样写回。
 
-## 12. 复现/验证清单
+## 12. Win10 上拖动标题栏 / 拉边框缩放，窗口卡死（已修复）
+
+### 现象
+
+Windows 10 上，鼠标按住标题栏拖动，或者把鼠标移到窗口边缘拉大小，
+**窗口立刻停住，界面永久无响应**，只能强杀。同一个二进制在 Debian XFCE 下
+完全正常。
+
+### 这个 bug 用程序化方式测不出来
+
+先试过 `MoveWindow()` / `SetWindowPos()` 连续改尺寸和位置，40 次全部正常响应。
+原因：拖动标题栏时 Windows 会让窗口过程进入 `WM_ENTERSIZEMOVE` 的**内部模态
+循环**（`DefWindowProc` 里自己 `GetMessage`/`DispatchMessage`），而
+`MoveWindow()` 只发 `WM_WINDOWPOSCHANGED`，根本不进这个循环——所以拿它做回归
+测试永远是绿的。
+
+必须用**真实鼠标事件**才能复现：
+
+```python
+u.SetCursorPos(x, y)                       # 标题栏中部
+u.mouse_event(MOUSEEVENTF_LEFTDOWN, ...)
+for i in range(1, 21):                     # 分步移动
+    u.SetCursorPos(x + dx * i // 20, y + dy * i // 20)
+u.mouse_event(MOUSEEVENTF_LEFTUP, ...)
+```
+
+**两个必须注意的坑**，否则会得到假的"通过"结果：
+
+1. `SetForegroundWindow()` 对后台启动的进程通常被系统拒绝，窗口不在前台时
+   按下鼠标等于什么都没做。要用 `AttachThreadInput()` 借用前台线程的输入
+   状态再调。
+2. 判据不能只看"还响应不响应"，必须**确认窗口真的移动了 / 尺寸真的变了**。
+   我最早把抓取点写成 `r.top + 8`，窗口恰好在 `0,0` 时那是上边框而不是标题栏，
+   结果既没进入拖动、也没卡死，白白多测了几轮。
+
+### 定位过程
+
+最小 GTK2 程序（window + textview + treeview）拖标题栏**不卡**，说明是 EBView
+自己的初始化引入的。于是在 `main()` 里加一个环境变量分支，只建一个空窗口：
+
+| 步骤 | 结果 |
+| --- | --- |
+| `gtk_window_new` + `gtk_main` | 卡 |
+| `+ g_thread_init(NULL)` | 正常 |
+| `+ gdk_threads_init()` | **卡** |
+| `gdk_threads_enter(); gtk_main(); gdk_threads_leave();` | 卡（因为它依赖 `gdk_threads_init`） |
+
+即：**只要调用过 `gdk_threads_init()`，空窗口也会卡死**。
+
+卡死时的调用栈（gdb 抓的，主线程，从外到内）：
+
+```
+#7  USER32!DispatchMessageW
+#6  libgdk-win32-2.0-0.dll
+#5  libglib-2.0-0.dll          <- 主循环派发
+#1  ntdll!RtlAcquireSRWLockExclusive
+#0  ntdll!ZwWaitForAlertByThreadId     <- 永等
+```
+
+而且栈上 `DispatchMessageW` **嵌套了好几层**：GDK 在窗口过程里又跑了一遍
+GLib 主循环。其余线程全部在 idle 等待，没有谁"持有锁不放"——所以是**自死锁**，
+不是线程间互相等。
+
+### 根因
+
+`gdk_threads_init()` 会让 GDK 的每个入口点都去拿 `gdk_threads_mutex`。
+Windows 拖动/缩放时那个模态循环会把消息重新 `DispatchMessage` 进 GDK 的窗口
+过程，此时 GLib 主循环已经持有 `GMainContext` 的锁，重入再拿就永远等下去。
+
+X11 下的窗口移动是窗口管理器的事，应用进程不会进入任何模态循环，所以 Debian
+上永远碰不到这条路径——这就是"只有 Windows 会卡"的原因。
+
+### 修复
+
+`src/ebview.c`：Windows 上不调用 `gdk_threads_init()`，也不再用
+`gdk_threads_enter()/leave()` 包 `gtk_main()`；`src/splash.c` 的
+`gtk_main_iteration()` 循环同理（那段也是在 `gtk_main()` 之外主动泵事件）。
+非 Windows 平台保持原样。
+
+```c
+g_thread_init(NULL);
+#ifndef __WIN32__
+	gdk_threads_init();
+#endif
+	...
+#ifndef __WIN32__
+	gdk_threads_enter();
+#endif
+	gtk_main();
+#ifndef __WIN32__
+	gdk_threads_leave();
+#endif
+```
+
+### 为什么去掉锁是安全的
+
+`gdk_threads` 只保护 **GDK** 入口，本来就不保护 GTK widget 树，所以它对
+EBView 的实际作用是零：
+
+- 搜索线程（`thread_search.c`）只写 `add_result()`（自带 pthread mutex）、
+  `set_progress()`、`thread_end()`，UI 更新一律 `g_idle_add()` 回主线程；
+- 进度文字走 `set_cancel_dlg_text()`，里面先判 `g_main_context_is_owner()`；
+- `push_message()` 在 Windows 上直接 return。
+
+唯一在 worker 线程里碰 GTK 的是 `ebook_search_thread()` 里读 `dict_store`
+（`gtk_tree_model_get` 之类）——这些不是 GDK 调用，以前也不受
+`gdk_threads_mutex` 保护，去掉锁不改变它的性质。
+
+### 怎么验证
+
+```bash
+# 修复后 3/3 通过（拖动），3/3 通过（缩放）
+python build/drag_any.py build/ebview.exe
+python build/drag_any.py build/ebview.exe --resize
+```
+
+输出里 `window moved: True 0,0 -> 160,110` / `window resized: True 686x479 ->
+826x569` 才算真的测到了；只有 `hung at step None` 没有位移，说明抓取点没中。
+
+搜索路径另外验证过：临时加一个 `EBVIEW_AUTOSEARCH=<word>` 的定时器，
+从主循环里调用 `start_search()`，日志里能看到完整的
+`IN : start_search` → `IN : ebook_search_thread(a)` → `OUT : ebook_search_thread()`，
+进程全程存活。搜索**进行中**拖窗口也做过（`EBVIEW_AUTOSEARCH=a` + 拖动），正常。
+
+### 经验
+
+- **GTK2 在 Win32 上的 `gdk_threads_*` 家族本身就是雷**。只在确实有多个线程
+  直接调用 GDK 时才需要它；如果所有跨线程更新都走 `g_idle_add`，不要开。
+- 卡死 vs 变慢要分清：这里的判据是"等 30 秒仍不响应且栈不动"，而不是超时一次。
+- `gdb -p` attach 在这台机器上直接 `error 5`（拒绝访问）。可用的替代是让 gdb
+  自己 `run` 启动目标，再用外部 `DebugBreakProcess()` 注入断点，gdb 就能拿到
+  完整栈。gdb 18.1（MSYS2）**不支持** `target minidump`，别指望离线分析 dump。
+
+## 13. 复现/验证清单
 
 ```bash
 cd /e/git/EBView
@@ -877,7 +1010,10 @@ cd build && ninja
   的 stat/fopen 与 ShellExecute、§7 Windows 绝对路径导致找不到词典 + 扫描无反馈、
   §8 结构体 ABI 不一致导致 `Search Disk` 后堆损坏崩溃、§9 libeb 窄字符
   `open()`/`opendir()` 导致非 ASCII 词典目录打不开、§10 Samba 共享上
-  `Search Disk` 弹窗后界面卡死（GTK grab 栈）、§11 配置里失效词典被静默删除。
+  `Search Disk` 弹窗后界面卡死（GTK grab 栈）、§11 配置里失效词典被静默删除、
+  §12 Win10 拖动标题栏 / 拉边框缩放导致界面永久卡死（`gdk_threads_init`）。
+- 已验证（§12）：空窗口 + `gdk_threads_init()` 即可复现，去掉后 3/3 拖动、
+  3/3 缩放均正常且有真实位移；搜索线程跑完整链路，搜索进行中拖动也不卡。
 - 已验证（§11）：往 `dictgroup.xml` 注入一条指向不存在目录的条目，启动后
   ①弹出一条汇总提示（文案正确、可点掉、主窗口不受影响）；②`gdb` 里
   `call save_dictgroup()` 之后条目连同全部字段仍在文件里；③把真实词典的

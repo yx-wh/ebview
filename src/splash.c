@@ -32,10 +32,14 @@ splash_update(const gchar *text1, const gchar *text2)
 		return;
 	gtk_label_set_text(GTK_LABEL(splash_label1), text1);
 	gtk_label_set_text(GTK_LABEL(splash_label2), text2);
+#ifndef __WIN32__
 	gdk_threads_enter();
+#endif
 	while (gtk_events_pending())
 		gtk_main_iteration();
+#ifndef __WIN32__
 	gdk_threads_leave();
+#endif
 }
 
 void

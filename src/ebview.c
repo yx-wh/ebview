@@ -351,7 +351,17 @@ int main( int   argc,
 #endif
 
 	g_thread_init(NULL);
+#ifndef __WIN32__
+	/* Never enable the GDK thread lock on Windows.  gdk_threads_init()
+	 * makes every GDK entry point take gdk_threads_mutex, and the Win32
+	 * backend dispatches messages from inside the modal loop that Windows
+	 * runs while a window is being dragged or resized.  That loop re-enters
+	 * GDK while the main loop already owns the lock, so the first mouse
+	 * move after grabbing the title bar deadlocks the process for good.
+	 * EBView's worker threads never touch GTK directly (they hand results
+	 * back through g_idle_add), so the lock buys nothing here anyway. */
 	gdk_threads_init();
+#endif
 	bstarting_up = TRUE;
 
 #ifdef __WIN32__
@@ -498,7 +508,9 @@ int main( int   argc,
 	splash_destroy();
 
 	// main loop
+#ifndef __WIN32__
 	gdk_threads_enter();
+#endif
 	bstarting_up = FALSE;
 
 	/* Entries that stayed in dictgroup.xml but could not be opened: warn
@@ -507,7 +519,9 @@ int main( int   argc,
 		g_idle_add(show_unavailable_dicts, NULL);
 
 	gtk_main ();
+#ifndef __WIN32__
 	gdk_threads_leave();
+#endif
 	ebook_end();
 
 	LOG(LOG_DEBUG, "OUT: main()");
