@@ -134,6 +134,19 @@ const gchar *ui_language(void)
 		raw = getenv("LC_MESSAGES");
 	if(raw == NULL || *raw == '\0')
 		raw = getenv("LANG");
+
+	/* gettext lets LANGUAGE override the locale, and that is how most
+	 * users ask for a translation other than the one their locale
+	 * implies (LANGUAGE=zh_CN:en with an English LANG).  Follow the same
+	 * rule, including the one exception gettext documents: LANGUAGE is
+	 * ignored when the locale is exactly C or POSIX, so that a user who
+	 * deliberately asked for untranslated output is not overridden. */
+	if(!((raw != NULL) && ((strcmp(raw, "C") == 0) ||
+			       (strcmp(raw, "POSIX") == 0)))){
+		const gchar *lang = getenv("LANGUAGE");
+		if(lang != NULL && *lang != '\0')
+			raw = lang;
+	}
 #endif
 
 	if(raw == NULL || *raw == '\0'){
@@ -141,9 +154,10 @@ const gchar *ui_language(void)
 		return "en";
 	}
 
-	/* "zh_CN.UTF-8@euro" -> "zh_CN" */
+	/* "zh_CN.UTF-8@euro" -> "zh_CN", and take the first entry of a
+	 * LANGUAGE priority list ("zh_CN:ja:en" -> "zh_CN"). */
 	while(i < (gint)sizeof(tag) - 1 && raw[i] != '\0'
-	      && raw[i] != '.' && raw[i] != '@'){
+	      && raw[i] != '.' && raw[i] != '@' && raw[i] != ':'){
 		tag[i] = raw[i];
 		i++;
 	}
