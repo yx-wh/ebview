@@ -1166,7 +1166,107 @@ for i in range(n):
 所以打包脚本 `tools/pack_win.sh` 不用改：图标已经在 exe 里，`share/ebview/pixmaps`
 仍是界面按钮用的那套 XPM。
 
-## 15. 复现/验证清单
+## 15. 点词条里的发音（`<wave>`）直接段错误（已修复）
+
+现象：大辞林里 `this` 这类带音标的条目，点发音立刻整个进程消失（`0xC0000005`），
+日志里什么都没有——因为崩在新建的播放线程里，而那个线程不写日志。
+
+### 根因：把 64 位指针截成 DWORD
+
+`src/external.c` 的 `play_background()` 原样照搬了 32 位时代的写法：
+
+```c
+mciSendCommand(0, MCI_OPEN, MCI_WAIT|MCI_OPEN_TYPE|MCI_OPEN_ELEMENT,
+               (DWORD)&open_parms);     /* ← 这里 */
+```
+
+`mciSendCommand` 的第四个参数在 x64 上是 `DWORD_PTR`，而 `(DWORD)` 只保留低 32 位。
+实测（`build/probe_mci.c`，同一台机器同一份 wav）：
+
+| 传参 | 结构体地址 | 实际传给 MCI 的值 | 结果 |
+| --- | --- | --- | --- |
+| `(DWORD_PTR)&parms` | `0x000000F4D17FF8B0` | 同左 | `MCI_OPEN=0`、`MCI_PLAY=0`，正常播完 |
+| `(DWORD)&parms` | `0x000002580DFF790` 附近 | `0x0000000080DFF790` | 立即 `SIGSEGV`（rc=139） |
+
+MCI 拿这个坏指针去读 `lpstrDeviceType`，第一条指令就 AV。
+
+### 为什么 `gdb` 下复现不出来（坑）
+
+第一次用 `gdb` 在 `gtk_main` 下断点再 `call play_multimedia()`，进程**没崩**。
+加上地址打印才看明白：gdb 用 `DEBUG_PROCESS` 启动，ntdll 换成 debug heap，
+播放线程的栈被分配到 `0x000000000a1cfe70`（< 4 GB），截断前后值一样，于是"正常"。
+正常启动（不挂 gdb）同一个位置是 `0x0000001b6fdff7c0` → 截断成 `0x6fdff7c0` → 崩。
+
+对照结果（同一个 wav、同一份代码，只换 `external.c`）：
+
+| 二进制 | 启动方式 | 结果 |
+| --- | --- | --- |
+| 旧 `external.c` | 直接启动 | `0xC0000005`，秒退 |
+| 旧 `external.c` | gdb 下 `call play_multimedia()` | 存活（栈落在 4 GB 以下） |
+| 新 `external.c` | 直接启动 | 连播 3 次不崩 |
+
+**教训**：这类"指针被截断"的崩溃依赖地址高低，调试器的调试堆会改变分配位置，
+所以"gdb 下不崩"不能当成没 bug。要复现必须用真实启动 + 一个不依赖界面的触发点。
+
+### 顺带修掉的五处（同一条链路）
+
+1. `MCI_OPEN_PARMS` / `MCI_PLAY_PARMS` 没有 `memset`，`lpstrAlias`、`dwCallback`
+   是栈上垃圾值。
+2. `play_background()` 声明为 `void *` 却没有 `return`，线程退出码是随机值。
+3. `g_filename` 是全局变量：第一次点击 `g_strdup`，第二次点击 `g_free` 上一次的字符串
+   ——而上一段可能还在播。改成把 `strdup` 后的路径作为线程参数传进去，线程自己释放。
+4. `pthread_create` 的线程从来没 `join`/`detach`，每播一次泄漏一份栈和句柄；
+   `pthread_create` 失败还 `exit(1)` 直接把程序杀掉。
+5. 路径编码：`temp_dir` 在 `%APPDATA%\EBView\tmp` 下，用户名非 ASCII 时是 UTF-8
+   字节，而 MCI 的 ANSI 版本按代码页解释。改用 `mciSendCommandW` +
+   `g_utf8_to_utf16()`；`ebook_output_wave()` 的 `fopen` 同步换成 `g_fopen`
+   （Windows 上按 UTF-8 转 UTF-16，Linux 上是 `fopen` 的透传）。
+6. `ebook_output_wave()` 里 `fwrite(&binary_data[44], read_length - 44, 1, fp)`：
+   `read_length` 是 `ssize_t`，小于 44 时借成巨大的 `size_t`。加 `read_length > 44` 守卫。
+7. `link.c` 现在只在 `ebook_output_wave()` 返回 `EB_SUCCESS` 时才播，否则会去播上一次
+   遗留的旧文件。`unlink()` 换成 `g_unlink()`（同上，UTF-8 路径）。
+
+### 验证方法（可复用）
+
+（探针源码放在 `build/` 下，与 `build/` 其余临时脚本一样被 gitignore，不进仓库。）
+
+```bash
+# 1. 纯 MCI 层：证明是截断导致的
+gcc -O0 -o build/probe_mci.exe build/probe_mci.c -lwinmm
+./build/probe_mci.exe build/silence.wav trunc     # rc=139
+./build/probe_mci.exe build/silence.wav full      # MCI_OPEN=0 MCI_PLAY=0
+
+# 2. 真实词典：取出 this 的 <wave> 数据并用 MCI 播放
+gcc -O0 -o build/probe_eb_wave.exe build/probe_eb_wave.c -leb -lwinmm -liconv -lgnurx -lz
+./build/probe_eb_wave.exe "W:/EBWinDict/日本語辞典/三省堂 大辞林" this
+#   <wave> page=0x464fd offset=0x4b3 size=11796
+#   wrote daijirin-wave.wav (RIFF/WAVE, 11025 Hz mono 8-bit, 1.07s)
+#   MCI_PLAY -> 0
+```
+
+`build/probe_eb_wave.c` 里的 `<wave>` 解析和 `eb_set_binary_wave`/`eb_read_binary`
+循环就是 `ebook_output_wave()` 的等价实现，所以它跑通等于提取链路没问题。
+
+### 复现/回归用的临时钩子（不提交）
+
+给 `main()` 的 `gtk_main()` 之前插一段读 `EBVIEW_PLAYTEST` 的代码，就能在没有鼠标的
+情况下触发真实播放路径（**必须放在 `initialize_preference()` 之后**，否则
+`bplay_sound_internally` 还是 0，走的是外部播放器分支，永远不崩）：
+
+```c
+if (getenv("EBVIEW_PLAYTEST"))
+    play_multimedia(getenv("EBVIEW_PLAYTEST"), TAG_TYPE_SOUND);
+```
+
+用 Python 采集退出码（bash 的 rc 在 Windows 上不可靠）：
+
+```python
+p = subprocess.Popen([exe], env=env)
+try: p.communicate(timeout=7); print("CRASH 0x%08X" % (p.returncode & 0xFFFFFFFF))
+except subprocess.TimeoutExpired: print("survived"); p.kill()
+```
+
+## 16. 复现/验证清单
 
 ```bash
 cd /e/git/EBView

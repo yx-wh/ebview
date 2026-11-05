@@ -17,6 +17,7 @@
 
 #include "defs.h"
 #include "global.h"
+#include <glib/gstdio.h>
 
 #include "bmh.h"
 #include "eb.h"
@@ -2936,7 +2937,10 @@ EB_Error_Code ebook_output_wave(BOOK_INFO *binfo, gchar *filename, gint page, gi
 		return(error_code);
 	}
 
-	fp = fopen(filename, "wb");
+	/* g_fopen() takes a UTF-8 path on Windows; glib converts it to UTF-16.
+	 * Plain fopen() would go through the ANSI code page and fail whenever
+	 * the user profile (and therefore temp_dir) contains non-ASCII. */
+	fp = g_fopen(filename, "wb");
 	if(fp == NULL){
 		LOG(LOG_CRITICAL, "Failed to open file : %s",
 			filename);
@@ -2953,7 +2957,10 @@ EB_Error_Code ebook_output_wave(BOOK_INFO *binfo, gchar *filename, gint page, gi
 		}
 
 		// If there are extra data (32 bytes) before fmt chunk,remove them.
-		if((strncmp("fmt ", &binary_data[44], 4) == 0) &&
+		// read_length is ssize_t: without the > 44 guard, read_length - 44
+		// goes negative and turns into a huge size_t on the fwrite below.
+		if((read_length > 44) &&
+		   (strncmp("fmt ", &binary_data[44], 4) == 0) &&
 		   (strncmp("fmt ", &binary_data[12], 4) != 0)){
 			LOG(LOG_CRITICAL, "Warning: extra header found in WAVE data.");
 			fwrite(binary_data, 12, 1, fp);

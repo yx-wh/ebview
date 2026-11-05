@@ -18,6 +18,7 @@
 
 #include "defs.h"
 #include "global.h"
+#include <glib/gstdio.h>
 
 #include "dump.h"
 #include "eb.h"
@@ -117,31 +118,38 @@ gboolean follow_link(guint offset)
 
 			show_result(&result, TRUE, FALSE);
 		} else if (tag->type & TAG_TYPE_SOUND){
-			sprintf(filename, "%s%sebview-%d-%d.wav", temp_dir, DIR_DELIMITER, getpid(), count++);
-			ebook_output_wave(current_result->data.eb.book_info, 
-					  filename, 
-					  tag->page,
-					  tag->offset,
-					  tag->size);
-			play_multimedia(filename, TAG_TYPE_SOUND);
+			EB_Error_Code error_code;
 
-			if(lastfile){
-				unlink(lastfile);
-				g_free(lastfile);
+			sprintf(filename, "%s%sebview-%d-%d.wav", temp_dir, DIR_DELIMITER, getpid(), count++);
+			error_code = ebook_output_wave(current_result->data.eb.book_info,
+						       filename,
+						       tag->page,
+						       tag->offset,
+						       tag->size);
+			/* Only play what was actually written; the old code played the
+			 * path unconditionally, so a failed extraction left MCI opening
+			 * a stale or zero-byte file from the previous click. */
+			if(error_code == EB_SUCCESS){
+				play_multimedia(filename, TAG_TYPE_SOUND);
+
+				if(lastfile){
+					g_unlink(lastfile);
+					g_free(lastfile);
+				}
+				lastfile = strdup(filename);
 			}
-			lastfile = strdup(filename);
 					
 			// Link to movie
 		} else if (tag->type & TAG_TYPE_MOVIE){
 			sprintf(filename, "%s%sebview-%d-%d.mpg", temp_dir, DIR_DELIMITER, getpid(), count++);
-			unlink(filename);
+			g_unlink(filename);
 			ebook_output_mpeg(current_result->data.eb.book_info, 
 					  tag->filename,
 					  filename);
 			play_multimedia(filename, TAG_TYPE_MOVIE);
 
 			if(lastfile){
-				unlink(lastfile);
+				g_unlink(lastfile);
 				g_free(lastfile);
 			}
 			lastfile = strdup(filename);

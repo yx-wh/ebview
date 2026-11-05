@@ -46,24 +46,55 @@ gint launch_external(gchar *cmd, gboolean wait){
 }
 
 #ifdef __WIN32__
-static gchar *g_filename=NULL;
-static pthread_t tid;
+#include <mmsystem.h>
+#include <string.h>
 
+/* MCI expects a DWORD_PTR for the parms pointer.  The original code cast it to
+ * DWORD, which truncates any 64-bit stack address
+ * (0x0000002580DFF790 -> 0x0000000080DFF790) and makes mciSendCommand fault on
+ * its first field access -- that was the segfault when clicking a pronunciation
+ * in Daijirin.  The parms structs are also zeroed now: MCI reads the fields
+ * selected by the flags and the caller left lpstrAlias/dwCallback as garbage.
+ *
+ * Playback happens on its own thread so a long clip does not freeze the UI, and
+ * the worker owns its own copy of the path as UTF-16: the old code shared a
+ * global g_filename that the next click freed while the previous clip was still
+ * playing.  mciSendCommandW is used because the path comes from GTK as UTF-8 and
+ * the temporary directory sits under the user profile, which may be non-ASCII.
+ */
 static void *play_background(void *arg)
 {
-	MCI_OPEN_PARMS open_parms;
+	MCI_OPEN_PARMSW open_parms;
 	MCI_PLAY_PARMS play_parms;
 	MCI_GENERIC_PARMS parms;
+	gunichar2 *wpath = (gunichar2 *)arg;
 
-	open_parms.wDeviceID = 0;
-	open_parms.lpstrDeviceType = "waveaudio";
-	open_parms.lpstrElementName = g_filename;
-	if(mciSendCommand(0,MCI_OPEN,MCI_WAIT|MCI_OPEN_TYPE|MCI_OPEN_ELEMENT,(DWORD)&open_parms) == 0){
+	memset(&open_parms, 0, sizeof open_parms);
+	memset(&play_parms, 0, sizeof play_parms);
+	memset(&parms, 0, sizeof parms);
+
+	open_parms.lpstrDeviceType = L"waveaudio";
+	open_parms.lpstrElementName = (LPCWSTR)wpath;
+
+	if (mciSendCommandW(0, MCI_OPEN,
+			    MCI_WAIT | MCI_OPEN_TYPE | MCI_OPEN_ELEMENT,
+			    (DWORD_PTR)&open_parms) == 0) {
 		play_parms.dwFrom = 0;
-		mciSendCommand(open_parms.wDeviceID,MCI_PLAY,MCI_WAIT|MCI_FROM,(DWORD)&play_parms);
-		mciSendCommand(open_parms.wDeviceID,MCI_STOP,MCI_WAIT,(DWORD)&parms);
-		mciSendCommand(open_parms.wDeviceID,MCI_CLOSE,MCI_WAIT,(DWORD)NULL);
+		mciSendCommandW(open_parms.wDeviceID, MCI_PLAY,
+				MCI_WAIT | MCI_FROM, (DWORD_PTR)&play_parms);
+		mciSendCommandW(open_parms.wDeviceID, MCI_STOP, MCI_WAIT,
+				(DWORD_PTR)&parms);
+		mciSendCommandW(open_parms.wDeviceID, MCI_CLOSE, MCI_WAIT,
+				(DWORD_PTR)NULL);
+	} else {
+		gchar *u8 = g_utf16_to_utf8(wpath, -1, NULL, NULL, NULL);
+		LOG(LOG_WARNING, "Failed to open sound device for %s", u8 ? u8 : "?");
+		g_free(u8);
 	}
+
+	g_free(wpath);
+
+	return NULL;
 }
 #endif
 
@@ -83,26 +114,32 @@ void play_multimedia(gchar *filename, gint type)
 #ifdef __WIN32__
 		if(bplay_sound_internally){
 			pthread_attr_t thread_attr;
+			pthread_t tid;
+			gunichar2 *wpath;
 			gint rc;
 
-			if(g_filename)
-				g_free(g_filename);
-			g_filename = g_strdup(filename);
+			wpath = g_utf8_to_utf16(filename, -1, NULL, NULL, NULL);
+			if(wpath != NULL){
+				pthread_attr_init (&thread_attr) ;
+				pthread_attr_setstacksize (&thread_attr, 512*1024) ;
 
-			pthread_attr_init (&thread_attr) ;
-			pthread_attr_setstacksize (&thread_attr, 512*1024) ;
+				LOG(LOG_DEBUG, "thread_create");
+				rc = pthread_create(&tid, &thread_attr, play_background,
+						    (void *)wpath);
+				pthread_attr_destroy(&thread_attr);
 
-			LOG(LOG_DEBUG, "thread_create");
-			rc = pthread_create(&tid, &thread_attr, play_background, (void *)NULL);
-			if(rc != 0){
-				LOG(LOG_CRITICAL, "pthread_create: %s", strerror(errno));
-				LOG(LOG_DEBUG, "OUT : thread_search()");
-				exit(1);
+				if(rc == 0){
+					/* Nobody joins this thread; detach so its
+					 * stack and handle are released when it ends. */
+					pthread_detach(tid);
+					LOG(LOG_DEBUG, "thread_created");
+					return;
+				}
+
+				g_free(wpath);
+				LOG(LOG_WARNING, "pthread_create failed : %d", rc);
 			}
-			LOG(LOG_DEBUG, "thread_created");
-			pthread_attr_destroy(&thread_attr);
-
-			return;
+			/* Fall through to the external player instead of giving up. */
 		}
 #endif
 		template = strdup(wave_template);
