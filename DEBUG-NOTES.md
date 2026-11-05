@@ -1092,7 +1092,38 @@ EUC-JP，所以非日语一律回退英文（ASCII，两边都安全）。
 现在这条提示统一走 `status_message()`——状态栏是纯 GTK 部件，吃 UTF-8，
 和 `websearch.c` 里 "Lanuching web browser..." 的做法一致。
 
-## 14. 复现/验证清单
+## 14. Windows 分发包（拷到别的机器上跑）
+
+`bash tools/pack_win.sh` 生成 `build/dist/EBView/` 和 `build/dist/EBView-win64.zip`
+（约 32 MB 展开 / 14 MB 压缩）。这些文件全部来自 MSYS2 UCRT64 前缀，缺一个就启动
+失败或文字变豆腐块，**必须整目录拷，不能只拿 exe**：
+
+| 内容 | 为什么需要 |
+| --- | --- |
+| `ebview.exe` | 本体 |
+| 46 个 `*.dll` | GTK2/Pango/cairo/glib 等依赖闭包（`ldd` 递归结果，去掉系统 DLL） |
+| `share/ebview/` | `locate_package_dir()` 认 `share/ebview/shortcut.xml` 作标记；内含 gtkrc、searchengines、filter、endinglist、pixmaps、help |
+| `locale/<lang>/LC_MESSAGES/ebview.mo` | `locate_locale_dir()` 只认这个布局，否则界面回英文（§13） |
+| `lib/gdk-pixbuf-2.0/2.10.0/` | 词典正文里的插图（`render.c` 的 `gdk_pixbuf_new_from_file`）；cache 里是相对路径，按 DLL 所在目录解析 |
+| `etc/fonts/` | fontconfig 配置。实测删掉也能跑（回落到内置默认），只有 130 KB，留着更保险 |
+
+用户配置不在包里：`%APPDATA%\EBView\`（`CSIDL_APPDATA`），首次运行由
+`initialize_preference()` 创建，并把 `share/ebview` 下的模板 `find_or_copy_file()`
+过去。实测清空该目录后启动正常，只是词典列表为空。
+
+**最低系统**：`pei-x86-64`，只能 64 位 Windows。硬导入里最新的是 `dwrite.dll`
+（Win7+）、`msimg32.dll`、`api-ms-win-crt-*`（UCRT，Win10 自带），**没有**
+`gdi32full.dll`/`kernel.appcore.dll`（那两条是 ldd 顺着系统 DLL 递归出来的，不是我们
+的导入）。所以二进制层面 Win7 SP1 x64 + KB2999226 理论上能跑，但 UCRT64 工具链和
+GTK2 那套只对 Windows 10+ 提供保证，实际按 **Windows 10/11 x64** 说。
+
+**已知瑕疵**：PE 子系统是 CUI（`add_executable` 没加 `WIN32`），从资源管理器双击会
+多出一个标题为 exe 路径的控制台窗口（`LOG()` 走 stderr）。要消掉它有两种办法：加
+`set_target_properties(ebview PROPERTIES WIN32_EXECUTABLE TRUE)`，或者保留 CUI 但在
+`main()` 里 `GetConsoleProcessList() == 1` 时 `ShowWindow(GetConsoleWindow(), SW_HIDE)`
+（从终端启动时仍能看到日志）。
+
+## 15. 复现/验证清单
 
 ```bash
 cd /e/git/EBView
