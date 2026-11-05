@@ -319,7 +319,7 @@ cd eb && make install            # 只装核心 libeb.a，跳过 libebutils 工�
 - 修复：新增最小 `data/gtkrc`（默认 `MS Gothic 9`），并在 `CMakeLists.txt` 的
   `file(COPY ...)` 与 `install(FILES ...)` 两处登记，首次启动自动落到配置目录。
 
-## 5. 当前未解决 bug：文件搜索时 Shift_JIS 文件名转换失败
+## 5. 文件搜索时 Shift_JIS 文件名转换失败（已修复）
 
 点“文件搜索”（目录树展开）报：
 
@@ -329,13 +329,20 @@ E:/git/EBView/src/dirtree.c:409 CRITICAL : Failed to open directory W:\(丈
 E:/git/EBView/src/dirtree.c:426 CRITICAL : Failed to convert filename from Shift_JIS
 ```
 
-- **初步分析（待修复）**：`row_expanded()`（`dirtree.c:384`）用 `g_dir_open()` 打开目录、
-  遍历 `g_dir_read_name()`，再对每个 `name` 调 `iconv_convert(fs_codeset, "utf-8", name)`，
-  `fs_codeset` 默认 `Shift_JIS`。但 **Windows 上 GLib 的 `g_dir_read_name()` 已返回
-  UTF-8**（GLib 在 Windows 走 UTF-16 宽 API 并转 UTF-8），再当 Shift_JIS 去 iconv 必失败/
-  乱码（`W:\(丈` 即错误转换后的乱码）。正确做法：**`__WIN32__` 下跳过 iconv 转换**，
-  直接用已是 UTF-8 的 `name`；非 Windows（原 Linux 路径）才需要转换。另需核对
-  `compose_full_path()` → `generic_to_native()` 在 Windows 下是否也误做了编码转换。
+- **根因（已定位并修复）**：`preference.c:227` 在 Windows 下把 `fs_codeset` 默认设成
+  `"Shift_JIS"`。但 **Windows 上 GLib 的文件名（`g_dir_read_name`）与剪贴板文本都是
+  UTF-8**（GLib 内部转 UTF-16），于是 `fs_to_unicode` / `unicode_to_fs` 以及
+  `row_expanded()` 里直接调的 `iconv_convert(fs_codeset, "utf-8", name)` 把本就是 UTF-8
+  的字符串当成 Shift_JIS 去转 → 乱码（`W:\(丈` 即错误转换后的产物），进而导致
+  `g_dir_open()` 拿到非法路径而打不开目录。
+- **修复**：Windows 下 `fs_codeset = strdup("UTF-8")`。`iconv_convert` 在编码相同时直接
+  `g_strdup` 原样返回（见 `jcode.c:138`），于是所有 `fs_codeset` 相关转换变成恒等，
+  等价于“跳过转换”，与 GLib 的 UTF-8 约定一致；同时让 `selection.c:337` /
+  `shortcutfunc.c:362` 的剪贴板文本转换也变正确（之前同样被当 Shift_JIS 误转）。
+  该判断包在 `#ifdef __WIN32__` 内，Linux 路径（`nl_langinfo(CODESET)`，现代系统多为
+  UTF-8）不受影响。
+- **验证方式**：在 UCRT64 终端 `./ebview.exe` → 文件搜索 → 展开任一驱动器/目录，
+  观察不再出现上述两条 CRITICAL，目录能正常展开、子项文件名显示正确（含中文/日文）。
 
 ## 6. 复现/验证清单
 

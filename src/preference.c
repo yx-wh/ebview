@@ -224,7 +224,11 @@ void initialize_preference(){
 	max_bytes_to_guess = 5000;
 
 #ifdef __WIN32__
-	fs_codeset = strdup("Shift_JIS");
+	/* On Windows GLib uses UTF-8 for filesystem names and clipboard text
+	 * (it converts to UTF-16 internally), so the "filesystem codeset" is
+	 * UTF-8.  Treating it as Shift_JIS corrupted every filename read via
+	 * g_dir_read_name() and every path passed to g_dir_open(). */
+	fs_codeset = strdup("UTF-8");
 #else
 	fs_codeset = nl_langinfo(CODESET);
 #endif
