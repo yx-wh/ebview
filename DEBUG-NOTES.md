@@ -1133,6 +1133,39 @@ GTK2 那套只对 Windows 10+ 提供保证，实际按 **Windows 10/11 x64** 说
 
 没选 `WIN32_EXECUTABLE TRUE`：那会让 stderr 彻底没有去处，排查问题只剩弹窗。
 
+**exe 图标（已修，072b144）**：仓库里一直有 `src/ebview.rc`（`1 ICON ../pixmaps/ebview.ico`），
+但 CMake 侧从来没编译过它——`file(GLOB "src/*.c")` 匹配不到 `.rc`，也没有
+`enable_language(RC)`，所以 Windows 版 exe 一直是资源管理器里的默认程序图标，
+只有窗口/任务栏图标（`src/pixmap.c` 编进去的 XPM）是对的。
+
+修法有两个坑：
+
+- `enable_language(RC)` 必须在 `project()` 之后、且只在 `WIN32` 下开；非 Windows
+  环境没有 `windres`，开了会直接配置失败。
+- **不能直接用 `src/ebview.rc`**：windres 的工作目录是构建目录，里面写的
+  `../pixmaps/ebview.ico` 在 `build/` 下解析成 `E:/git/EBView/pixmaps/ebview.ico`——
+  看着对，但换个构建目录（如 `build-msys/`）就错。改用 `configure_file()` 从
+  `src/ebview.rc.in` 生成带**绝对路径**的 `build/ebview.rc`。
+
+验证（`build/ebview.exe`，7 帧全部内嵌）：把 `pixmaps/ebview.ico` 的每个条目
+按 `ICONDIR` 逐帧取出来，在 exe 里搜原始字节，7/7 命中
+（16/24/32/48/64/128/256，128 以上是 PNG 负载，搜索时不会误判）：
+
+```python
+import struct
+ico = open('pixmaps/ebview.ico','rb').read(); exe = open('build/ebview.exe','rb').read()
+_, _, n = struct.unpack('<HHH', ico[:6])
+for i in range(n):
+    w,h,_,_,_,bpp,size,off = struct.unpack('<BBBBHHII', ico[6+16*i:22+16*i])
+    print(w or 256, h or 256, bpp, exe.find(ico[off:off+size]) >= 0)
+```
+
+运行时也确认过（`build/icon_check.py`，启动后读窗口属性）：`WM_GETICON` 的
+`ICON_SMALL`/`ICON_BIG`/`ICON_SMALL2` 与 `GCLP_HICON`/`GCLP_HICONSM` 五个句柄全部非空，
+标题栏左上角是青色镜片 + E。任务栏、Alt-Tab、资源管理器取的都是 exe 里的资源组，
+所以打包脚本 `tools/pack_win.sh` 不用改：图标已经在 exe 里，`share/ebview/pixmaps`
+仍是界面按钮用的那套 XPM。
+
 ## 15. 复现/验证清单
 
 ```bash
