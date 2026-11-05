@@ -25,6 +25,9 @@
 #include "pref_io.h"
 #include "dirtree.h"
 
+#include <glib/gstdio.h>
+#include <sys/stat.h>
+
 static GtkWidget *dict_view;
 static GtkWidget *entry_group_name;
 static GtkWidget *entry_directory_name;
@@ -650,6 +653,11 @@ static void add_group(GtkWidget *widget,gpointer *data)
  * the user when a scan found nothing instead of silently doing nothing. */
 static int books_found = 0;
 
+/* Books that could not be used (bind failed, no search method, ...).  Counted
+ * instead of reported one dialog at a time: scanning a network share easily
+ * hits dozens of these, and a dialog per file would bury the result. */
+static int books_skipped = 0;
+
 static int enumerate_subbook(char *path)
 {
 	EB_Book book;
@@ -674,20 +682,24 @@ static int enumerate_subbook(char *path)
 	eb_initialize_book(&book);
 	error_code = eb_bind(&book, path);
 	if(error_code != EB_SUCCESS){
-		/* This used to be LOG_INFO, which is below the default log level
-		 * and therefore invisible: a failed bind looked like "Search Disk
-		 * did nothing at all". */
-		LOG(LOG_WARNING, "Failed to bind the book '%s' : %s",
+		/* Counted rather than reported per file.  A network share holds
+		 * many directories with a CATALOG that libeb still refuses, and
+		 * one dialog each would bury the actual result of the scan; the
+		 * total is reported once when the scan finishes.  Keeping this at
+		 * LOG_DEBUG also means a failed bind no longer silently looks
+		 * like "Search Disk did nothing". */
+		books_skipped++;
+		LOG(LOG_DEBUG, "Failed to bind the book '%s' : %s",
 		    path, ebook_error_message(error_code));
 		return(1);
 	}
 
 	error_code = eb_subbook_list(&book, sublist, &subcount);
 	if(error_code != EB_SUCCESS){
-		LOG(LOG_WARNING, "Failed to get a subbook list of '%s' : %s",
+		books_skipped++;
+		LOG(LOG_DEBUG, "Failed to get a subbook list of '%s' : %s",
 		    path, ebook_error_message(error_code));
-		eb_finalize_book(&book);
-		return(1);
+		goto failed;
 	}
 	for(i=0 ; i<subcount ; i++){
 		error_code = eb_subbook_directory2(
@@ -695,8 +707,10 @@ static int enumerate_subbook(char *path)
 			sublist[i],
 			buff);
 		if (error_code != EB_SUCCESS){
-			LOG(LOG_CRITICAL, _("Failed to get subbook directory."));
-			return(1);
+			books_skipped++;
+			LOG(LOG_DEBUG, "Failed to get subbook directory of '%s' : %s",
+			    path, ebook_error_message(error_code));
+			goto failed;
 		}
 
 		error_code = eb_subbook_title2(
@@ -704,16 +718,19 @@ static int enumerate_subbook(char *path)
 			sublist[i],
 			buff);
 		if (error_code != EB_SUCCESS){
-			LOG(LOG_CRITICAL, _("Failed to get title."));
-			return(1);
+			books_skipped++;
+			LOG(LOG_DEBUG, "Failed to get title of '%s' : %s",
+			    path, ebook_error_message(error_code));
+			goto failed;
 		}
 
 		error_code = eb_set_subbook(&book, sublist[i]); 
 		if (error_code != EB_SUCCESS){
-			LOG(LOG_CRITICAL, "failed to set subbook %s, %d: %s",
-				path, sublist[i],
-				ebook_error_message(error_code));
-			return(1);
+			books_skipped++;
+			LOG(LOG_DEBUG, "Failed to set subbook %s, %d: %s",
+			    path, sublist[i],
+			    ebook_error_message(error_code));
+			goto failed;
 		}
 
 		eb_multi_search_list(&book, multi_list, &multi_count);
@@ -727,8 +744,11 @@ static int enumerate_subbook(char *path)
 			utf_str = iconv_convert("euc-jp", "utf-8", buff);
 			binfo = load_book(path, sublist[i], NULL, 0, NULL, NULL);
 			if(binfo == NULL){
-				popup_warning(_("Failed to load book."));
-				return(1);
+				books_skipped++;
+				LOG(LOG_DEBUG, "Failed to load book '%s', subbook %d",
+				    path, sublist[i]);
+				free(utf_str);	/* iconv_convert() uses malloc */
+				goto failed;
 			}
 
 
@@ -787,7 +807,8 @@ static int enumerate_subbook(char *path)
 			free(utf_str);
 			books_found++;
 		} else {
-			LOG(LOG_WARNING,
+			books_skipped++;
+			LOG(LOG_DEBUG,
 			    "%s: the book has no search method (word/endword/"
 			    "exactword/keyword/multi), so it cannot be used "
 			    "for lookups and was skipped.", path);
@@ -799,6 +820,11 @@ static int enumerate_subbook(char *path)
 	LOG(LOG_DEBUG, "OUT : enumerate_subbook()");
 
 	return(0);
+
+ failed:
+	eb_finalize_book(&book);
+	LOG(LOG_DEBUG, "OUT : enumerate_subbook() (failed)");
+	return(1);
 }
 
 gint max_depth = 0;
@@ -809,11 +835,12 @@ static void search_dictionary_recursive(gchar *dirname, gint depth)
 	const gchar *name;
 	gchar *fullpath;
 	gboolean catalog_found = FALSE;
+	GStatBuf st;
 
 	LOG(LOG_DEBUG, "IN : search_dictionary_recursive(%s, %d)", dirname, depth);
 	
 	if((dir = g_dir_open(dirname, 0, NULL)) == NULL){
-		LOG(LOG_WARNING, "Failed to open directory %s", dirname);
+		LOG(LOG_DEBUG, "Failed to open directory %s", dirname);
 		LOG(LOG_DEBUG, "OUT : search_dictionary_recursive()");
 		return;
 	}
@@ -823,7 +850,16 @@ static void search_dictionary_recursive(gchar *dirname, gint depth)
 		 * cannot overflow, unlike the old fixed 512 byte sprintf buffer. */
 		fullpath = g_build_filename(dirname, name, NULL);
 
-		if(g_file_test(fullpath, G_FILE_TEST_IS_REGULAR) == TRUE){
+		/* One g_stat() instead of two g_file_test() calls.  On a Samba
+		 * mount each call is a network round trip, so halving them halves
+		 * the time the UI spends frozen.  g_stat() (not stat()) is used
+		 * because it takes a UTF-8 path on Windows. */
+		if(g_stat(fullpath, &st) != 0){
+			g_free(fullpath);
+			continue;
+		}
+
+		if(S_ISREG(st.st_mode)){
 			/* Only enumerate once per directory: some discs ship both
 			 * a CATALOG (EB) and a CATALOGS (EPWING) file. */
 			if(catalog_found == FALSE &&
@@ -832,7 +868,7 @@ static void search_dictionary_recursive(gchar *dirname, gint depth)
 				catalog_found = TRUE;
 				enumerate_subbook(dirname);
 			}
-		} else if(g_file_test(fullpath, G_FILE_TEST_IS_DIR) == TRUE){
+		} else if(S_ISDIR(st.st_mode)){
 			if(depth < max_depth)
 				search_dictionary_recursive(fullpath, depth+1);
 		}
@@ -841,6 +877,23 @@ static void search_dictionary_recursive(gchar *dirname, gint depth)
 	g_dir_close(dir);
 
 	LOG(LOG_DEBUG, "OUT : search_dictionary_recursive()");
+}
+
+/* Walk a network share and every stat() is a round trip, so the scan runs for
+ * a long time with the main loop completely blocked.  A wait cursor at least
+ * tells the user the window is busy rather than hung. */
+static void set_scan_cursor(gboolean busy)
+{
+	GdkCursor *cursor;
+
+	if(pref_dlg == NULL || GTK_WIDGET(pref_dlg)->window == NULL)
+		return;
+
+	cursor = busy ? gdk_cursor_new(GDK_WATCH) : NULL;
+	gdk_window_set_cursor(GTK_WIDGET(pref_dlg)->window, cursor);
+	if(cursor != NULL)
+		gdk_cursor_unref(cursor);
+	gdk_flush();
 }
 
 static void search_disk(GtkWidget *widget, gpointer *data)
@@ -876,13 +929,29 @@ static void search_disk(GtkWidget *widget, gpointer *data)
 	max_depth = gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(spin_search_depth));
 
 	books_found = 0;
+	books_skipped = 0;
+
+	set_scan_cursor(TRUE);
 	search_dictionary_recursive(dirname, 0);
+	set_scan_cursor(FALSE);
 
 	if(books_found == 0){
 		LOG(LOG_WARNING, "No dictionary was found under %s (depth=%d)",
 		    dirname, max_depth);
 		popup_warning(_("No dictionary was found. Check the path and "
 				"the search depth."));
+	} else if(books_skipped > 0){
+		/* One dialog for the whole run.  Reporting every rejected book
+		 * separately turned a scan of a Samba share into a wall of modal
+		 * warnings that had to be dismissed one by one. */
+		gchar *msg = g_strdup_printf(
+			_("Added %d dictionaries. %d could not be used "
+			  "(no search method, or the book could not be read) "
+			  "and were skipped."),
+			books_found, books_skipped);
+		LOG(LOG_DEBUG, "%s", msg);
+		popup_warning(msg);
+		g_free(msg);
 	}
 	g_free(dirname);
 

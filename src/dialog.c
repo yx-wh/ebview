@@ -72,7 +72,7 @@ gboolean idle_warning(gpointer data){
 	active  = TRUE;
 
 	parent = gtk_grab_get_current();
-	if(parent == NULL)
+	if(parent == NULL || !GTK_IS_WINDOW(parent))
 		parent = main_window;
 
 	dialog = gtk_message_dialog_new(GTK_WINDOW(parent),
@@ -89,6 +89,15 @@ gboolean idle_warning(gpointer data){
 	g_signal_connect(G_OBJECT(dialog), "destroy",
 			 G_CALLBACK(dialog_destroyed), NULL);
 	gtk_widget_show(dialog);
+
+	/* Only the top of GTK's grab stack receives input.  The preference
+	 * window grabs itself by hand (see show_preference()), so while it is
+	 * open this non-modal dialog would be completely inert: the OK button
+	 * does nothing and the whole application looks hung.  Move the grab to
+	 * the dialog; destroying it pops the grab and the previous holder
+	 * becomes active again. */
+	if(gtk_grab_get_current() != NULL && gtk_grab_get_current() != dialog)
+		gtk_grab_add(dialog);
 
  END:
 	LOG(LOG_DEBUG, "OUT : idle_warning");
@@ -107,7 +116,7 @@ gboolean idle_error(gpointer data){
 	active  = TRUE;
 
 	parent = gtk_grab_get_current();
-	if(parent == NULL)
+	if(parent == NULL || !GTK_IS_WINDOW(parent))
 		parent = main_window;
 
 	dialog = gtk_message_dialog_new(GTK_WINDOW(parent),
@@ -125,6 +134,11 @@ gboolean idle_error(gpointer data){
 	g_signal_connect(G_OBJECT(dialog), "destroy",
 			 G_CALLBACK(dialog_destroyed), NULL);
 	gtk_widget_show(dialog);
+
+	/* See idle_warning(): take the grab so the dialog is actually usable
+	 * while the preference window is open. */
+	if(gtk_grab_get_current() != NULL && gtk_grab_get_current() != dialog)
+		gtk_grab_add(dialog);
 
  END:
 	LOG(LOG_DEBUG, "OUT : idle_error");
