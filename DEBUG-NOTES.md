@@ -673,7 +673,120 @@ cp .libs/libeb.a /c/Users/yx/msys64/ucrt64/lib/libeb.a
 - 链接 libeb 的测试程序也必须带 `-D_FILE_OFFSET_BITS=64`（§8），否则
   `sizeof(EB_Book)` 差 8 字节，一调用就堆损坏。
 
-## 10. 复现/验证清单
+## 10. Samba 共享上 Search Disk 弹窗后界面卡死（已修复，282e6b2）
+
+### 现象
+
+把挂载的 Samba 共享（`W:` → `\\192.168.2.119\yx`）整个目录加进 Dictionary
+Group，设好 Depth 后点 **Search Disk**：扫描跑完弹出一条警告
+
+```
+W:\...\辞書の...: the book has no search method (word/endword/exactword/
+keyword/multi), so it cannot be used for lookups and was skipped.
+```
+
+然后**整个界面卡死**——警告框的 OK 按钮点不动，preference 窗口也没反应，
+只能强杀进程。
+
+### 根因：GTK 的 grab 栈
+
+`show_preference()` 末尾有这样一句：
+
+```c
+gtk_widget_show_all(pref_dlg);
+gtk_grab_add(GTK_WIDGET(pref_dlg));   /* src/preference.c:715 */
+```
+
+即 preference 窗口**手动**抓取了输入。而 `idle_warning()` 弹出的是**非模态**
+对话框（`gtk_widget_show()` + 信号回调，没有 `gtk_dialog_run()`）。非模态窗口
+不会自己抓取输入，GTK 的规则是**事件只发给 grab 栈顶的那个 widget**——栈顶
+始终是 preference 窗口，所以警告框完全收不到鼠标/键盘事件：显示出来了，却
+一句输入都拿不到，看起来就是整个程序死掉。
+
+用一个最小 GTK 程序复刻（A = preference 窗口，B = 警告框）：
+
+```
+1. prefs shown + grab_add(A)      current_grab = A(pref_dlg)
+2. dialog shown, before fix       current_grab = A(pref_dlg)   <-- 弹窗失效
+3. after gtk_grab_add(B)          current_grab = B(dialog)
+4. after destroy(B)               current_grab = A(pref_dlg)   <-- 正常恢复
+```
+
+第 2 行就是卡死的直接证据：B 已经显示，grab 却还在 A 上。
+
+### 修复
+
+`idle_warning()` / `idle_error()` 在 `gtk_widget_show()` 之后，若发现别人持有
+grab，就把 grab 转到对话框自己身上：
+
+```c
+if(gtk_grab_get_current() != NULL && gtk_grab_get_current() != dialog)
+    gtk_grab_add(dialog);
+```
+
+`gtk_widget_destroy()` → `gtk_widget_unrealize()` 会自动 `gtk_grab_remove()`，
+所以关闭对话框后前一个持有者（preference 窗口）自动恢复，不需要手动记账
+（上面测试的第 4 行已验证）。
+
+顺带把 `parent = gtk_grab_get_current();` 加了 `!GTK_IS_WINDOW(parent)` 判断，
+grab 栈顶不一定是窗口（某些 widget 也会抓），否则 `gtk_message_dialog_new()`
+会拿一个非窗口做 parent。
+
+### 同一路径上顺带修的三个问题
+
+Samba 上一个共享里可能有几十上百个词典目录，下面每一条都会被放大：
+
+1. **每个不可用词典单独弹一次窗**。`enumerate_subbook()` 里原本用
+   `LOG(LOG_WARNING, ...)` 报告 bind 失败/无检索方式，而 `log.c` 会把
+   `LOG_WARNING`/`LOG_MESSAGE`/`LOG_CRITICAL` 统统转成弹窗（`popup_warning`
+   / `popup_error`）。于是扫一个共享要逐个点掉几十个对话框。改成
+   `books_skipped++` + `LOG(LOG_DEBUG, ...)`，扫描结束汇总一条：
+
+   ```
+   Added 12 dictionaries. 37 could not be used (no search method, or the
+   book could not be read) and were skipped.
+   ```
+
+   注意 `LOG_DEBUG` 默认被过滤（`ebview_log_level = LOG_MESSAGE`），所以这些
+   细节只在 `LOG_LEVEL=DEBUG` 时才进日志，不会打扰用户。
+
+2. **`enumerate_subbook()` 有 4 条 `return(1)` 漏了 `eb_finalize_book()`**。
+   它们分别在 `eb_subbook_directory2` / `eb_subbook_title2` /
+   `eb_set_subbook` / `load_book` 失败之后——此时 book 已经 bind 成功、
+   文件已打开，直接 return 就漏一个句柄。词典一多可能耗尽句柄。统一改成
+   `goto failed;`，由标签处统一 `eb_finalize_book()`。
+
+3. **每遍历一个目录条目要 stat 两次**。原来对每个 entry 调用
+   `g_file_test(IS_REGULAR)` 和 `g_file_test(IS_DIR)`，各一次 `stat()`。
+   本地磁盘无所谓，网络共享上每次 `stat()` 都是一次往返回合。改成一次
+   `g_stat()` + `S_ISREG`/`S_ISDIR`：
+
+   ```c
+   GStatBuf st;
+   if(g_stat(fullpath, &st) != 0){ g_free(fullpath); continue; }
+   if(S_ISREG(st.st_mode)) { ... }
+   else if(S_ISDIR(st.st_mode)) { ... }
+   ```
+
+   必须用 `g_stat()` 而不是 `stat()`：glib 版本接受 UTF-8 路径，在 Windows
+   上会转 UTF-16（与 §5/§6 的 `g_stat`/`g_fopen` 是同一个道理）。
+
+4. 扫描期间 `set_scan_cursor(TRUE)`（`GDK_WATCH` + `gdk_flush()`），结束后
+   恢复。扫描是同步跑在主线程里的，主循环完全阻塞，wait 光标至少让"忙"和
+   "死"能区分开。
+
+### 经验
+
+- **GTK2 里 `gtk_grab_add()` 与"模态"是两套机制**。`gtk_window_set_modal()`
+  会让窗口在 map 时自己抓取，而手动 `gtk_grab_add()` 只是压栈。任何在
+  手动 grab 期间弹出的**非模态**窗口都收不到输入——不是崩溃，也不报错，
+  纯粹"点了没反应"，非常容易被误判成死锁或线程问题。
+- 想确认是不是 grab 问题，只要在原进程里看 `gtk_grab_get_current()` 返回谁。
+  栈顶不是当前活动窗口，就一定是它。
+- 把"每个文件弹一次窗"改成"结束汇总一次"是这类扫描器的通用原则：用户要的
+  是结果数量，不是几十条被逐个打断的失败原因。
+
+## 11. 复现/验证清单
 
 ```bash
 cd /e/git/EBView
@@ -688,11 +801,12 @@ cd build && ninja
 - 已修复：§3 Pango 启动崩溃、§4 gtkrc 提示、§5 Shift_JIS 文件名、§6 非 ASCII 路径
   的 stat/fopen 与 ShellExecute、§7 Windows 绝对路径导致找不到词典 + 扫描无反馈、
   §8 结构体 ABI 不一致导致 `Search Disk` 后堆损坏崩溃、§9 libeb 窄字符
-  `open()`/`opendir()` 导致非 ASCII 词典目录打不开。
-- 待实测：Dictionary Group 里 `Path=E:\daijirin`、`Depth=0`、点 `Search Disk`
-  应出现在 “Disk Search Result” 组下；随后在新词条上做查词。
-  （§8 修复后已用 `EBVIEW_AUTOSEARCH` 自动触发该路径连续跑 3 次，
-  都走到 `search_disk done` 并通过 `HeapValidate`，验证后临时代码已移除。）
-  想顺带验证 §9，可以把 `Path` 填成 `E:\测试词典`（用 `cp -rl /e/daijirin
-  "/e/测试词典"` 造的硬链接副本，不占空间）再 Scan 一次。
+  `open()`/`opendir()` 导致非 ASCII 词典目录打不开、§10 Samba 共享上
+  `Search Disk` 弹窗后界面卡死（GTK grab 栈）。
+- 已验证（用户实测）：Dictionary Group 里 `Path=E:\daijirin`、`Depth=0`、点
+  `Search Disk` 能出现在 “Disk Search Result” 组下并正常查词（§7/§8 修复后）。
+- 待验证（§10 修复后）：对整个 Samba 共享（`W:` → `\\192.168.2.119\yx`）做
+  Search Disk，预期是：扫描期间显示 watch 光标；结束后只弹**一条**汇总
+  （`Added N dictionaries. M could not be used ...`），且该对话框的 OK 可以
+  正常点掉——不再出现"弹出警告后整个界面无响应"。
 - 已知限制：无。原「词典目录名必须 ASCII」的限制在 §9 已解除。
