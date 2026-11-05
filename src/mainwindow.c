@@ -382,8 +382,13 @@ void show_about()
 
 	LOG(LOG_DEBUG, "IN : show_about()");
 
-	sprintf(filename, "%s%sabout.%s", package_dir, DIR_DELIMITER,
-		ui_language());
+	/* Only about.en and about.jp exist, and the text view expects EUC-JP,
+	 * which cannot carry Chinese at all, so everything but Japanese falls
+	 * back to the English file. */
+	if(strcmp(ui_language(), "ja") == 0)
+		sprintf(filename, "%s%sabout.jp", package_dir, DIR_DELIMITER);
+	else
+		sprintf(filename, "%s%sabout.en", package_dir, DIR_DELIMITER);
 
 	fp = fopen(filename, "r");
 	if(fp == NULL){
@@ -407,26 +412,43 @@ void show_about()
 void show_usage()
 {
 
-	gchar filename[512];
-	gchar *tmp_str;
+	gchar *path;
+	const gchar *lang = ui_language();
 
 	LOG(LOG_DEBUG, "IN : show_usage()");
 
-#ifdef __WIN32__
-	/* ShellExecute() wants a plain path; it opens .html with the default
-	 * browser.  Note the language level directory: the old code pointed at
-	 * help/index.html, which does not exist in any layout. */
-	sprintf(filename, "%s%shelp%s%s%sindex.html", package_dir,
-		DIR_DELIMITER, DIR_DELIMITER, ui_language(), DIR_DELIMITER);
-#else
-	sprintf(filename, "file://%s/help/%s/index.html", package_dir,
-		ui_language());
-#endif
-	tmp_str = iconv_convert("utf-8", "euc-jp", _("Help will be shown in external web browser."));
-	show_text(0, tmp_str, NULL);
-	g_free(tmp_str);
+	/* help/<lang>/index.html, falling back to English when that language
+	 * level was not installed.  The old code pointed at help/index.html,
+	 * which does not exist in any layout. */
+	path = g_strdup_printf("%s%shelp%s%s%sindex.html", package_dir,
+			       DIR_DELIMITER, DIR_DELIMITER, lang,
+			       DIR_DELIMITER);
+	if(!g_file_test(path, G_FILE_TEST_IS_REGULAR)){
+		g_free(path);
+		path = g_strdup_printf("%s%shelp%sen%sindex.html", package_dir,
+				       DIR_DELIMITER, DIR_DELIMITER);
+	}
+	LOG(LOG_DEBUG, "Help page : %s", path);
 
-	launch_web_browser(filename);
+#ifndef __WIN32__
+	{
+		/* Unix handed the browser a file:// URL; ShellExecute() wants a
+		 * plain path and does that itself. */
+		gchar *tmp = path;
+		path = g_strdup_printf("file://%s", tmp);
+		g_free(tmp);
+	}
+#endif
+	/* Show it in the status bar rather than in the content pane: the pane
+	 * takes EUC-JP (render.c converts it to UTF-8 on the way in), which
+	 * cannot represent Chinese, and its replacement character turns the
+	 * message into "帮助将用外部####打开".  GTK widgets take UTF-8, so the
+	 * status bar shows every language correctly.  This is what the web
+	 * search path already does. */
+	status_message(_("Help will be shown in external web browser."));
+
+	launch_web_browser(path);
+	g_free(path);
 
 	set_current_result(NULL);
 

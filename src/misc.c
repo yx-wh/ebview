@@ -112,27 +112,53 @@ gboolean find_file(gchar *filename)
 
 }
 
-/* Two-letter language tag used to choose the shipped about.<lang> file and
- * help/<lang>/ directory.  Only "ja" and "en" are shipped; every other
- * language (zh_CN and zh_TW included) falls back to English, matching what
- * the message catalogue does for those. */
+/* Language tag used to choose the shipped about.<lang> file and the
+ * help/<lang>/ directory, e.g. "ja", "zh_CN", "zh_TW" or "en".
+ *
+ * Windows has no LANG; glib derives the name from the user's locale settings
+ * ("ja_JP", "zh_TW", "en_US", ...).  Elsewhere the environment decides, in the
+ * same order gettext uses, so that the manual matches the UI. */
 const gchar *ui_language(void)
 {
+	static gchar tag[16];
+	const gchar *raw;
+	gchar *loc = NULL;
+	gint i = 0;
+
 #ifdef __WIN32__
-	/* There is no LANG on Windows; glib derives the name from the user's
-	 * locale settings, giving e.g. "ja_JP", "zh_CN" or "en_US". */
-	gchar *loc = g_win32_getlocale();
-	gboolean is_ja = (loc != NULL && strncmp(loc, "ja", 2) == 0);
-
-	g_free(loc);
-	return is_ja ? "ja" : "en";
+	loc = g_win32_getlocale();
+	raw = loc;
 #else
-	const gchar *lang = getenv("LANG");
-
-	if(lang != NULL && strncmp(lang, "ja", 2) == 0)
-		return "ja";
-	return "en";
+	raw = getenv("LC_ALL");
+	if(raw == NULL || *raw == '\0')
+		raw = getenv("LC_MESSAGES");
+	if(raw == NULL || *raw == '\0')
+		raw = getenv("LANG");
 #endif
+
+	if(raw == NULL || *raw == '\0'){
+		g_free(loc);
+		return "en";
+	}
+
+	/* "zh_CN.UTF-8@euro" -> "zh_CN" */
+	while(i < (gint)sizeof(tag) - 1 && raw[i] != '\0'
+	      && raw[i] != '.' && raw[i] != '@'){
+		tag[i] = raw[i];
+		i++;
+	}
+	tag[i] = '\0';
+	g_free(loc);
+
+	if(strncmp(tag, "ja", 2) == 0)
+		return "ja";
+	if(strncmp(tag, "zh", 2) == 0){
+		if(strstr(tag, "_TW") || strstr(tag, "_HK") || strstr(tag, "_MO")
+		   || strstr(tag, "_Hant"))
+			return "zh_TW";
+		return "zh_CN";
+	}
+	return "en";
 }
 
 gboolean find_config_file(gchar *filename){

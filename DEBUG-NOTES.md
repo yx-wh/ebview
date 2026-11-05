@@ -1062,6 +1062,36 @@ gettext 找不到 catalog 就静默回退到 msgid（英文），连一条警告
 另外确认中文界面下没有豆腐块——`data/gtkrc` 的兜底字体 `MS Gothic 9` 覆盖
 大部分汉字，缺的字由 Pango 的 win32 fallback 补上。
 
+### 附带：帮助手册的中文版
+
+`doc/` 原来只有 `ja`（EUC-JP，帧结构 index/menu/body）和 `en`（单页）。
+中文界面既然叫得出来，手册也得跟上，于是照 `ja` 的结构补了 `doc/zh_CN` 和
+`doc/zh_TW`（UTF-8，`<meta charset=UTF-8>`，锚点 SEC1–SEC15 与 menu.html
+一一对应，脚本校验 52/52 无缺失、无多余）。术语按 `po/zh_CN.po`、
+`po/zh_TW.po` 现有的译法对齐：检索方式／完全一致检索／关键字检索／词典组／
+过滤器／快捷键；繁体用「辭典、檔案、視窗、剪貼簿、快取、字型、滑鼠」。
+繁体版由 OpenCC `s2twp` 从简体转出，再手工修了几处 OpenCC 词选得不对的
+地方（`擴充套件正規表示式` → `擴充`、`物件` → `對象`、`影象` → `影像`、
+`單詞` → `單字`）。
+
+`ui_language()` 相应改成返回完整标签（`ja` / `zh_CN` / `zh_TW` / `en`）：
+Windows 取 `g_win32_getlocale()`，其它平台按 gettext 的顺序看
+`LC_ALL` → `LC_MESSAGES` → `LANG`，并去掉 `.UTF-8` 之类的后缀；
+`zh_TW` / `zh_HK` / `zh_MO` / `zh_Hant` 都归到 `zh_TW`。
+
+**关于「关于」对话框**：它仍然只显示 `about.en` / `about.jp`。原因是正文
+管线是 EUC-JP——`render.c:172` 把传入的文本按 EUC-JP 转成 UTF-8，
+`show_about()` 读文件后是原样喂给 `show_text()` 的。中文根本没法规格化进
+EUC-JP，所以非日语一律回退英文（ASCII，两边都安全）。
+
+顺带修了 `show_usage()` 的一个真实缺陷：它原本先
+`iconv_convert("utf-8", "euc-jp", _("Help will be shown..."))` 再 `show_text()`。
+中文经这一趟会被塞进替换字符，正文里显示成
+`帮助将用外部####打开`；整段全是不可映射字符时还会得到空串，而
+`show_text()` 里 `text[length-1]` 会越界读（`length == 0` 时访问 `text[-1]`）。
+现在这条提示统一走 `status_message()`——状态栏是纯 GTK 部件，吃 UTF-8，
+和 `websearch.c` 里 "Lanuching web browser..." 的做法一致。
+
 ## 14. 复现/验证清单
 
 ```bash
@@ -1080,7 +1110,7 @@ cd build && ninja
   `open()`/`opendir()` 导致非 ASCII 词典目录打不开、§10 Samba 共享上
   `Search Disk` 弹窗后界面卡死（GTK grab 栈）、§11 配置里失效词典被静默删除、
   §12 Win10 拖动标题栏 / 拉边框缩放导致界面永久卡死（`gdk_threads_init`）、
-  §13 Windows 上界面语言永远是英文（mo 路径绑错）。
+  §13 Windows 上界面语言永远是英文（mo 路径绑错）+ 帮助手册补简体/繁体版。
 - 已验证（§12）：空窗口 + `gdk_threads_init()` 即可复现，去掉后 3/3 拖动、
   3/3 缩放均正常且有真实位移；搜索线程跑完整链路，搜索进行中拖动也不卡。
 - 已验证（§11）：往 `dictgroup.xml` 注入一条指向不存在目录的条目，启动后

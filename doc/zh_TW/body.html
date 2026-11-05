@@ -1,0 +1,1351 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+  <title>EBView 手冊</title>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <meta name="author" content="Kenichi SUTO">
+</head>
+<body>
+<br>
+<br>
+<h1 align="center">EBView 手冊</h1>
+<div style="text-align: center;">
+<h3>ver 0.3.4</h3>
+</div>
+<br>
+<div align="center"><a href="../ja/index.html">日本語</a> /
+<a href="../en/index.html">English</a><br>
+</div>
+<div align="center"><br>
+須藤賢一（Kenichi SUTO）<br>
+<br>
+<a href="mailto:deep_blue@users.sourceforge.net">deep_blue@users.sourceforge.net</a><br>
+<br>
+</div>
+<hr width="100%" size="2"><br>
+　
+<table border="0" width="100%" bgcolor="#C0C0C0">
+  <tr>
+    <td width="100%">
+      <h2><a name="SEC1"></a>1. 前言</h2>
+    </td>
+  </tr>
+</table>
+　
+<p>
+<br>
+EBView 是一個執行於 Linux、FreeBSD 和 Windows 的 EPWING 辭典瀏覽器，具有以下特點。
+<h3>
+<br>
+<font color="#008080">EPWING 辭典的檢索</font></h3>
+<ul>
+  <li><font color="#990000"><b>串刺檢索（跨辭典檢索）</b></font><br>
+    一次可以檢索多部辭典。辭典可以分組，因此即使辭典數量很多也沒有問題。檢索結果和按鈕都可以著色，一眼就能看出結果來自哪部辭典。<br>
+  </li>
+  <li><font color="#990000"><b>詞尾補正</b></font><br>
+    英文單字的過去式、複數形式，以及日語的活用等也能正確檢索。例如輸入「studies」會命中「study」，輸入「見れば」會命中「見る」。<br>
+  </li>
+  <li><font color="#990000"><b>支援多媒體資料</b></font><br>
+    支援單色影像、彩色影像、聲音和動畫。<br>
+  </li>
+  <li><font color="#990000"><b>豐富的檢索方式</b></font><br>
+    檢索方式除前方一致、後方一致、完全一致、關鍵字檢索、複合檢索之外，還提供自動檢索和全文檢索。
+  </li>
+</ul>
+<h3><font color="#008080">檔案檢索</font></h3>
+<blockquote>
+  <p>可以透過圖形介面從檔案中檢索。字串檢索比一般的 grep 更快。只要定義過濾器，文字形式以外的檔案也能檢索。支援正規表示式，日文的字元編碼會被自動識別。</p>
+</blockquote>
+<h3><font color="#008080">網路檢索</font></h3>
+<blockquote>
+  <p>事先登記好網路上的搜尋引擎，就不必每次都開啟瀏覽器重新輸入關鍵詞。當手頭的辭典沒有記載所需資訊時，可以用網路上的辭典或搜尋引擎來查。</p>
+</blockquote>
+<h3><font color="#008080">其他便利功能</font></h3>
+<ul>
+  <li><font color="#990000"><b>X 選區的自動檢索與彈出顯示</b></font><br>
+    可以自動檢索用滑鼠選中的單字。例如在瀏覽器裡閱讀英文網頁時，只要把不認識的單字選中反白，該詞就會被自動檢索。
+    檢索結果也可以彈出顯示在滑鼠所在位置。<br>
+    <br>
+    (*1) 在 Windows 上檢索的是剪貼簿。<br>
+  </li>
+  <li><font color="#990000"><b>鍵盤快捷鍵</b></font><br>
+    幾乎所有操作都可以自由地分配鍵盤快捷鍵。<font color="#990000"><b><br>
+    </b></font>
+  </li>
+</ul>
+EBView 使用了 <a href="http://www.sra.co.jp/people/m-kasahr/eb/index-ja.html">EB
+庫</a>。<br>
+<br>
+<table border="0" width="100%" bgcolor="#C0C0C0">
+  <tr>
+    <td width="100%">
+      <h2><a name="SEC2"></a>2. 辭典的準備</h2>
+    </td>
+  </tr>
+</table>
+　
+<p>
+使用 EBView 需要辭典資料。辭典既有以 CD-ROM 等形式銷售的市售品，也有可以免費使用的。<br>
+<br>
+</p>
+<h3><a name="SEC2_1"></a>2.1 市售辭典</h3>
+<br>
+市售辭典可以使用 <a href="http://www.epwing.or.jp/">EPWING</a>、EB、EBG、EBXA、EBXA-C
+格式的辭典。其他格式中也有透過轉換即可使用的。
+<p>購買 EPWING 格式的辭典後，將其複製到硬碟上適當的目錄。基本上是把整個辭典複製過去，
+但如果說明書裡寫明瞭複製步驟，請按說明操作。另外，有些辭典禁止或限制複製到硬碟，請注意。<br>
+<br>
+</p>
+<h3><a name="SEC2_2"></a>2.2 免費辭典</h3>
+<br>
+網路上釋出著可以免費使用的辭典。例如從<a
+ href="http://openlab.ring.gr.jp/edict/fpw/">這個頁面</a>可以獲取各種 EPWING
+格式的辭典。禁止再發布的辭典，需要先獲取原始資料，再用下面介紹的方法轉換。<br>
+<br>
+<h3><a name="SEC2_3"></a>2.3 檔案格式轉換</h3>
+國外出版的辭典大多不是 EPWING 格式，例如《Longman 現代英語辭典》、《Collins COBUILD on
+CD-ROM》等都屬於這種情況。另外《英辭郎》系列也不是 EPWING
+格式。這些 CD-ROM 通常附帶專用軟體，但如果需要參照多種辭典，就得啟動好幾個專用程式，非常麻煩。<br>
+<br>
+如果把辭典轉換成 EPWING 格式，就可以用 EBView 一次性檢索，非常方便。用於把資料轉換成 EPWING
+的軟體有「FreePWING」和「EBStudio」。<br>
+<br>
+<span style="font-weight: bold;">FreePWING</span><span
+ style="font-weight: bold;"> </span><br>
+<div style="margin-left: 40px;">生成 JIS-X4081
+格式書籍資料的軟體，屬於自由軟體。<br>
+<a href="http://www.sra.co.jp/people/m-kasahr/freepwing/">http://www.sra.co.jp/people/m-kasahr/freepwing/</a><br>
+</div>
+<br>
+<span style="font-weight: bold;">EBStudio</span><br>
+<div style="margin-left: 40px;"><span class="logo"></span>用 JIS-X4081（EPWING
+的子集）或電子書格式製作個人用途電子辭典、電子書的工具。是 Windows
+上的共享軟體，只用前方一致檢索的話可以免費使用。<br>
+<a href="http://www31.ocn.ne.jp/%7Eh_ishida/">http://www31.ocn.ne.jp/~h_ishida/</a><br>
+</div>
+<br>
+<br>
+關於轉換方法，請參考以下頁面。
+<blockquote>
+  <p><a href="http://openlab.ring.gr.jp/edict/fpw/">用 FreePWING 製作各種辭典</a></p>
+  <p><a href="http://www31.ocn.ne.jp/~h_ishida/scripts.html">EBStudio・轉換指令碼集</a></p>
+  <p><a href="http://hp.vector.co.jp/authors/VA000022/unixdic/">在 UNIX 上玩轉電子辭典</a></p>
+</blockquote>
+<p>
+<br>
+注：轉換資料有可能侵犯著作權。請僅在個人使用的範圍內使用。<br>
+<br>
+</p>
+<table border="0" width="100%" bgcolor="#C0C0C0">
+  <tr>
+    <td width="100%">
+      <h2><a name="SEC3"></a>3. 辭典組的定義</h2>
+    </td>
+  </tr>
+</table>
+　
+<p>
+辭典準備好之後，來定義辭典組。<br>
+<br>
+步驟如下。<br>
+<br>
+</p>
+<ol>
+  <li><b>開啟設定畫面</b><br>
+    <br>
+啟動 EBView，點選選單[工具]→[選項……]。會開啟設定視窗，在其中選擇[辭典檢索]→[辭典組]。<br>
+    <br>
+  </li>
+  <li><b>建立辭典組<br>
+    <br>
+    </b>建立用於歸類辭典的辭典組。必須至少建立一個辭典組。在對話方塊左側的[組名]輸入框中填入名稱，然後按[新增]按鈕。按「英和」「和英」之類的辭典種類來分組比較好。<br>
+    <br>
+另外，如果預先建立一個名為 "selection"
+的組，那麼在進行選區自動檢索時，不管當前選中的是哪個辭典組，都會使用這個組裡的辭典。<b><br>
+    <br>
+    </b></li>
+  <li><b>檢索磁碟上的辭典<br>
+    <br>
+    </b>從磁碟上檢索辭典。在[路徑]輸入框中填入要檢索的頂層目錄名，然後按[檢索磁碟]
+    按鈕。這樣就會從指定目錄之下檢索辭典。檢索會進行到指定的深度，一旦發現 catalog 或
+catalogs 檔案就把它當作辭典。深度 0 表示只檢索指定目錄本身（不含子目錄）。
+如果找不到辭典，請調整深度再試。<br>
+    <br>
+檢索結束後，會建立一個名為「Disk Search Result」的組，找到的辭典會被登記在其中。<br>
+    <br>
+  </li>
+  <li><b>把檢索到的辭典加入組<br>
+    <br>
+    </b>選中檢索到的辭典，用[上移]或[下移]按鈕把它移動到第 2 步建立的辭典組裡。
+同一部辭典登記在多個組裡也沒有關係。此外，辭典和辭典組都可以用拖
+    放的方式移動（不能拖放到空的辭典組裡）。
+    <br>
+  </li>
+  <li><b>改名與指定 Appendix</b><br>
+    <br>
+    辭典名稱在剛從磁碟檢索出來時是辭典資料中定義的名稱，但可以自由修改。這裡指定的名稱會用在辭典按鈕和檢索結果列表中，辭典資料本身不會被改動。在樹形畫面上點選辭典名，右側的框中會顯示其詳細資訊。在這裡輸入名稱、Appendix
+(*1) 檔案的路徑、副本編號等。<br>
+    <br>
+    另外，還可以為辭典指定顏色。這裡指定的顏色會用在辭典按鈕和檢索結果列表中。<br>
+  </li>
+</ol>
+<blockquote>
+  <p> (*1) Appendix 是
+  存放辭典分隔資料等的檔案，在正文顯示不正確等情況下使用，有時能改善問題。Appendix 資料可以從<a
+ href="http://www.sra.co.jp/people/m-kasahr/eb/appendix-ja.html">這裡</a>獲取。<br>
+  </p>
+</blockquote>
+<br>
+至此準備工作完成。<br>
+<br>
+<table border="0" width="100%" bgcolor="#C0C0C0">
+  <tr>
+    <td width="100%">
+      <h2><a name="SEC4"></a>4. 基本檢索</h2>
+    </td>
+  </tr>
+</table>
+<br>
+檢索的步驟如下。
+<ol>
+  <li>選擇辭典</li>
+  <li>選擇檢索方式</li>
+  <li>輸入檢索詞</li>
+  <li>開始檢索<br>
+  </li>
+</ol>
+<h3><a name="SEC4_1"></a>4.1 選擇辭典</h3>
+<br>
+在辭典選擇欄中選擇要使用的辭典組。於是該組中登記的辭典會以按鈕的形式排列出來。按鈕的狀態表示該辭典是否用於檢索：
+按下狀態表示檢索時使用，未按下狀態表示檢索時不使用。另外，按鈕呈灰色不可按的狀態，表示該辭典讀取失敗，
+可能是辭典已被刪除，或者 CD-ROM 沒有掛載等原因。各按鈕顯示的字數和顏色可以透過設定更改。 <br>
+<br>
+<h3><a name="SEC4_2"></a>4.2 指定檢索方式</h3>
+從選單或工具欄中選擇要執行的檢索方式。各種檢索方式的含義如下。<br>
+<br>
+<br>
+<div style="text-align: center;">以辭典為對象的檢索<br>
+</div>
+<blockquote>
+  <table cellpadding="2" cellspacing="2" border="1" width="80%"
+ align="center">
+    <tbody>
+      <tr>
+        <td valign="top" align="center" bgcolor="#cccccc" width="30%">檢索
+方式<br>
+        </td>
+        <td valign="top" align="center" bgcolor="#cccccc">含義<br>
+        </td>
+      </tr>
+      <tr>
+        <td valign="top">自動檢索<br>
+        </td>
+        <td valign="top">自動依次執行完全一致檢索和關鍵字檢索。根據設定，還會執行前方一致檢索。<br>
+        </td>
+      </tr>
+      <tr>
+        <td valign="top">完全一致檢索<br>
+        </td>
+        <td valign="top">只顯示與輸入詞完全一致的詞條。<br>
+        </td>
+      </tr>
+      <tr>
+        <td valign="top">前方一致檢索<br>
+        </td>
+        <td valign="top">顯示以輸入詞開頭的詞條。例如輸入 "difficult"，會命中
+"difficult"、"difficulty" 等。 <br>
+        </td>
+      </tr>
+      <tr>
+        <td valign="top">後方一致檢索<br>
+        </td>
+        <td valign="top">顯示以輸入詞結尾的詞條。例如輸入 "tist"，會命中
+"dentist"、"systematist" 等。</td>
+      </tr>
+      <tr>
+        <td valign="top">關鍵字檢索<br>
+        </td>
+        <td valign="top">指定多個關鍵詞進行檢索的方式。例如把 "grow" 和 "up"
+兩個詞作為檢索詞，就會命中 "grow up"。</td>
+      </tr>
+      <tr>
+        <td valign="top">複合檢索<br>
+        </td>
+        <td valign="top">同樣是檢索多個關鍵詞，但每個關鍵詞都預先賦予含義。也可以從列表中選擇關
+鍵詞。<br>
+        </td>
+      </tr>
+      <tr>
+        <td valign="top">全文檢索<br>
+        </td>
+        <td valign="top">在辭典中檢索所有正文裡含有指定檢索詞的詞條。因為要從頭到尾檢索整部辭典，
+所以比較費時。<br>
+        </td>
+      </tr>
+      <tr>
+        <td valign="top">選單<br>
+        </td>
+        <td valign="top">顯示辭典的選單資料（通常是使用方法、凡例等）。有些辭典沒有選單資料。<br>
+        </td>
+      </tr>
+      <tr>
+        <td valign="top">版權<br>
+        </td>
+        <td valign="top">顯示辭典的版權資料。有些辭典沒有。<br>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</blockquote>
+<div style="text-align: center;">
+<div style="text-align: center;"><br>
+其他檢索<br>
+</div>
+<blockquote>
+  <table cellpadding="2" cellspacing="2" border="1" width="80%"
+ align="center">
+    <tbody>
+      <tr>
+        <td valign="top" align="center" bgcolor="#cccccc" width="30%">檢索
+方式<br>
+        </td>
+        <td valign="top" align="center" bgcolor="#cccccc">含義<br>
+        </td>
+      </tr>
+      <tr>
+        <td valign="top">網路檢索<br>
+        </td>
+        <td valign="top">使用網路的搜尋引擎檢索。結果顯示在 Web 瀏覽器中。<br>
+        </td>
+      </tr>
+      <tr>
+        <td valign="top">檔案檢索<br>
+        </td>
+        <td valign="top">從檔案中查詢含有指定詞的行。<br>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</blockquote>
+</div>
+<br>
+檢索方式也可以透過切換樹形框架（預設為畫面左側部分）的標籤頁來改變。<br>
+<br>
+<h3><a name="SEC4_3"></a>4.3 輸入檢索詞</h3>
+<br>
+在工具欄的輸入框中輸入要檢索的詞句。進行自動檢索或關鍵字檢索時，用空格分隔多個詞。
+<p>輸入過的檢索詞會作為歷史保留下來。要檢索同樣的詞，可以按輸入框旁邊的下箭頭按鈕，或用上下方向鍵選擇。
+<br>
+</p>
+<h3><a name="SEC4_4"></a>4.4 開始檢索<br>
+</h3>
+輸入檢索詞後，按回車鍵，或點選輸入框右側的開始檢索按鈕（放大鏡圖示）。這樣檢索就開始了。檢索所需的時間取決於檢索方式、檢索詞以及最大命中數的設定。
+<p>
+<br>
+全文檢索和檔案檢索比較費時，因此會顯示進度對話方塊。中途要取消的話，請按對話方塊裡的[取消]
+按鈕。<br>
+</p>
+<p>　
+</p>
+<table border="0" width="100%" bgcolor="#C0C0C0">
+  <tr>
+    <td width="100%">
+      <h2><a name="SEC5"></a>5. 檢索結果的顯示</h2>
+    </td>
+  </tr>
+</table>
+<h3><a name="SEC5_1"></a>5.1 選擇詞條</h3>
+<br>
+檢索結束後，檢索結果的詞條會顯示在畫面左側（預設狀態下）。請用滑鼠選擇要參看的詞條。與所選詞條對應的正文會顯示在畫面右側。
+<p>
+<br>
+在檢索結果列表中，也可以用快捷鍵上下移動。另外，結果較多時只顯示設定的條數。如果還有後續結果，列表下方的按鈕會變為可用，用它可以看到剩下的部分。<br>
+</p>
+<p>在檢索結果中，勾選[檢視]→[結果列表]→[按辭典排序]，就會按辭典分別顯示。不勾選時，多部辭典的結果按以下順序排序。
+</p>
+<ul style="margin-left: 40px;">
+  <li>完全一致檢索的結果</li>
+  <li>詞條與檢索詞完全一致的</li>
+  <li>詞條與檢索詞前方一致的</li>
+  <li>詞條與檢索詞部分一致的</li>
+  <li>詞條中含有檢索詞全部內容的</li>
+  <li>其他</li>
+</ul>
+<p>
+　
+</p>
+<h3><a name="SEC5_2"></a>5.2 連結</h3>
+<br>
+正文中以藍色（預設狀態）顯示的部分表示指向其他位置的連結。把滑鼠移到上面時，游標會變成手形。此時點選滑鼠左鍵即可跳轉到參照目標。<br>
+<br>
+<h3><a name="SEC5_3"></a>5.3 聲音與動畫的播放</h3>
+<br>
+正文中以綠色（預設狀態）顯示的部分表示聲音、動畫等多媒體資料。把滑鼠移到上面時，游標會變成手形。此時
+點選滑鼠左鍵，就會開始播放多媒體資料。<br>
+<br>
+多媒體資料的播放使用外部程式。所用的程式可以自行設定。另外在
+Windows 上，根據設定也可以由 EBView 自身播放聲音。
+<p>　</p>
+<h3><a name="SEC5_4"></a>5.4 歷史</h3>
+作為正文顯示過的內容（辭典內的位置）都會存入顯示歷史，可以用[後退][前進]按鈕前後移動。儲存的歷史數量沒有限制，但重啟 EBView
+後歷史會被清除。<br>
+<br>
+<h3><a name="SEC5_5"></a>5.5 選擇內容</h3>
+<br>
+用滑鼠在顯示內容中框選時，選中的內容會存入 X
+的選區，可以貼上到其他程式中。<br>
+<br>
+按滑鼠右鍵會彈出選單。選擇[檢索此詞]會以選中的詞作為檢索詞進行檢索。
+選擇[複製到剪貼簿]則把選中的內容複製到剪貼簿。複製到剪貼簿的內容可以用 Ctrl + v
+等方式（視程式而定）貼上到其他程式裡。<br>
+<p>　
+</p>
+<table border="0" width="100%" bgcolor="#C0C0C0">
+  <tr>
+    <td width="100%">
+      <h2><a name="SEC6"></a>6. 選區（剪貼簿）的檢索</h2>
+    </td>
+  </tr>
+</table>
+　<p>
+<br>
+選區自動檢索，是指自動檢索在其他程式中被滑鼠選中的字串。例如在 Web
+瀏覽器上閱讀英文文章時遇到不認識的單字，只要選中該詞使其反白，這個單字就會被自動檢索。<br>
+<br>
+另外在 Windows 上檢索的不是選區，而是剪貼簿。選中字串並用 Ctrl+C
+等方式複製到剪貼簿，就會觸發檢索。<br>
+<br>
+要啟用選區自動檢索，請從選單的[工具]→[選區]中選擇要執行的處理。<br>
+<br>
+檢索結果除了像普通檢索那樣顯示在主視窗裡，也可以彈出顯示在滑鼠游標所在的位置。要彈出顯示，請選擇[工具]→[選區]→[在彈出視窗檢索]。彈出視窗上的滑鼠操作如下。<br>
+</p>
+<blockquote>
+  <table cellpadding="2" cellspacing="2" border="1" style="width: 80%;">
+    <tbody>
+      <tr>
+        <td style="vertical-align: top; text-align: center;"
+ bgcolor="#cccccc">滑鼠按鍵<br>
+        </td>
+        <td style="vertical-align: top; text-align: center;"
+ bgcolor="#cccccc">含義<br>
+        </td>
+      </tr>
+      <tr>
+        <td style="vertical-align: top; width: 20%;">左鍵 </td>
+        <td style="vertical-align: top;">關閉彈出視窗。在連結或多媒體資料上則跳轉到連結目標或開始播放。</td>
+      </tr>
+      <tr>
+        <td valign="top">中鍵 </td>
+        <td valign="top">顯示上一個候補。 </td>
+      </tr>
+      <tr>
+        <td valign="top">右鍵 </td>
+        <td valign="top">顯示下一個候補。 </td>
+      </tr>
+    </tbody>
+  </table>
+  　
+</blockquote>
+彈出視窗可以透過設定顯示標題欄。顯示標題欄時，會顯示總共命中了多少條，並且可以拖動
+標題欄來移動彈出視窗。此外，點選左上角的圖釘圖示後，用滑鼠左鍵點選視窗也不會關閉，下次顯示會更快。<br>
+<br>
+如果預先建立名為 "selection"
+的辭典組，那麼不管當前選中的是哪個辭典組，都會用這個組裡的辭典進行檢索。要彈出顯示檢索結果時，
+建議使用正文較短的辭典。<br>
+<br>
+另外，為了防止彈出視窗濫開，同一個字串（內容相同的字串）
+連續被選中時不會重複檢索。想再檢索同一個詞時，請先選中另一個詞，然後再選回該詞。<br>
+<br>
+<table border="0" width="100%" bgcolor="#C0C0C0">
+  <tr>
+    <td width="100%">
+      <h2><a name="SEC7"></a>7. 詞尾自動補正</h2>
+    </td>
+  </tr>
+</table>
+　
+<p>
+檢索 dictionaries 這樣詞尾發生變化了的單字時，通常會用原形 dictionary
+去檢索。關鍵詞由人來輸入時，可以自行判斷並輸入正確的詞形，但上面的選區自動檢索情況下就不行了。<br>
+<br>
+因此 EBView
+可以自動用原形來檢索詞尾發生變化的單字。這個功能稱為詞尾補正。EBView
+採用的方法是：當詞尾匹配某個特定模式時，就嘗試原形。因此啟用詞尾補正後，檢索會多花一些時間。<br>
+<br>
+是否進行詞尾補正、什麼樣的模式如何補正，都可以自定義。另外也可以指定只在輸入的單字沒有命中時才進行詞尾補
+正。<br>
+<br>
+詞尾補正功能對日語同樣有效。例如用「出られない」檢索，會命中「出る」。日語的詞尾補正機制與英語相同，但在修正詞尾後檢索仍然一條都沒有命中時，會進一步去掉檢索詞中的平假名部分再試。
+<p>
+<br>
+<br>
+<table border="0" width="100%" bgcolor="#C0C0C0">
+  <tr>
+    <td width="100%">
+      <h2><a name="SEC8"></a>8. 檔案檢索</h2>
+    </td>
+  </tr>
+</table>
+　<p>公司內部使用的術語表等，一般是寫成文字檔案的。把這類檔案轉換成 EPWING
+可以加快檢索速度，但如果格式因製作人而異、或者更新頻繁，有時保持文字檔案原樣檢索反而更快。這時能派上用場的就是檔案檢索。<p>檔案檢索會把檔案按行切分，檢查每一行是否含有指定的詞，並顯示以命中行為中心的前後若干行。<br>
+<br>
+另外，日文的字元編碼（EUC、Shift_JIS、JIS）會被自動識別，通常不需要手工轉換編碼。
+不過漢字編碼也有可能識別錯誤，如果覺得動作不正常，或者在檢索 Unicode 檔案時，請試著把檔案轉換成
+EUC 再檢索。<p>
+<br>
+檔案檢索中指定檢索詞的方法有兩種。無論哪種情況，勾選[忽略大小寫]
+都會把大寫和小寫視為相同。<br>
+<br>
+<h3><a name="SEC8_1"></a>8.1 普通文字檢索</h3>
+<br>
+指定不含特殊字元的普通文字進行檢索。檢索使用 BMH 演算法，因此速度很快。另外，指定多個詞時是 AND
+檢索。<br>
+<br>
+<h3><a name="SEC8_2"></a>8.2 正規表示式</h3>
+<br>
+使用 POSIX 擴充正規表示式進行檢索。EBView
+在檢索詞中發現元字元時，會自動把它當作正規表示式處理。可用的元字元及其含義如下。<br>
+<br>
+<br>
+<table cellpadding="2" cellspacing="2" border="1"
+ style="text-align: left; width: 90%; margin-left: auto; margin-right: auto;">
+  <tbody>
+    <tr>
+      <td style="vertical-align: top; text-align: center;"
+ bgcolor="#cccccc">元字元<br>
+      </td>
+      <td style="vertical-align: top; text-align: center;"
+ bgcolor="#cccccc">含義<br>
+      </td>
+      <td style="vertical-align: top; text-align: center;"
+ bgcolor="#cccccc">示例<br>
+      </td>
+    </tr>
+    <tr>
+      <td style="vertical-align: top; text-align: center;">|<br>
+      </td>
+      <td style="vertical-align: top;">匹配其中之一<br>
+      </td>
+      <td style="vertical-align: top;">A|B|C 匹配 A 或 B 或 C<br>
+      </td>
+    </tr>
+    <tr>
+      <td style="vertical-align: top; text-align: center;">.<br>
+      </td>
+      <td style="vertical-align: top;">匹配除空字元以外的任意 1 個字元<br>
+      </td>
+      <td style="vertical-align: top;"><br>
+      </td>
+    </tr>
+    <tr>
+      <td style="vertical-align: top; text-align: center;">^<br>
+      </td>
+      <td style="vertical-align: top;">匹配字串開頭的空字元</td>
+      <td style="vertical-align: top;">^abc : 匹配以 abc 開頭的行<br>
+      </td>
+    </tr>
+    <tr>
+      <td style="vertical-align: top; text-align: center;">$<br>
+      </td>
+      <td style="vertical-align: top;">匹配字串末尾的空字元</td>
+      <td style="vertical-align: top;">xyz$ : 匹配以 xyz 結尾的行<br>
+      </td>
+    </tr>
+    <tr>
+      <td style="vertical-align: top; text-align: center;">(、)<br>
+      </td>
+      <td style="vertical-align: top;">匹配該正規表示式所一致到的字串</td>
+      <td style="vertical-align: top;"><br>
+      </td>
+    </tr>
+    <tr>
+      <td style="vertical-align: top; text-align: center;">()<br>
+      </td>
+      <td style="vertical-align: top;">匹配<b>空</b>字串</td>
+      <td style="vertical-align: top;"><br>
+      </td>
+    </tr>
+    <tr>
+      <td style="vertical-align: top; text-align: center;">[、]</td>
+      <td style="vertical-align: top;">方括號表達<br>
+匹配 [ 與 ] 之間指定的字元<br>
+      </td>
+      <td style="vertical-align: top;">[abc] : 匹配 abc 中任意一個<br>
+[0-9] : 匹配 0 到 9 中任意一個<br>
+[^abc] : 匹配 a、b、c 以外的字元<br>
+      </td>
+    </tr>
+    <tr>
+      <td style="vertical-align: top; text-align: center;">*<br>
+      </td>
+      <td style="vertical-align: top;">0 個以上的重複<br>
+      </td>
+      <td style="vertical-align: top;">a* : 匹配空字串、a、aa、aaa……<br>
+      </td>
+    </tr>
+    <tr>
+      <td style="vertical-align: top; text-align: center;">+<br>
+      </td>
+      <td style="vertical-align: top;">1 個以上的重複<br>
+      </td>
+      <td style="vertical-align: top;">a+ : 匹配 a、aa、aaa……<br>
+      </td>
+    </tr>
+    <tr>
+      <td style="vertical-align: top; text-align: center;">?<br>
+      </td>
+      <td style="vertical-align: top;">0 個或 1 個<br>
+      </td>
+      <td style="vertical-align: top;">a? : 匹配空字串、a<br>
+      </td>
+    </tr>
+    <tr>
+      <td style="vertical-align: top; text-align: center;">{、}<br>
+      </td>
+      <td style="vertical-align: top;">重複次數表達<br>
+      </td>
+      <td style="vertical-align: top;">a{1,5} : 匹配 a 重複 1 到 5 次<br>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<br>
+<div style="text-align: center;">
+<div style="text-align: left;"><br>
+想要強制按正規表示式處理時，請把檢索詞用斜槓 (/) 括起來。
+另外，即使含有元字元也想強制按普通文字檢索時，請把檢索詞用雙引號 (") 括起來。<br>
+<br>
+<br>
+</div>
+<div style="text-align: left;">
+<h3><a name="SEC8_3"></a>8.3 指定檢索範圍</h3>
+檢索範圍可以用以下兩種方法之一來指定。
+<br>
+<ul>
+  <li>預先指定的目錄組</li>
+  <li>手動指定</li>
+</ul>
+<br>
+<span style="font-weight: bold;">按目錄組指定</span><br>
+<br>
+目錄組需要事先在設定畫面中設定好。給多個目錄起好名字後，只要選擇該名字，指定目錄下的檔案（含子目錄）就會成為檢索對象。<br>
+<br>
+另外，想限定檢索對象的檔案時，可以在逗號後面指定副檔名。例如寫 /some/directory,.html
+的話，/some/directory 之下副檔名為 .html 的檔案會成為檢索對象。<br>
+<p>
+<br>
+<span style="font-weight: bold;">手動指定</span><br>
+<br>
+在目錄組中選擇「手動選擇」，就可以當場選擇要檢索的目錄或檔案。從樹狀顯示的目錄
+列表中選擇（勾選核取方塊）目錄或檔案來指定。指定目錄時，該目錄下所有子目錄和檔案都會成為檢索對象。<br>
+<br>
+目錄樹中的操作如下。</p>
+<div style="text-align: center;"><br>
+<table cellpadding="2" cellspacing="2" border="1"
+ style="text-align: left; width: 90%; margin-left: auto; margin-right: auto;">
+  <tbody>
+    <tr>
+      <td style="vertical-align: top; text-align: center;"
+ bgcolor="#cccccc" width="40%">操作<br>
+      </td>
+      <td style="vertical-align: top; text-align: center;"
+ bgcolor="#cccccc">動作<br>
+      </td>
+    </tr>
+    <tr>
+      <td style="vertical-align: top;" width="40%">Ctrl + 左鍵單擊 </td>
+      <td style="vertical-align: top;"> 勾選該項</td>
+    </tr>
+    <tr>
+      <td style="vertical-align: top;" width="40%">左鍵雙擊目錄</td>
+      <td style="vertical-align: top;">展開或摺疊該目錄。<br>
+      </td>
+    </tr>
+    <tr>
+      <td style="vertical-align: top;">左鍵雙擊檔案</td>
+      <td style="vertical-align: top;">用過濾器指定的程式開啟該檔案。此時頁碼和
+行號都為
+1。</td>
+    </tr>
+    <tr>
+      <td style="vertical-align: top;" width="40%">中鍵或右鍵單擊<br>
+      </td>
+      <td style="vertical-align: top;">勾選該項</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+<br>
+<br>
+勾選[隱藏點開頭的檔案]後，以點 (.) 開頭的目錄和檔案將不再顯示（但仍包含在檢索對象中）。<br>
+<br>
+<br>
+<h3><a name="SEC8_4"></a>8.4 開始檢索</h3>
+<br>
+指定檢索詞和檢索範圍後，按回車鍵或開始檢索按鈕即可開始檢索。檢索開始後會顯示進度對話方塊。中途要取消時，
+按對話方塊裡的[取消]按鈕。在 Linux、FreeBSD 上，檢索結果的訊息會顯示在正文視窗中。<br>
+<br>
+<h3><a name="SEC8_5"></a>8.5 結果的顯示</h3>
+檢索結果列表中會顯示含有指定關鍵詞的行，請從中選擇想要檢視內容的一項。於是以命中行為中心的前後若干行
+（可在選項中設定）會作為正文顯示出來。命中的整行會被突出顯示，檢索詞則反白顯示。<br>
+<br>
+<h3><a name="SEC8_6"></a>8.6 過濾器</h3>
+<br>
+指定合適的過濾器後，文字檔案以外的檔案也能檢索。例如使用 pdftotext（xpdf 附帶）
+命令就可以檢索 PDF
+檔案 (*1)。<br>
+<br>
+內部會先轉換成文字檔案，所以轉換比較費時，但轉換過的檔案會快取到磁碟上，下次就能像文
+本檔案一樣快速檢索。<br>
+<br>
+儲存在磁碟上的快取大小可以在選項中更改。快取也可以從設定畫面清除。過濾器
+按副檔名分別登記。
+<p>*1 在 pdftotext
+預設狀態下，字母會變成全形。詳細情況請參閱
+EBView 的主頁。<br>
+</p>
+<h3><a name="SEC8_7"></a>8.7 用其他程式開啟</h3>
+<br>
+雙擊檢索結果，就可以用關聯程式開啟該檔案。所用的程式可以按副檔名分別登記。只要給程式指定合適的引數，還可以定位到相應的行或頁。<br>
+<br>
+<br>
+<br>
+<table border="0" width="100%" bgcolor="#C0C0C0">
+  <tr>
+    <td width="100%">
+      <h2><a name="SEC9"></a>9. 網路檢索</h2>
+    </td>
+  </tr>
+</table>
+</div>
+</div>
+　
+<p>
+網路上，以入口網站為中心提供著辭典檢索功能，沒有理由不利用它。另外，計算機術語表之類每天都在更新的用語，也常常能在計算機相關網站上查到。更進一步，當要查的詞沒有收錄在辭典裡時，最後可以依靠的就是 Google
+等網頁檢索了。<br>
+<br>
+一般來說，遇到不懂的術語時，首先用手頭的辭典檢索，辭典裡沒有的話再開啟瀏覽器，從書籤裡選擇檢索網站，重新輸入檢索詞。<br>
+<br>
+EBView
+提供了簡化這一過程的網路檢索功能。事先登記好網路的搜尋引擎，就可以從 EBView
+呼叫 Web 瀏覽器進行檢索。<br>
+<br>
+要檢索時，在檢索方式中選擇「網路檢索」。畫面左側會顯示檢索網站列表，選擇網站名，然後照常檢索。用滑鼠雙擊檢索網站名也可以開始檢索。於是會開啟
+Web 瀏覽器（或者使用已經開啟的瀏覽器），顯示檢索結果頁面。<br>
+<br>
+有些檢索網站可以在主頁上指定細項，但 EBView
+無法涵蓋所有網站的所有選項，所以會按預先定好的內容檢索。在網站名部分按滑鼠右鍵會彈出選單，可以開啟該網站的主頁，需要細項設定時請先開啟該網站的主頁。<br>
+<br>
+如果開始檢索後什麼也沒發生，請確認瀏覽器的設定是否正確。使用的瀏覽器在選項中指定。<br>
+<br>
+</p>
+<div style="text-align: center;">
+<div style="text-align: left;">
+　
+<table border="0" width="100%" bgcolor="#C0C0C0">
+  <tr>
+    <td width="100%">
+      <h2><a name="SEC10"></a>10. 鍵盤快捷鍵</h2>
+    </td>
+  </tr>
+</table>
+</div>
+</div>
+　<p>
+<br>
+切換辭典組、移動檢索結果中的詞條等，幾乎所有功能都可以分配鍵盤快捷鍵。同一個功能也可以分配多個按鍵。下面列出的是預設狀態下分配的一部分按鍵，除此之外還有一些功能可以分配。全部按鍵分配請在[工具]→[選項……]→
+[快捷鍵]中確認。<br>
+另外，選單欄的顯示/隱藏固定為 Ctrl + m，與設定無關，始終可用。<br>
+<br>
+<blockquote>
+  <table cellpadding="2" cellspacing="2" border="1" width="70%"
+ align="center">
+    <tbody>
+      <tr>
+        <td valign="top" bgcolor="#cccccc" align="center">按鍵<br>
+        </td>
+        <td valign="top" bgcolor="#cccccc" align="center">所分配的功能<br>
+        </td>
+      </tr>
+      <tr>
+        <td valign="top">F1</td>
+        <td valign="top">自動檢索</td>
+      </tr>
+      <tr>
+        <td valign="top">F2</td>
+        <td valign="top">完全一致檢索</td>
+      </tr>
+      <tr>
+        <td valign="top">F3<br>
+        </td>
+        <td valign="top">前方一致檢索</td>
+      </tr>
+      <tr>
+        <td valign="top">F4<br>
+        </td>
+        <td valign="top">後方一致檢索</td>
+      </tr>
+      <tr>
+        <td valign="top">F5<br>
+        </td>
+        <td valign="top">關鍵字檢索</td>
+      </tr>
+      <tr>
+        <td valign="top">F6<br>
+        </td>
+        <td valign="top">複合檢索</td>
+      </tr>
+      <tr>
+        <td valign="top">F7<br>
+        </td>
+        <td valign="top">全文檢索</td>
+      </tr>
+      <tr>
+        <td valign="top">F8<br>
+        </td>
+        <td valign="top">網路檢索</td>
+      </tr>
+      <tr>
+        <td style="vertical-align: top;">F9<br>
+        </td>
+        <td style="vertical-align: top;">檔案檢索<br>
+        </td>
+      </tr>
+      <tr>
+        <td valign="top">F12<br>
+        </td>
+        <td valign="top">切換窗格分割方向</td>
+      </tr>
+      <tr>
+        <td valign="top">Return</td>
+        <td valign="top">開始檢索</td>
+      </tr>
+      <tr>
+        <td valign="top">Escape</td>
+        <td valign="top">清空檢索詞</td>
+      </tr>
+      <tr>
+        <td valign="top">Ctrl + p<br>
+        </td>
+        <td valign="top">上一個命中<br>
+        </td>
+      </tr>
+      <tr>
+        <td valign="top">Ctrl + n</td>
+        <td valign="top">下一個命中<br>
+        </td>
+      </tr>
+      <tr>
+        <td valign="top">Ctrl + f<br>
+        </td>
+        <td valign="top">下一個詞條</td>
+      </tr>
+      <tr>
+        <td valign="top">Ctrl + b<br>
+        </td>
+        <td valign="top">上一個詞條</td>
+      </tr>
+      <tr>
+        <td valign="top">Ctrl + c<br>
+        </td>
+        <td valign="top">複製到剪貼簿<br>
+        </td>
+      </tr>
+      <tr>
+        <td valign="top">Ctrl + h<br>
+        </td>
+        <td valign="top">顯示幫助<br>
+        </td>
+      </tr>
+      <tr>
+        <td valign="top">Ctrl + q<br>
+        </td>
+        <td valign="top">退出程式<br>
+        </td>
+      </tr>
+      <tr>
+        <td valign="top">Ctrl + Up<br>
+        </td>
+        <td valign="top">上一個辭典組<br>
+        </td>
+      </tr>
+      <tr>
+        <td valign="top">Ctrl + Down<br>
+        </td>
+        <td valign="top">下一個辭典組<br>
+        </td>
+      </tr>
+      <tr>
+        <td valign="top">Ctrl + 數字<br>
+        </td>
+        <td valign="top">開關辭典 X<br>
+        </td>
+      </tr>
+      <tr>
+        <td valign="top">Alt + Left<br>
+        </td>
+        <td valign="top">歷史後退<br>
+        </td>
+      </tr>
+      <tr>
+        <td valign="top">Alt + Right<br>
+        </td>
+        <td valign="top">歷史前進<br>
+        </td>
+      </tr>
+      <tr>
+        <td valign="top">PageUp<br>
+        </td>
+        <td valign="top">正文向上滾動</td>
+      </tr>
+      <tr>
+        <td valign="top">PageDown<br>
+        </td>
+        <td valign="top">正文向下滾動</td>
+      </tr>
+    </tbody>
+  </table>
+</blockquote>
+<br>
+<div style="text-align: center;">
+<div style="text-align: left;">
+　
+<table border="0" width="100%" bgcolor="#C0C0C0">
+  <tr>
+    <td width="100%">
+      <h2><a name="SEC11"></a>11. 介面自定義</h2>
+    </td>
+  </tr>
+</table>
+</div>
+</div>
+　
+<h3><a name="SEC11_1"></a>11.1 顯示/隱藏的切換</h3>
+<br>
+畫面上的下列元素可以從介面隱藏或重新顯示。<br>
+<ul>
+  <li>選單欄</li>
+  <li>辭典選擇欄</li>
+  <li>狀態列</li>
+  <li>樹形框架的標籤<br>
+  </li>
+</ul>
+<br>
+要切換顯示/隱藏，請從[檢視]
+選單中選擇相應的專案。此外，在內容視窗上點選滑鼠右鍵會彈出選單。
+從這個選單也可以顯示被隱藏的元素。如果選單欄本身被隱藏了，就只能用這個方法恢復顯示狀態。<br>
+<br>
+<h3><a name="SEC11_2"></a>11.2 切換畫面分割方式</h3>
+<br>
+預設狀態下畫面是左右分割的。但遇到詞條較長等情況時，有時會看不清楚。這時可以用選單
+的[檢視]→[框架分割方式]改變分割方向。<br>
+<p>除此之外，還可以進行以下指定。</p>
+<ul>
+  <li>標籤的位置</li>
+  <li>關鍵詞的突出顯示</li>
+  <li>影像的內嵌顯示</li>
+  <li>字型放大/縮小</li>
+  <li>行距增大/減小</li>
+</ul>
+<div style="text-align: center;">
+<div style="text-align: left;">
+　
+<table border="0" width="100%" bgcolor="#C0C0C0">
+  <tr>
+    <td width="100%">
+      <h2><a name="SEC12"></a>12. 各項設定</h2>
+    </td>
+  </tr>
+</table>
+</div>
+</div>
+　<p>
+這裡說明如何自定義 EBView 的動作。<br>
+<br>
+自定義的內容會以 XML 格式的檔案儲存在以下資料夾中。<p>Linux、FreeBSD
+: ~/.ebview<p>Windows : %APPDATA%\EBView<p>
+<br>
+設定檔案有以下幾種。<br>
+<br>
+<div style="text-align: center;">
+<table cellpadding="2" cellspacing="2" border="1"
+ style="text-align: left; width: 90%; margin-left: auto; margin-right: auto;">
+  <tbody>
+    <tr>
+      <td style="vertical-align: top; text-align: center;"
+ bgcolor="#cccccc">名稱<br>
+      </td>
+      <td style="vertical-align: top; text-align: center;"
+ bgcolor="#cccccc">內容<br>
+      </td>
+    </tr>
+    <tr>
+      <td style="vertical-align: top;">shortcut.xml<br>
+      </td>
+      <td style="vertical-align: top;">鍵盤快捷鍵的定義<br>
+      </td>
+    </tr>
+    <tr>
+      <td style="vertical-align: top;">endinglist.xml<br>
+      </td>
+      <td style="vertical-align: top;">英語詞尾補正模式<br>
+      </td>
+    </tr>
+    <tr>
+      <td style="vertical-align: top;">endinglist-ja.xml<br>
+      </td>
+      <td style="vertical-align: top;">日語詞尾補正模式<br>
+      </td>
+    </tr>
+    <tr>
+      <td style="vertical-align: top;">searchengines.xml<br>
+      </td>
+      <td style="vertical-align: top;">搜尋引擎列表<br>
+      </td>
+    </tr>
+    <tr>
+      <td style="vertical-align: top;">dictgroup.xml<br>
+      </td>
+      <td style="vertical-align: top;">辭典組的定義<br>
+      </td>
+    </tr>
+    <tr>
+      <td style="vertical-align: top;">history.xml<br>
+      </td>
+      <td style="vertical-align: top;">檢索詞、檢索目錄的歷史<br>
+      </td>
+    </tr>
+    <tr>
+      <td style="vertical-align: top;">dirlist.xml<br>
+      </td>
+      <td style="vertical-align: top;">檔案檢索中指定的目錄<br>
+      </td>
+    </tr>
+    <tr>
+      <td style="vertical-align: top;">filter.xml
+      </td>
+      <td style="vertical-align: top;">檔案檢索的過濾器定義
+      </td>
+    </tr>
+    <tr>
+      <td style="vertical-align: top;">dirgroup.xml
+      </td>
+      <td style="vertical-align: top;">目錄組的定義
+      </td>
+    </tr>
+    <tr>
+      <td style="vertical-align: top;">preference.xml<br>
+      </td>
+      <td style="vertical-align: top;">上述以外的設定<br>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<br>
+</div>
+<br>
+<h3><a name="SEC12_1"></a>12.1 外觀</h3>
+<br>
+<h3><a name="SEC12_1_1"></a>12.1.1 字型</h3>
+<br>
+指定要使用的字型。對「常規」、「粗體」、「斜體」、「上標」分別指定。另外，在「上標」中指定的字型
+也會用於下標。<br>
+<br>
+<h3><a name="SEC12_1_2"></a>12.1.2 顏色</h3>
+<br>
+<div style="margin-left: 40px;"><span style="color: rgb(153, 0, 0);">連結</span><br>
+存在指向其他位置的連結時的顏色。<br>
+<br>
+<span style="color: rgb(153, 0, 0);">關鍵字</span><br>
+顯示被指定為關鍵字的部分時的顏色。<br>
+<br>
+<span style="color: rgb(153, 0, 0);">聲音</span><br>
+存在對聲音資料的參照時的顏色。<br>
+<br>
+<span style="color: rgb(153, 0, 0);">動畫</span><br>
+存在對動畫資料的參照時的顏色。<br>
+<br>
+<span style="color: rgb(153, 0, 0);">突出顯示</span><br>
+突出顯示檢索詞時的顏色。<br>
+<br style="color: rgb(153, 0, 0);">
+<span style="color: rgb(153, 0, 0);">反色背景</span><br>
+檔案檢索中，把正文裡的檢索詞反白顯示時的背景色。<br>
+</div>
+<br>
+<h3><a name="SEC12_1_3"></a>12.1.3 其他</h3>
+<br>
+<div style="margin-left: 40px;"><span style="color: rgb(153, 0, 0);">歷史記錄
+上限</span><br>
+檢索詞歷史中保留的資料條數。<br>
+<br style="color: rgb(153, 0, 0);">
+<span style="color: rgb(153, 0, 0);">辭典按鈕字數</span><br>
+辭典選擇欄上顯示的字數。辭典名較長時，按鈕上只顯示這裡指定的字數。<br>
+  <br>
+</div>
+<div style="margin-left: 40px;"><span style="color: rgb(153, 0, 0);">顯示啟動畫面</span><br>
+指定啟動時是否顯示啟動畫面。<br>
+<br>
+<span style="color: rgb(153, 0, 0);">自動計算標題數量</span><br>
+根據視窗大小自動計算一次顯示的檢索結果條數。<br>
+</div>
+　
+<div style="margin-left: 40px;"><span style="color: rgb(153, 0, 0);">最大顯示命中數</span><br>
+指定檢索結果中一次顯示的詞條數。按列表下方的左右按鈕可以檢視剩下的結果。不自動計
+算標題數量時，會顯示這裡指定的條數。<br>
+</div>
+　
+<div style="margin-left: 40px;"><span style="color: rgb(153, 0, 0)">啟用辭典按鈕顏色</span><br>
+  給辭典欄的按鈕加上在辭典組定義中為各部辭典指定的顏色。
+</div>
+<br>
+<h3><a name="SEC12_2"></a>12.2 辭典檢索</h3>
+<h3><a name="SEC12_2_1"></a>12.2.1 辭典組</h3>
+<br>
+進行辭典組的定義。請參照「3. 辭典組的定義」。<br>
+<br>
+<h3><a name="SEC12_2_2"></a>12.2.2 選區檢索</h3>
+<br>
+<div style="margin-left: 40px;"><span style="color: rgb(153, 0, 0);">檢索間隔</span><br>
+按這裡指定的時間間隔檢查 X 的選區。選區內容一旦變化，就會自動進行檢索。在 Windows 上，複製到剪貼簿後立即開始檢索，因此這裡的設定會被忽略。<br>
+<br>
+<span style="color: rgb(153, 0, 0);">最小區字數</span><br>
+字數小於這裡指定值的資料不會成為選區自動檢索的對象。這是為了防止不經意地點選滑鼠時也
+觸發自動檢索。<br>
+<br>
+<span style="color: rgb(153, 0, 0);">最大字數</span><br>
+字數大於這裡指定值的資料不會成為選區自動檢索的對象。這是為了防止在編輯器中剪下字串等情況下也
+觸發自動檢索。<br>
+<br>
+<span style="color: rgb(153, 0, 0);">彈出視窗大小</span><br>
+指定彈出視窗的大小。<br>
+<br>
+<span style="color: rgb(153, 0, 0);">顯示彈出視窗標題</span><br>
+指定彈出視窗是否顯示標題欄。<br>
+<br>
+<span style="color: rgb(153, 0, 0);">沒有命中時響鈴</span><br>
+指定選區自動檢索沒有命中時是否響鈴。<br>
+</div>
+<br>
+<br>
+<h3><a name="SEC12_2_3"></a>12.2.3 詞尾補正</h3>
+<br>
+進行詞尾補正的設定以及模式的登記。可以登記英語和日語的詞尾補正模式。<br>
+<br>
+<div style="margin-left: 40px;"><span style="color: rgb(153, 0, 0);">進行詞尾
+補正</span><br>
+  指定是否進行詞尾補正。<br>
+<br>
+<span style="color: rgb(153, 0, 0);">僅在未命中時</span><br>
+  啟用後，只在普通檢索沒有命中時才進行詞尾補正。<br>
+</div>
+<br>
+模式的登記以「補正前的詞尾」和「補正後的詞尾」成對進行。檢索詞的詞尾一旦匹配「補正前的詞尾」，就會用把該部分替換為「補正後的詞尾」
+的詞來檢索。指定的模式太多會使檢索變慢，請注意。
+另外，詞尾補正是從上到下依次嘗試的，順序可以用拖放
+來改變。
+<br>
+<h3><a name="SEC12_2_4"></a>12.2.4 其他</h3>
+<br style="color: rgb(153, 0, 0);">
+<div style="margin-left: 40px;"><span style="color: rgb(153, 0, 0);">最大檢索命中數</span><span style="color: rgb(153, 0, 0);"></span><br>
+  一次檢索的命中數一旦超過這裡指定的數值，檢索就在此中止。<br>
+<br>
+<span style="color: rgb(153, 0, 0);">自動檢索時執行前方一致檢索</span><br>
+自動檢索會執行完全一致檢索和關鍵字檢索，啟用此項後還會執行前方一致檢索。<br>
+<br>
+</div>
+<h3><a name="SEC12_3"></a>12.3 檔案檢索</h3>
+<h3><a name="SEC12_3_1"></a>12.3.1 過濾器</h3>
+<br>
+指定在檔案檢索中檢索文字檔案以外的檔案時使用的過濾器程式。按[新增]
+按鈕會新增一個條目，直接修改列表內的單元格即可。每個條目由「副檔名」、「過濾命令」、「開啟檔案
+命令」
+3 部分組成。<br>
+<br>
+副檔名處填寫帶點的副檔名。副檔名不區分大小寫。要指定多個副檔名時，用逗號分隔
+列出即可。<br>
+<br>
+「過濾命令」和「開啟檔案命令」可以省略。省略時，要麼不執行過濾器，要麼在開啟檔案時使用默
+認命令。<br>
+<br>
+<br>
+「過濾命令」和「開啟檔案命令」中可以使用以下特殊字元。<br>
+<br>
+<div style="margin-left: 40px;">%f : 被替換為檔名<br>
+%p : 被替換為頁數 (*1)<br>
+%l : 被替換為行號 (*2)<br>
+</div>
+<br>
+例) xpdf -remove ebview %f %p<br>
+使用 xpdf 顯示指定檔案的相應頁面。<br>
+<br>
+*1 頁碼從 1 開始，檔案內每出現一個 0x0c 就加一。<br>
+*2 行號從 1 開始，檔案內每出現一個 0x0a 就加一。<br>
+<br>
+另外，在目錄樹（用於指定檢索範圍的樹形畫面）中雙擊檔案時，也會使用這裡指定的「開啟檔案命令」，此時頁碼和行號都為 1。<br>
+<br>
+<h3><a name="SEC12_3_2"></a>12.3.2 快取</h3>
+以 MB 為單位指定最大快取大小。<br>
+<br>
+為了加快檢索，用過濾器轉換過的檔案會作為快取檔案保留下來，供下次檢索使用。快取檔案的總大小超過這裡指定的數值後，會從較舊的檔案開始刪除。<br>
+<br>
+要清除快取，請按[清除快取]按鈕。<br>
+<br>
+<h3><a name="SEC12_3_3"></a>12.3.3 其他</h3>
+<div style="margin-left: 40px;">
+<br>
+<span style="color: rgb(153, 0, 0);">額外顯示
+行數</span><br>
+檢索結果中，以命中行為中心，前後各顯示這裡指定的行數。數值越大，顯示越費時。<br>
+<br>
+<span style="color: rgb(153, 0, 0);">額外顯示字元數</span><br>
+把檢索詞前後這裡指定數量的字元合在一起，作為標題顯示。<br>
+</div>
+<br>
+<h3><a name="SEC12_4"></a>12.4 快捷鍵</h3>
+<br>
+定義鍵盤快捷鍵。
+畫面左側是已定義的快捷鍵，右側是可以分配的命令列表。先按右上角的按鈕，再按快捷鍵，然後選擇想要分配的
+命令並按
+[新增] 按鈕。<br>
+<br>
+同一個命令可以分配多個不同的按鍵。反之，同一個按鍵分配了不同命令時，只有最初的那個命令有效。<br>
+<br>
+如果沒有啟用[忽略鎖定鍵]，快捷鍵會包含鎖定鍵的狀態。<br>
+<br>
+<br>
+<h3><a name="SEC12_5"></a>12.5 網路檢索</h3>
+<br>
+登記網路檢索使用的搜尋引擎。會按照這裡登記的內容組裝 URL 並交給 Web 瀏覽器。最終的
+URL
+是把[前面的字串]、[檢索詞]、[後面的字串]按此順序連線起來的結果。指定多個檢索詞時，各檢索詞用
+[連線字串] 連線。<br>
+<br>
+把日語作為檢索詞輸入時，會被轉換成 "%B8%A1%BA%F7" 這樣表示字元編碼的英數字，此時使用在
+[字元編碼] 中指定的編碼。有些搜尋引擎只能使用特定的字元編碼，這種情況下就在這裡指定。<br>
+<br>
+另外，能作為搜尋引擎使用的只有採用 HTTP "get" 方法的網站，不能使用 "put" 方法。<br>
+<br>
+此外，像「<a href="http://www.alc.co.jp/">英辭郎 on the Web</a>」這樣，有些檢索網站禁止從瀏覽器主頁以外的方式進行檢索。登記這類網站會違反其使用條款，請注意。<br>
+<br>
+<br>
+<h3><a name="SEC12_6"></a>12.6 外部程式</h3>
+<br>
+登記 EBView 使用的外部程式。在 Windows 上，如果沒有指定外部程式，就會啟動資源管理器的檔案型別中登記的關聯程式。例如，瀏覽器啟動命令什麼都不指定時，預設會啟動 Internet
+Explorer。<br>
+<br>
+<div style="margin-left: 40px;"><span style="color: rgb(153, 0, 0);">使用內建例程播放聲音</span><br>
+  勾選此項後，使用 EBView
+  的內部例程播放聲音。僅在 Windows
+  上有效。
+  <p><span style="color: rgb(153, 0, 0);">播放聲音的命令</span><br>
+播放聲音時使用的程式。請指定能播放 WAVE 檔案的程式。<br>
+<br>
+<span style="color: rgb(153, 0, 0);">播放動畫的命令</span><br>
+播放動畫時使用的程式。請指定能播放 MPEG 檔案的程式。<br>
+<br>
+<span style="color: rgb(153, 0, 0);">瀏覽器啟動命令</span><br>
+用於啟動 Web 瀏覽器的命令。<br>
+<br>
+<span style="color: rgb(153, 0, 0);">開啟檔案的標準命令</span><br>
+檔案檢索中，過濾器定義裡沒有開啟檔案的命令時，會使用這裡指定的命令。<br>
+</div>
+<br>
+以上任何一種情況下，都可以使用以下特殊字元。<br>
+<br>
+<div style="margin-left: 40px;">%f : 被替換為檔名<br>
+%p : 被替換為頁數（僅檔案檢索）<br>
+%l : 被替換為行號（僅檔案檢索） </div>
+<br>
+<br>
+<p>　
+<div style="text-align: center;">
+<div style="text-align: left;">
+　
+<table border="0" width="100%" bgcolor="#C0C0C0">
+  <tr>
+    <td width="100%">
+      <h2><a name="SEC13"></a>13. 許可與免責事項</h2>
+    </td>
+  </tr>
+</table>
+</div>
+</div>
+　
+<p>
+<br>
+EBView 是遵循 GNU General Public License 的自由軟體。對本程式的
+使用，作者不作任何保證。詳細內容請
+參閱 COPYING 檔案。<br>
+<br>
+<br>
+</p>
+<div style="text-align: center;">
+<div style="text-align: left;">
+　
+<table border="0" width="100%" bgcolor="#C0C0C0">
+  <tr>
+    <td width="100%">
+      <h2><a name="SEC14"></a>14. 致謝</h2>
+    </td>
+  </tr>
+</table>
+</div>
+</div>
+　
+<p>
+<br>
+感謝開發 EB 庫的笠原先生。沒有 EB 庫，也就不會有這個軟體。<br>
+<br>
+此外，在 EBView 的開發過程中得到了以下各位的幫助。在此一併致謝。<br>
+<br>
+<br>
+<div style="margin-left: 40px;">やまだ あきら 先生<br>
+藤井 宏憲 先生<br>
+佐古田 先生<br>
+八田 真行 先生<br>
+小野田 新 先生<br>
+谷村 晉 先生<br>
+Francis Bond 先生<br>
+小野 哲男 先生<br>
+重村 法克 先生<br>
+KATO Tsuguru 先生<br>
+松本 先生<br>
+足永 拓郎 先生<br>
+Kazuki Ohta 先生<br>
+田原 俊一 先生<br>
+  Masatake YAMATO 先生
+</div>
+<br>
+<br>
+<div style="text-align: center;">
+<div style="text-align: left;">
+　
+<table border="0" width="100%" bgcolor="#C0C0C0">
+  <tr>
+    <td width="100%">
+      <h2><a name="SEC15"></a>15. 聯絡方式</h2>
+    </td>
+  </tr>
+</table>
+</div>
+</div>
+　
+<p>
+<br>
+Bug 報告、提問等請發到以下地址。也非常歡迎各種反饋。<br>
+<br>
+</p>
+<div style="margin-left: 40px;">須藤賢一 (Kenichi SUTO)<br>
+<br>
+E-Mail : &lt;deep_blue@users.sourceforge.net&gt;<br>
+</div>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+</body>
+</html>
