@@ -208,3 +208,144 @@ ASan 的寄存器值直接印证：`strlen` 收到的指针是 `0x7969432f746967
 - `Manual Select` 需要显式勾选目录；没勾时结果是 `No hit`，不是编码问题
 - 递归枚举已排除 `.git`、`build`、`node_modules` 等噪声目录，跳过大于 2 MiB 的
   文件与含 NUL 的二进制文件，递归深度上限 32
+
+---
+
+# Windows / MSYS2 (UCRT64) 移植踩坑记录
+
+> 2026-11 起，把 `ebview`（GTK2 + libeb 的 EPWING 词典阅读器）在 Windows 下用
+> MSYS2 UCRT64 真正编译、链接、跑起来，把每一步真实报错逐项修掉。
+> 相关源码修复已提交 `e8d9c48`。
+
+## 0. 环境与工具链
+
+- MSYS2 安装：`C:/Users/yx/msys64/`。必须用 **UCRT64** 终端（双击
+  `msys64/ucrt64.exe`，或 Win+R 输该路径）。GTK2 在 MSYS2 只存在于
+  `ucrt64` / `clang64` 仓库，MINGW64/MSYS 没有。
+- 关键包版本：`gtk2` 2.24.33、`pango` 1.58.2（← 与 GTK2 2.24 不兼容，是启动崩溃根因）、
+  `glib2` 2.8x。
+- 依赖 `libeb` 4.4.3 在仓库外单独构建：`C:/Users/yx/src/eb-4.4.3/`
+
+### 0.1 网络：镜像走直连、不要走代理
+本机本地代理（`127.0.0.1:50280`，来自 Accesser）对 GitHub 有效，但**对 MSYS2 镜像
+`mirror.msys2.org` 全部超时（curl 返回 000）**，镜像直连反而能通（302）。所有
+`pacman` / 运行命令先：
+
+```bash
+unset http_proxy https_proxy HTTP_PROXY HTTPS_PROXY
+```
+
+### 0.2 工具链“装了等于没装”
+`pacman -S base-devel` 报告 exit 0 却只装了 MSYS base 组，没有 `mingw-w64-ucrt-x86_64-*`。
+务必显式装：
+
+```bash
+pacman -S --noconfirm --needed mingw-w64-ucrt-x86_64-gcc \
+  mingw-w64-ucrt-x86_64-cmake mingw-w64-ucrt-x86_64-pkgconf \
+  mingw-w64-ucrt-x86_64-gtk2 mingw-w64-ucrt-x86_64-gettext \
+  mingw-w64-ucrt-x86_64-zlib
+pacman -S --needed make            # UCRT64 基础环不含 make
+pacman -S --needed mingw-w64-ucrt-x86_64-gdb
+```
+
+## 1. libeb 4.4.3 的 MinGW 构建报错（仓库外，需自行修补）
+
+```bash
+cd C:/Users/yx/src/eb-4.4.3
+export CPPFLAGS="-DWIN32_LEAN_AND_MEAN -D_WIN32_WINNT=0x0501"
+export LIBS="-lws2_32"
+./configure --prefix=/ucrt64 --disable-ebnet --disable-nls
+make
+cd eb && make install            # 只装核心 libeb.a，跳过 libebutils 工具
+```
+
+1. **`configure` `Failed to get size of sin_port`**：`AC_TYPE_IN_PORT_T` 检测在
+   `if ENABLE_EBNET=yes` 块内，MinGW 无 `sys/socket.h` 失败。→ `--disable-ebnet`
+   （ebview 不用 EBNET 网络取书）。
+2. **`build-post.h:45 implicit declaration 'localedir'`**：Windows 分支
+   `EB_LOCALEDIR localedir()` 在 4.4.3 未实现。→ `--disable-nls`（仅影响 libeb
+   自身报错文案，ebview 无关）。
+3. **`eb/booklist.c:126 implicit declaration 'ebnet_bind_booklist'`**：`#ifndef
+   ENABLE_EBNET` 提前 `goto failed` 后后续 `ebnet_bind_booklist()` 仍被编译。→ 用
+   `#else ... #endif` 把 ebnet 调用整体包裹。
+4. **`libebutils/getopt.c` `conflicting types for 'getenv'`**：第 90 行
+   `extern char *getenv();`（K&R 旧式声明）与 `<stdlib.h>` 冲突，GCC 15 升级为硬错误。
+   → 删除该行。
+5. **链接 `multiple definition of 'getopt_long'`**（ebfont.exe 等工具）：MinGW
+   `libmingwex` 已提供，libeb 自带重复。→ ebview 不需要这些工具，**只 `cd eb &&
+   make install` 装核心 `libeb.a`**，跳过工具链。静态链接，运行时无需 `eb.dll`。
+
+## 2. ebview 编译/链接期报错（已提交 e8d9c48）
+
+1. **链接 `__imp_mciSendCommandA` / `libiconv_*` / `regcomp` 未定义** →
+   `CMakeLists.txt` 加 `if(WIN32) target_link_libraries(ebview PRIVATE winmm iconv gnurx) endif()`
+   （`winmm`=MCI；`iconv`=GNU libiconv；`gnurx`=POSIX regex）。
+2. **`src/misc.c:79 implicit declaration '_getdcwd'`** → 文件头加
+   `#ifdef __WIN32__ #include <direct.h> #endif`。
+3. **`src/popup.c` X11 拖拽代码报类型不匹配**（`gdk_window_foreign_new` /
+   `gdk_window_get_pointer` 是 X11 专属）→ 相关分支用
+   `#ifndef __WIN32__ ... #else { POINT pt; GetCursorPos(&pt); } #endif` 跨平台化；
+   `create_popup_window` 的 `#ifdef __WIN32__` 段补 `gint pos_x, pos_y;` 并用
+   `GetCursorPos` 初始化。`move_popup_window()` 已正确用
+   `GetSystemMetrics(SM_CXSCREEN/SM_CYSCREEN)`，无需改。
+4. **`src/selection.c:368 'GWL_WNDPROC' undeclared`** → 64 位下改用
+   `GetWindowLongPtr` / `GWLP_WNDPROC` / `LONG_PTR`：
+   `SetWindowLongPtr(hidden_hwnd, GWLP_WNDPROC, (LONG_PTR)HiddenWndProc)`。
+5. **`src/preference.c` 数据目录定位**：原固定 `<exe_dir>\data`；CMake 构建树里数据在
+   `<exe>\share\ebview`。→ 探测顺序 `EBVIEW_DATADIR` → `<exe>\data` →
+   `<exe>\share\ebview`（构建树）→ `<exe>\..\share\ebview` → `PACKAGEDIR`，
+   以 `shortcut.xml` 存在为判据。
+
+## 3. 运行期崩溃：Pango Win32 字体加载路径损坏（已修复，e8d9c48）
+
+- **现象**：启动即 `Segmentation fault (RC=139)`，gdb 栈顶全是
+  `libpangowin32-1.0-0.dll`，来自 `src/preference.c:493 calculate_font_size()`。
+- **根因（别再误判为“环境/headless”）**：写了一个**不含任何 ebview 代码**的最小复现
+  程序，仅调 `pango_font_map_load_font()` / `load_fontset()` /
+  `pango_context_get_metrics()`，对 `"en"` 和 `"ja"` **都崩**（RC=139）；而
+  `pango_font_map_list_families()` 正常返回 **80 个字体**（含 Microsoft JhengHei UI
+  等 CJK）。即字体**枚举**正常、**加载/度量**整条路径在 Pango 1.58.2 + GTK2 2.24.33 的
+  Win32 后端里崩（崩溃前 Pango 打印 `couldn't load font "ja", falling back to
+  "Sans"` 然后 SIGSEGV）。这是该版本组合已知坏路径，**真实桌面也会崩**。
+- **修复**：`calculate_font_size()` 不再向 Pango 请求“加载字体”，改为从 `fontset_normal`
+  的字号（`pango_font_description_get_size()` / `PANGO_SCALE`）和
+  `gdk_screen_get_resolution()` 直接推算像素字高/宽/ascent/descent。grep 确认整个
+  `src/` 再无第二处直接调 Pango 加载字体。
+
+## 4. 启动提示 “Couldn't find gtkrc”（已修复，e8d9c48）
+
+- 现象：`src/misc.c:145 CRITICAL : Couldn't find gtkrc. Check installation.`
+- 原因：上游不随包发布 `gtkrc`，非致命但误导。
+- 修复：新增最小 `data/gtkrc`（默认 `MS Gothic 9`），并在 `CMakeLists.txt` 的
+  `file(COPY ...)` 与 `install(FILES ...)` 两处登记，首次启动自动落到配置目录。
+
+## 5. 当前未解决 bug：文件搜索时 Shift_JIS 文件名转换失败
+
+点“文件搜索”（目录树展开）报：
+
+```
+E:/git/EBView/src/dirtree.c:426 CRITICAL : Failed to convert filename from Shift_JIS
+E:/git/EBView/src/dirtree.c:409 CRITICAL : Failed to open directory W:\(丈
+E:/git/EBView/src/dirtree.c:426 CRITICAL : Failed to convert filename from Shift_JIS
+```
+
+- **初步分析（待修复）**：`row_expanded()`（`dirtree.c:384`）用 `g_dir_open()` 打开目录、
+  遍历 `g_dir_read_name()`，再对每个 `name` 调 `iconv_convert(fs_codeset, "utf-8", name)`，
+  `fs_codeset` 默认 `Shift_JIS`。但 **Windows 上 GLib 的 `g_dir_read_name()` 已返回
+  UTF-8**（GLib 在 Windows 走 UTF-16 宽 API 并转 UTF-8），再当 Shift_JIS 去 iconv 必失败/
+  乱码（`W:\(丈` 即错误转换后的乱码）。正确做法：**`__WIN32__` 下跳过 iconv 转换**，
+  直接用已是 UTF-8 的 `name`；非 Windows（原 Linux 路径）才需要转换。另需核对
+  `compose_full_path()` → `generic_to_native()` 在 Windows 下是否也误做了编码转换。
+
+## 6. 复现/验证清单
+
+```bash
+cd /e/git/EBView
+cmake -S . -B build -G Ninja      # 首次；之后直接 ninja
+cd build && ninja
+./ebview.exe                       # UCRT64 终端 PATH 已含 /ucrt64/bin，DLL 可直接找到
+```
+
+- 已验证：主窗口可正常显示（Pango 崩溃已根治）；`ldd build/ebview.exe` 无缺失 DLL
+  （libeb 静态链接）；`gtkrc` 提示已消除。
+- 仍需处理：§5 的 Shift_JIS 文件名转换（文件搜索 / 目录树展开）。
