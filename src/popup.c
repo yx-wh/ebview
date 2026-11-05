@@ -173,9 +173,13 @@ static gint title_click_event (GtkWidget *widget, GdkEventButton *event, gpointe
 			gtk_widget_destroy(popup);
 			popup = NULL;
 		} else if(strcmp(data, "t") == 0){
-			bbutton_down = TRUE;
-			root_win = gdk_window_foreign_new (GDK_ROOT_WINDOW ());
-			gdk_window_get_pointer (root_win, &prev_x, &prev_y, &mask);
+		bbutton_down = TRUE;
+#ifndef __WIN32__
+		root_win = gdk_window_foreign_new (GDK_ROOT_WINDOW ());
+		gdk_window_get_pointer (root_win, &prev_x, &prev_y, &mask);
+#else
+		{ POINT pt; GetCursorPos(&pt); prev_x = pt.x; prev_y = pt.y; }
+#endif
 			previous_x = event->x;
 			previous_y = event->y;
 		} else if(strcmp(data, "p") == 0){
@@ -229,8 +233,12 @@ gint title_motion_event(GtkWidget *widget, GdkEventMotion *event)
 	if((event->state & GDK_BUTTON1_MASK) &&
 	   bbutton_down){
 
+#ifndef __WIN32__
 		root_win = gdk_window_foreign_new (GDK_ROOT_WINDOW ());
 		gdk_window_get_pointer (root_win, &xp, &yp, &mask);
+#else
+		{ POINT pt; GetCursorPos(&pt); xp = pt.x; yp = pt.y; }
+#endif
 
 	        mov_x = xp - prev_x;
 	        mov_y = yp - prev_y;
@@ -441,6 +449,13 @@ static void create_popup_window(){
 	gtk_widget_show_all(popup);
 
 #ifdef __WIN32__
+	gint pos_x, pos_y;
+	{
+		POINT pt;
+		GetCursorPos(&pt);
+		pos_x = pt.x;
+		pos_y = pt.y;
+	}
 	hWnd = GDK_WINDOW_HWND(popup->window);
 	nStyle = GetWindowLong(hWnd, GWL_STYLE );
 	nStyle &= ~WS_CAPTION;

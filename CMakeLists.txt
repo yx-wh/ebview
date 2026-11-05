@@ -75,6 +75,14 @@ if(INTL_LIBRARY)
     target_link_libraries(ebview PRIVATE ${INTL_LIBRARY})
 endif()
 
+# Windows-specific system/compatibility libraries:
+#   winmm  - MCI multimedia (external.c: mciSendCommand)
+#   iconv  - GNU libiconv (jcode.c: libiconv_open / libiconv / libiconv_close)
+#   gnurx  - POSIX regex (reg.c: regcomp / regexec / regfree)
+if(WIN32)
+    target_link_libraries(ebview PRIVATE winmm iconv gnurx)
+endif()
+
 # Stage a runtime data tree in the build dir so the app can be launched
 # straight after compiling: EBVIEW_DATADIR=build/share/ebview ./build/ebview
 set(EBVIEW_RUN_DATADIR "${CMAKE_CURRENT_BINARY_DIR}/share/ebview")
@@ -85,6 +93,7 @@ file(COPY
     "${CMAKE_CURRENT_SOURCE_DIR}/data/filter.xml"
     "${CMAKE_CURRENT_SOURCE_DIR}/data/searchengines.xml"
     "${CMAKE_CURRENT_SOURCE_DIR}/data/shortcut.xml"
+    "${CMAKE_CURRENT_SOURCE_DIR}/data/gtkrc"
     DESTINATION "${EBVIEW_RUN_DATADIR}")
 file(COPY
     "${CMAKE_CURRENT_BINARY_DIR}/data/about.en"
@@ -123,6 +132,7 @@ install(FILES
     "${CMAKE_CURRENT_SOURCE_DIR}/data/filter.xml"
     "${CMAKE_CURRENT_SOURCE_DIR}/data/searchengines.xml"
     "${CMAKE_CURRENT_SOURCE_DIR}/data/shortcut.xml"
+    "${CMAKE_CURRENT_SOURCE_DIR}/data/gtkrc"
     DESTINATION "${CMAKE_INSTALL_DATADIR}/ebview")
 install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/pixmaps/"
     DESTINATION "${CMAKE_INSTALL_DATADIR}/ebview/pixmaps")

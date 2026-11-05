@@ -1,0 +1,12 @@
+# EBView GTK+ 2.0 resource file (minimal defaults).
+#
+# This file is optional.  Users may add their own GTK+ style overrides here;
+# EBView copies it next to its configuration on first launch.  The default
+# font below only acts as a fallback for widgets that do not set their own
+# font (EBView text views configure their fonts explicitly).
+
+style "ebview-default" {
+    font_name = "MS Gothic 9"
+}
+
+widget_class "*" style "ebview-default"

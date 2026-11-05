@@ -323,10 +323,45 @@ void initialize_preference(){
 	if(p != NULL){
 		*p = '\0';
 		home_dir = exe_path;
-		package_dir = g_strdup_printf("%s%sdata", exe_path, DIR_DELIMITER);
 	} else {
 		home_dir = ".";
-		package_dir = g_strdup_printf(".%sdata", DIR_DELIMITER);
+	}
+
+	/* Locate the bundled data directory. Probe in order:
+	 *   1. $EBVIEW_DATADIR             (explicit override)
+	 *   2. <exe_dir>\data             (legacy Windows layout)
+	 *   3. <exe_dir>\share\ebview     (CMake build tree)
+	 *   4. <exe_dir>\..\share\ebview  (relocated install prefix)
+	 *   5. PACKAGEDIR                 (system-wide install)
+	 * A candidate is only accepted when it really contains shortcut.xml.
+	 */
+	{
+		const gchar *env_data_dir = g_getenv("EBVIEW_DATADIR");
+		gchar *candidates[4];
+		gint i;
+
+		if(env_data_dir && *env_data_dir){
+			package_dir = g_strdup(env_data_dir);
+		}else{
+			candidates[0] = g_build_filename(home_dir, "data", NULL);
+			candidates[1] = g_build_filename(home_dir, "share", "ebview", NULL);
+			candidates[2] = g_build_filename(home_dir, "..", "share", "ebview", NULL);
+			candidates[3] = NULL;
+			package_dir = NULL;
+			for(i = 0; candidates[i] != NULL; i++){
+				gchar *probe = g_build_filename(candidates[i],
+								"shortcut.xml", NULL);
+				if(g_file_test(probe, G_FILE_TEST_IS_REGULAR)){
+					package_dir = candidates[i];
+					g_free(probe);
+					break;
+				}
+				g_free(probe);
+				g_free(candidates[i]);
+			}
+			if(package_dir == NULL)
+				package_dir = g_strdup(PACKAGEDIR);
+		}
 	}
 
 
@@ -455,73 +490,49 @@ static gboolean ok_pref(GtkWidget *widget,gpointer *data){
 }
 
 
-void  calculate_font_size(){
-		
-	PangoFontDescription* desc;
-	PangoLanguage* lang;
-	PangoFontMap* fontmap;
-	PangoContext *context;
-	PangoFontset* fontset;
-	PangoFontMetrics* metrics;
-	gint ascent;
-	gint descent;
-	gint width;
-	gint height;
+void calculate_font_size(void)
+{
+	PangoFontDescription *desc;
+	gdouble dpi = 96.0;
+	gint pt;
+	gdouble px;
 
-	font_height = 16;
-	font_width =  8;
-	font_ascent = 2;
+	font_height  = 16;
+	font_width   = 8;
+	font_ascent  = 2;
 	font_descent = 4;
 
-
 	desc = pango_font_description_from_string(fontset_normal);
-	lang =  pango_language_from_string("ja");
-
-#ifdef __WIN32__
-	fontmap = pango_win32_font_map_for_display();
-#else
-	/* Modern Pango uses the Cairo/FreeType backend; the old Xft font map
-	 * required a raw X11 Display and is no longer the default. */
-	fontmap = pango_cairo_font_map_get_default();
-#endif
-
-	if(fontmap == NULL){
-		LOG(LOG_INFO, "fontmap == NULL");
+	if (desc == NULL)
 		return;
+
+	/* The Pango-Win32 font-loading backend shipped with current MSYS2
+	 * (Pango 1.58 + GTK+ 2.24) crashes inside load_fontset()/get_metrics()
+	 * whenever it is asked to resolve a font, so we derive the text-cell
+	 * metrics directly from the description's point size and the screen
+	 * resolution instead of loading a font.  This is accurate enough for
+	 * row/column layout and avoids the crash entirely. */
+	pt = pango_font_description_get_size(desc) / PANGO_SCALE;
+	if (pt <= 0)
+		pt = 9;
+
+	{
+		GdkScreen *screen = gdk_screen_get_default();
+		if (screen != NULL) {
+			gdouble r = gdk_screen_get_resolution(screen);
+			if (r > 0.0)
+				dpi = r;
+		}
 	}
 
+	px = pt * dpi / 72.0;            /* points -> device pixels */
 
-	context = gtk_widget_get_pango_context(main_window);
-	if(context == NULL){
-		LOG(LOG_INFO, "context == NULL");
-		return;
-	}
+	font_height  = (gint)(px + 0.5);
+	font_ascent  = (gint)(px * 0.82 + 0.5);
+	font_descent = font_height - font_ascent;
+	font_width   = (gint)(px * 0.55 + 0.5) + 2;
 
-	fontset = pango_font_map_load_fontset(fontmap,
-					      context,
-					      desc,
-					      lang);
-	if(fontset == NULL){
-		LOG(LOG_INFO, "fontset == NULL");
-		return;
-	}
-
-	metrics = pango_fontset_get_metrics(fontset);
-	if(metrics == NULL){
-		LOG(LOG_INFO, "metrics == NULL");
-		return;
-	}
-
-	ascent = pango_font_metrics_get_ascent(metrics);
-	descent = pango_font_metrics_get_descent(metrics);
-	width = pango_font_metrics_get_approximate_char_width(metrics);
-	height = ascent + descent;
-
-	font_height = height / 1000;
-	font_width = width / 1000 + 2;
-	font_ascent = ascent / 1000;
-	font_descent = descent / 1000;
-
+	pango_font_description_free(desc);
 }
 
 
