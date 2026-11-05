@@ -13,6 +13,9 @@
 set -e
 
 UCRT=${UCRT:-/c/Users/yx/msys64/ucrt64}
+VERSION=$(sed -n 's/^ *VERSION \([0-9][0-9.]*\).*/\1/p' \
+	"$(dirname "$0")/../CMakeLists.txt" | head -1)
+[ -n "$VERSION" ] || { echo "无法从 CMakeLists.txt 读出 VERSION" >&2; exit 1; }
 BUILD=$(cd "$(dirname "$0")/../build" && pwd)
 OUT=${1:-$BUILD/dist}
 DEST=$OUT/EBView
@@ -49,7 +52,7 @@ mkdir -p "$DEST/etc"
 cp -r "$UCRT/etc/fonts" "$DEST/etc/"
 
 # 打包（这台机器上没有 zip 命令，退回 python 的 zipfile）
-ZIP=$OUT/EBView-win64.zip
+ZIP=$OUT/EBView-${VERSION}-win64.zip
 rm -f "$ZIP"
 if command -v zip >/dev/null 2>&1; then
 	(cd "$OUT" && zip -qr "$(basename "$ZIP")" EBView)
