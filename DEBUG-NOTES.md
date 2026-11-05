@@ -1166,6 +1166,48 @@ for i in range(n):
 所以打包脚本 `tools/pack_win.sh` 不用改：图标已经在 exe 里，`share/ebview/pixmaps`
 仍是界面按钮用的那套 XPM。
 
+### 14.1 版本资源（`VERSIONINFO`）
+
+exe 原来没有版本资源，资源管理器「详细信息」一栏全是空白、属性对话框里也没有
+版本号（版本号只存在于 `config.h`，只给「关于」对话框用）。现在 `src/ebview.rc.in`
+里加了 `1 VERSIONINFO`，`CMakeLists.txt` 负责把版本号拆成 windres 能吃的形式。
+
+三个坑：
+
+- `FILEVERSION` 要 **4 个逗号分隔的 16 位整数**，而 `PROJECT_VERSION` 是
+  `"0.4.0"` 这种点分字符串，windres 解析不了；且三段的版本 `PROJECT_VERSION_TWEAK`
+  是**空串**，直接拼会得到 `0,4,0,`（语法错误）。CMake 里填空串为 0 后再拼成
+  `EBVIEW_VERSION_COMMA` 传进去。
+- **windres 不认 `VFT_APP` / `VOS_NT_WINDOWS32` 这些符号名**：它报
+  `FILETYPE VFT_APP syntax error`，因为资源预处理器环境里没有 `winver.h`。
+  逐个字段试出来的结果：`VFT_APP` 失败、`FILETYPE 0x1L` 通过。所以全部字段写成
+  数字，符号名放注释里（`FILETYPE 0x00000001L /* VFT_APP */`、
+  `FILEOS 0x00010004L /* VOS_NT_WINDOWS32 */`）。注意报错行号会指到**下一个**
+  字段，容易误判。
+- 资源里所有字符串保持 **ASCII**，别指望 `--codepage`：windres 对非 ASCII 的
+  处理不一致，而这些值（文件名、公司名）也不该被翻译。
+
+验证（字段真的被 Windows 解析出来，不只是字节在）：
+
+```powershell
+(Get-Item build\ebview.exe).VersionInfo | Format-List FileVersion,ProductVersion,
+    FileDescription,ProductName,CompanyName,LegalCopyright,OriginalFilename
+```
+
+再往下钻一层，直接读 `VS_FIXEDFILEINFO`（签名 `0xFEEF04BD`，紧跟 `0x00010000`
+结构版本）确认数值版本：
+
+```python
+import struct
+exe = open('build/ebview.exe','rb').read()
+i = exe.find(struct.pack('<I', 0xFEEF04BD))
+_, struc, ms, ls, pms, pls = struct.unpack('<IIIIII', exe[i:i+24])
+print(hex(struc), f"{ms>>16}.{ms&0xFFFF}.{ls>>16}.{ls&0xFFFF}")
+```
+
+实测输出 `0x10000 0.4.0.0`，PowerShell 侧 `FileVersion 0.4.0`。空串版本段、
+非 ASCII 段都会让这两个检查之一失败，所以两步都留着。
+
 ## 15. 点词条里的发音（`<wave>`）直接段错误（已修复）
 
 现象：大辞林里 `this` 这类带音标的条目，点发音立刻整个进程消失（`0xC0000005`），

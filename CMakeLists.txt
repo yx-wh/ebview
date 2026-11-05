@@ -103,10 +103,22 @@ if(INTL_LIBRARY)
     target_link_libraries(ebview PRIVATE ${INTL_LIBRARY})
 endif()
 
-# Embed the application icon in the executable.  Without this the .ico sits
-# in the tree unused and Explorer/Alt-Tab show the generic program icon.
+# Embed the application icon and a VERSIONINFO block in the executable.
+# Without this the .ico sits in the tree unused, Explorer/Alt-Tab show the
+# generic program icon, and the Details tab has no version to report.
 if(WIN32)
     set(EBVIEW_ICON_FILE "${CMAKE_CURRENT_SOURCE_DIR}/pixmaps/ebview.ico")
+
+    # VERSIONINFO wants four comma separated 16-bit numbers, but
+    # PROJECT_VERSION is a dot string and PROJECT_VERSION_TWEAK is empty when
+    # the version has only three components (0.4.0), so build it here.
+    set(EBVIEW_VERSION_TWEAK "${PROJECT_VERSION_TWEAK}")
+    if(EBVIEW_VERSION_TWEAK STREQUAL "")
+        set(EBVIEW_VERSION_TWEAK 0)
+    endif()
+    set(EBVIEW_VERSION_COMMA
+        "${PROJECT_VERSION_MAJOR},${PROJECT_VERSION_MINOR},${PROJECT_VERSION_PATCH},${EBVIEW_VERSION_TWEAK}")
+
     configure_file("${CMAKE_CURRENT_SOURCE_DIR}/src/ebview.rc.in"
         "${CMAKE_CURRENT_BINARY_DIR}/ebview.rc" @ONLY)
     target_sources(ebview PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/ebview.rc")
