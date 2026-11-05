@@ -646,6 +646,10 @@ static void add_group(GtkWidget *widget,gpointer *data)
 	LOG(LOG_DEBUG, "OUT : add_grop()");
 }
 
+/* Number of dictionaries added by the last "Search Disk" run.  Used to tell
+ * the user when a scan found nothing instead of silently doing nothing. */
+static int books_found = 0;
+
 static int enumerate_subbook(char *path)
 {
 	EB_Book book;
@@ -670,13 +674,19 @@ static int enumerate_subbook(char *path)
 	eb_initialize_book(&book);
 	error_code = eb_bind(&book, path);
 	if(error_code != EB_SUCCESS){
-		LOG(LOG_INFO,"Failed to bind book. Maybe wrong directory.");
+		/* This used to be LOG_INFO, which is below the default log level
+		 * and therefore invisible: a failed bind looked like "Search Disk
+		 * did nothing at all". */
+		LOG(LOG_WARNING, "Failed to bind the book '%s' : %s",
+		    path, ebook_error_message(error_code));
 		return(1);
 	}
 
 	error_code = eb_subbook_list(&book, sublist, &subcount);
 	if(error_code != EB_SUCCESS){
-		LOG(LOG_INFO,"Failed to bind book. Maybe wrong directory.");
+		LOG(LOG_WARNING, "Failed to get a subbook list of '%s' : %s",
+		    path, ebook_error_message(error_code));
+		eb_finalize_book(&book);
 		return(1);
 	}
 	for(i=0 ; i<subcount ; i++){
@@ -775,8 +785,12 @@ static int enumerate_subbook(char *path)
 			gtk_tree_path_free (tree_path);
 
 			free(utf_str);
+			books_found++;
 		} else {
-			LOG(LOG_INFO, "book %s does not have search method.", path);
+			LOG(LOG_WARNING,
+			    "%s: the book has no search method (word/endword/"
+			    "exactword/keyword/multi), so it cannot be used "
+			    "for lookups and was skipped.", path);
 		}
 
 	}
@@ -793,32 +807,36 @@ static void search_dictionary_recursive(gchar *dirname, gint depth)
 {
 	GDir *dir;
 	const gchar *name;
-	gchar fullpath[512];
+	gchar *fullpath;
+	gboolean catalog_found = FALSE;
 
 	LOG(LOG_DEBUG, "IN : search_dictionary_recursive(%s, %d)", dirname, depth);
 	
 	if((dir = g_dir_open(dirname, 0, NULL)) == NULL){
-		LOG(LOG_CRITICAL, "Failed to open directory %s", dirname);
+		LOG(LOG_WARNING, "Failed to open directory %s", dirname);
 		LOG(LOG_DEBUG, "OUT : search_dictionary_recursive()");
 		return;
 	}
 	
 	while((name = g_dir_read_name(dir)) != NULL){
-		if(strcmp(dirname,"/")==0){
-			sprintf(fullpath,"/%s",name);
-		} else {
-			sprintf(fullpath,"%s%s%s",dirname, DIR_DELIMITER, name);
-		}
+		/* g_build_filename() uses the native separator (\ on Windows) and
+		 * cannot overflow, unlike the old fixed 512 byte sprintf buffer. */
+		fullpath = g_build_filename(dirname, name, NULL);
 
 		if(g_file_test(fullpath, G_FILE_TEST_IS_REGULAR) == TRUE){
-			if((strcasecmp(name, "catalog") == 0) ||
-			   (strcasecmp(name, "catalogs") == 0)){
+			/* Only enumerate once per directory: some discs ship both
+			 * a CATALOG (EB) and a CATALOGS (EPWING) file. */
+			if(catalog_found == FALSE &&
+			   ((g_ascii_strcasecmp(name, "catalog") == 0) ||
+			    (g_ascii_strcasecmp(name, "catalogs") == 0))){
+				catalog_found = TRUE;
 				enumerate_subbook(dirname);
 			}
 		} else if(g_file_test(fullpath, G_FILE_TEST_IS_DIR) == TRUE){
 			if(depth < max_depth)
 				search_dictionary_recursive(fullpath, depth+1);
 		}
+		g_free(fullpath);
 	}
 	g_dir_close(dir);
 
@@ -844,13 +862,28 @@ static void search_disk(GtkWidget *widget, gpointer *data)
 		dirname[strlen(dirname) - 1] = '\0';
 	if(strlen(dirname) == 0){
 		popup_warning(_("Please enter directory name"));
+		g_free(dirname);
 		return;
 	}
 
+	if(g_file_test(dirname, G_FILE_TEST_IS_DIR) != TRUE){
+		LOG(LOG_WARNING, "Directory does not exist: %s", dirname);
+		popup_warning(_("Directory does not exist. Check the path."));
+		g_free(dirname);
+		return;
+	}
 
 	max_depth = gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(spin_search_depth));
 
+	books_found = 0;
 	search_dictionary_recursive(dirname, 0);
+
+	if(books_found == 0){
+		LOG(LOG_WARNING, "No dictionary was found under %s (depth=%d)",
+		    dirname, max_depth);
+		popup_warning(_("No dictionary was found. Check the path and "
+				"the search depth."));
+	}
 	g_free(dirname);
 
 	LOG(LOG_DEBUG, "OUT : search_disk()");

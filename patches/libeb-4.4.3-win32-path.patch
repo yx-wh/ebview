@@ -1,0 +1,40 @@
+--- a/eb/filename.c
++++ b/eb/filename.c
+@@ -55,6 +55,37 @@
+     char temporary_path_name[EB_MAX_PATH_LENGTH + 1];
+     char *last_slash;
+ 
++#ifdef _WIN32
++    /*
++     * Win32 portability patch.
++     *
++     * DOS_FILE_PATH is not defined by configure on MinGW, so the UNIX logic
++     * below is used and a native path such as "E:\dict" does not begin with
++     * `/', hence it is treated as a *relative* path and prefixed with the
++     * current directory ("C:/cwd/E:\dict"), which no longer exists.  That
++     * made every eb_bind() on a Windows absolute path fail with
++     * EB_ERR_FAIL_OPEN_CAT.
++     *
++     * Accept drive-letter paths ("E:\", "E:/", "E:dir") and UNC paths
++     * ("\\server\share") as absolute: normalize the separators to `\' and
++     * drop a trailing separator, keeping the drive root intact.
++     */
++    if ((ASCII_ISALPHA(path_name[0]) && path_name[1] == ':'
++	    && (path_name[2] == '\\' || path_name[2] == '/'))
++	|| (path_name[0] == '\\' && path_name[1] == '\\')) {
++	char *p;
++
++	for (p = path_name; *p != '\0'; p++) {
++	    if (*p == '/')
++		*p = '\\';
++	}
++	p = path_name + strlen(path_name) - 1;
++	if (p > path_name + 2 && *p == '\\')
++	    *p = '\0';
++	return EB_SUCCESS;
++    }
++#endif /* _WIN32 */
++
+     if (*path_name != '/') {
+ 	/*
+ 	 * `path_name' is an relative path.  Convert to an absolute

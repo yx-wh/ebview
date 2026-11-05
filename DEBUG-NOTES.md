@@ -360,7 +360,103 @@ E:/git/EBView/src/dirtree.c:426 CRITICAL : Failed to convert filename from Shift
   “过滤器”时才走到（普通文本文件搜索走 `g_file_get_contents()`，GLib 正确处理
   UTF-8 路径），暂未改动；若后续用到过滤器再统一替换为 `g_stat`/`g_unlink`/`g_rename`。
 
-## 7. 复现/验证清单
+## 7. Dictionary Group → Search Disk 完全没反应（已修复）
+
+**现象**：Preferences → Dictionary Group，Path 填 `E:\daijirin`、Depth 0，点
+`Search Disk`，界面毫无反应：没有报错、也没有新增条目。
+
+### (a) 根因：libeb 把 Windows 绝对路径当成相对路径
+
+`eb_bind()` 的第一步是 `eb_canonicalize_path_name()`。libeb 有两套实现，用
+`DOS_FILE_PATH` 区分 —— 但 **`configure.ac` 从不定义 `DOS_FILE_PATH`**，所以 MinGW
+构建走的永远是 UNIX 版：
+
+```c
+if (*path_name != '/') {            /* "E:\daijirin" 不以 '/' 开头 */
+    getcwd(cwd, EB_MAX_PATH_LENGTH + 1);
+    sprintf(path_name, "%s/%s", cwd, path_name);   /* -> C:/cwd/E:\daijirin */
+}
+```
+
+路径被拼成 `C:/当前目录/E:\daijirin`，`opendir()` 打不开 → 找不到 `catalog`/`catalogs`
+→ 返回 `EB_ERR_FAIL_OPEN_CAT`（10）。**所有 Windows 绝对路径（含 Samba 映射盘 W:、
+光盘根目录）都因此 bind 失败**，与 GUI 无关。
+
+**修复**（仓库外，libeb 源码 `eb/filename.c`；补丁已存仓库
+`patches/libeb-4.4.3-win32-path.patch`）：在 UNIX 版开头加 `#ifdef _WIN32` 分支，把
+`X:\`、`X:/`、`X:dir`、`\\server\share` 一律视为绝对路径，只做分隔符归一化
+（`/`→`\`）并去掉尾部 `\`（保留盘根 `X:\`）。
+
+### (b) 失败时只有 LOG_INFO，默认级别看不到
+
+`enumerate_subbook()` 里 bind 失败只写了 `LOG(LOG_INFO, "Failed to bind book...")`，
+而默认 `ebview_log_level = LOG_MESSAGE`(=32)，`LOG_INFO`(=64) 被过滤 —— 于是
+“扫描失败”和“什么都没找到”在界面上完全一样：**零反馈**。
+
+**修复**（`src/pref_dictgroup.c`）：
+
+- bind / `eb_subbook_list()` 失败 → `LOG_WARNING`，带上路径与 `ebook_error_message()`。
+- “该书没有可用检索方式（word/endword/exactword/keyword/multi），已跳过”→ `LOG_WARNING`。
+- `search_disk()`：先判目录是否存在，否则弹 `Directory does not exist...`；扫描后统计
+  `books_found`，为 0 弹 `No dictionary was found. Check the path and the search depth.`。
+- `search_dictionary_recursive()`：`sprintf` 到 512 字节栈缓冲 → 改 `g_build_filename()`
+  （长路径不再溢出）；`strcasecmp` → `g_ascii_strcasecmp`；同一目录同时有 `CATALOG`
+  与 `CATALOGS` 时只枚举一次，避免重复条目。
+
+### (c) 脱离 GUI 的最小验证（`E:\daijirin`，单文件 ebzip 词典）
+
+```c
+eb_initialize_library();          /* 必须！见下面注意事项 */
+eb_initialize_book(&book);
+eb_bind(&book, "E:\\daijirin");   /* 0 = EB_SUCCESS */
+eb_subbook_list(&book, list, &n);
+eb_set_subbook(&book, list[0]);
+eb_search_word(&book, "\xa4\xa2");   /* EUC-JP "あ" */
+eb_hit_list(&book, 16, hits, &cnt);
+eb_seek_text(&book, &hits[0].text);
+eb_read_text(&book, NULL, NULL, NULL, sizeof(buf)-1, buf, &len);
+```
+
+修复后输出：
+
+```
+[bind] "E:\daijirin" -> 0 (EB_SUCCESS)
+        subbook_list rc=0 count=1
+        #0 dir="daijirin" title="..."(EUC-JP)
+set_subbook rc=0  menu=1 copyright=1 word=1 endword=1 exactword=1 keyword=1 multi=2
+eb_search_word rc=0  hit_list hits=16  read_text rc=0 len=119
+```
+
+修复前同一程序：`-> 10 (EB_ERR_FAIL_OPEN_CAT)`。
+
+**注意事项**
+
+- 必须先 `eb_initialize_library()`，否则 `eb_set_subbook()` 返回 18
+  `EB_ERR_FAIL_READ_TEXT`（ebview 在 `src/eb.c:498` 已调用，所以 GUI 里不受影响；
+  自己写测试程序时容易漏）。
+- 词典目录名仍要求 **ASCII**：libeb 用窄字符 `open()`/`opendir()`，中文/日文目录名
+  仍会失败。要支持需另打“UTF-8 → UTF-16 + `_wopen`/`_wopendir`”补丁。
+- 只含 `HONMON.ebz`（ebzip 压缩、单文件）的词典已验证可 bind、可检索、可读正文。
+
+### (d) 重建 libeb 时的 libtool 报错
+
+重新编译 libeb 时 `libtool` 会报（gcc 单独调用却正常）：
+
+```
+Cannot create temporary file in C:\Windows\: Permission denied
+```
+
+绕过办法（等价于 libtool 的静态编译）：
+
+```bash
+cd /c/Users/yx/src/eb-4.4.3/eb
+gcc -DHAVE_CONFIG_H -I. -I.. -DEB_BUILD_LIBRARY -DWIN32_LEAN_AND_MEAN \
+    -D_WIN32_WINNT=0x0501 -g -O2 -c filename.c -DDLL_EXPORT -DPIC -o .libs/filename.o
+ar r .libs/libeb.a .libs/filename.o && ranlib .libs/libeb.a
+cp .libs/libeb.a /c/Users/yx/msys64/ucrt64/lib/libeb.a
+```
+
+## 8. 复现/验证清单
 
 ```bash
 cd /e/git/EBView
@@ -370,7 +466,10 @@ cd build && ninja
 ```
 
 - 已验证：主窗口可正常显示（Pango 崩溃已根治）；`ldd build/ebview.exe` 无缺失 DLL
-  （libeb 静态链接）；`gtkrc` 提示已消除。
+  （libeb 静态链接）；`gtkrc` 提示已消除；文件搜索可展开目录/命中/打开；
+  `eb_bind("E:\daijirin")` 成功并可检索（§7）。
 - 已修复：§3 Pango 启动崩溃、§4 gtkrc 提示、§5 Shift_JIS 文件名、§6 非 ASCII 路径
-  的 stat/fopen 与 ShellExecute。
-- 待你实测：文件搜索能否正常展开目录、命中非 ASCII 文件名的文件、并从结果打开文件。
+  的 stat/fopen 与 ShellExecute、§7 Windows 绝对路径导致找不到词典 + 扫描无反馈。
+- 待实测：Dictionary Group 里 `Path=E:\daijirin`、`Depth=0`、点 `Search Disk`
+  应出现在 “Disk Search Result” 组下；随后在新词条上做查词。
+- 已知限制：词典目录名必须 ASCII（libeb 用窄字符 `open()`/`opendir()`）。
