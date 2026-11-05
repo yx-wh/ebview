@@ -26,6 +26,7 @@ gint motion_notify_event(GtkWidget *widget, GdkEventMotion *event);
 gint button_press_event(GtkWidget *widget, GdkEventButton *event);
 void scroll_mainview_down();
 void scroll_mainview_up();
+gboolean main_view_enter_searches(GdkEventKey *event);
 void copy_to_clipboard();
 void clear_text_buffer();
 void expand_lines();

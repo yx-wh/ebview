@@ -19,6 +19,8 @@
 #include "defs.h"
 #include "global.h"
 
+#include <gdk/gdkkeysyms-compat.h>
+
 #include "eb.h"
 #include "dialog.h"
 #include "dictbar.h"
@@ -92,6 +94,30 @@ static void search_selection()
 	g_free(euc_str);
 
 	LOG(LOG_DEBUG, "OUT : search_selection()");
+}
+
+// Called from the toplevel key_press_event handler before it steals the
+// focus: if Enter is pressed while the text view holds a selection,
+// search the selected text.
+gboolean main_view_enter_searches(GdkEventKey *event)
+{
+	GtkTextIter start;
+	GtkTextIter end;
+
+	if(event->keyval == GDK_Return ||
+	   event->keyval == GDK_KP_Enter ||
+	   event->keyval == GDK_ISO_Enter){
+		if(!(event->state & (GDK_SHIFT_MASK |
+				     GDK_CONTROL_MASK |
+				     GDK_MOD1_MASK)) &&
+		   gtk_text_buffer_get_selection_bounds(text_buffer,
+							&start, &end)){
+			search_selection();
+			return(TRUE);
+		}
+	}
+
+	return(FALSE);
 }
 
 void copy_to_clipboard()

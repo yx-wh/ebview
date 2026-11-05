@@ -652,6 +652,12 @@ static gint key_press_event(GtkWidget *widget, GdkEventKey *event){
 	if(entry_focus_in)
 		return(FALSE);
 
+	/* Enter in the text view: search the selected text before
+	 * the focus is moved back to the word entry. */
+	if(gtk_window_get_focus(GTK_WINDOW(main_window)) == main_view &&
+	   main_view_enter_searches(event))
+		return(TRUE);
+
 	if(ebook_search_method() != SEARCH_METHOD_MULTI){
 		gtk_window_set_focus(GTK_WINDOW(main_window), word_entry);
 	}
