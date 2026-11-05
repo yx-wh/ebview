@@ -1,0 +1,5 @@
+# Patches are applied with `patch -p1' and must stay byte-exact; any CRLF
+# conversion breaks context matching.  (core.autocrlf is on by default on
+# Windows, so this has to be stated explicitly.)
+*.patch -text
+*.diff  -text
