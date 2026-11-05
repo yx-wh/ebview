@@ -250,6 +250,13 @@ pacman -S --needed mingw-w64-ucrt-x86_64-gdb
 
 ## 1. libeb 4.4.3 的 MinGW 构建报错（仓库外，需自行修补）
 
+仓库里 `patches/` 保存了两个必须应用的补丁，**按顺序**（详见 §7、§9）：
+
+```
+libeb-4.4.3-win32-path.patch      # Windows 绝对路径被当相对路径
+libeb-4.4.3-win32-unicode-path.patch  # 非 ASCII 词典目录（宽字符 open/opendir）
+```
+
 ```bash
 cd C:/Users/yx/src/eb-4.4.3
 export CPPFLAGS="-DWIN32_LEAN_AND_MEAN -D_WIN32_WINNT=0x0501"
@@ -258,6 +265,10 @@ export LIBS="-lws2_32"
 make
 cd eb && make install            # 只装核心 libeb.a，跳过 libebutils 工具
 ```
+
+> 注意：`--disable-ebnet` 不只是为了绕报错。libeb 的 `EB_ENABLE_EBNET` 会给
+> `EB_Book` 多加一个 `int ebnet_file`（+8 字节对齐），一旦头文件和库的开关不一致，
+> 就是 §8 那种堆损坏。
 
 1. **`configure` `Failed to get size of sin_port`**：`AC_TYPE_IN_PORT_T` 检测在
    `if ENABLE_EBNET=yes` 块内，MinGW 无 `sys/socket.h` 失败。→ `--disable-ebnet`
@@ -563,7 +574,106 @@ target_compile_definitions(ebview PRIVATE _FILE_OFFSET_BITS=64)
 - `127` 这个退出码在 MSYS2 bash 下**同时**代表 `abort()` 和 `_exit(127)`，
   不能用来区分。
 
-## 9. 复现/验证清单
+## 9. 词典目录名支持 Unicode（非 ASCII，已修复）
+
+之前文档里写着「词典目录名必须 ASCII」，因为 libeb 全程用 `char *` 路径调用窄字符
+文件 API。Windows 上 `open()` / `opendir()` 把参数按**系统 ANSI 代码页**解释，
+UTF-8 的 `测试词典` 被当成 GBK/CP1252 的一串字节，拼出来的路径根本不存在，
+`eb_bind()` 直接返回 `EB_ERR_FAIL_OPEN_CAT`。
+
+### (a) 需要改的地方只有 4 处
+
+```
+eb/filename.c:263   dir = opendir(path);            // eb_fix_directory_name()
+eb/filename.c:423   dir = opendir(path_name);       // eb_find_file_name()
+eb/zio.c:1973/1976  open(file_name, O_RDONLY|O_BINARY);  // zio_open_raw()
+```
+
+目录**里面的**条目名（`CATALOG`、`CATALOGS`、`HONMON`、`*.ebz`、`GA16HALF`…）
+在所有 EPWING/EB 词典里都是 ASCII，所以只有「路径」需要宽字符，条目名可以
+转回 UTF-8 继续按字节处理，上层逻辑一行都不用动。
+
+### (b) 新增 `eb/win32path.h`（header-only）
+
+之所以做成头文件而不是新的 `.c`：libeb 的 autotools 构建要往
+`eb/Makefile.am` 里加对象，而 header-only 完全不用碰构建脚本
+（本机 libtool 还坏着，见 §7(d)）。
+
+它提供 4 个 `static inline` 的包装，非 Windows 分支就是原来的 POSIX 调用：
+
+| 接口 | Windows | POSIX |
+|---|---|---|
+| `eb_open_readonly(path)` | `_wopen()` | `open(path, O_RDONLY\|O_BINARY)` |
+| `eb_dir_open(path)` | `_wopendir()` | `opendir()` |
+| `eb_dir_read_name(dir)` | `_wreaddir()` + `WideCharToMultiByte` | `readdir()->d_name` |
+| `eb_dir_close(dir)` | `_wclosedir()` | `closedir()` |
+
+路径转换用 `MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, ...)`；
+**转换失败时回退到 `CP_ACP`**，这样仍然传 ANSI 路径的老调用方不会被弄坏。
+`filename.c` 里 `DIR *`/`struct dirent *entry` 相应换成 `EB_DIR *`/`const char *name`，
+两处 `entry->d_name` 全部改成 `name`。
+
+编码约定：EBView 在 Windows 上 `fs_codeset = "UTF-8"`（§5），
+`gtk_entry_get_text()`、`g_build_filename()`、`g_dir_read_name()` 给的都是 UTF-8，
+所以 libeb 收到的就是 UTF-8 —— 与 `CP_UTF8` 分支正好对上。
+
+### (c) 验证
+
+用**硬链接**造一个非 ASCII 路径的副本（不占额外空间、不复制 312MB）：
+
+```bash
+cp -rl /e/daijirin "/e/测试词典"
+```
+
+然后直接调 libeb（不经过 GUI）：
+
+```
+--- E:\测试词典                        --- E:\daijirin
+  eb_bind      = 0                      eb_bind      = 0
+  subbooks     = 1 (err 0)              subbooks     = 1 (err 0)
+  set_subbook  = 0                      set_subbook  = 0
+  have_word    = 1                      have_word    = 1
+  search_word  = 0                      search_word  = 0
+  hit_list     = 0 (10 hits)            hit_list     = 0 (10 hits)
+  read_text    = 119 bytes              read_text    = 119 bytes
+```
+
+两条路径结果完全一致，说明宽字符 open/opendir 生效，且 ebzip（`HONMON.ebz`）
+解压路径也走通了。
+
+### (d) 补丁与重建
+
+两个补丁按顺序应用（**顺序不能反**，第二个是相对第一个改完的状态生成的）：
+
+```bash
+cd /c/Users/yx/src
+tar -xjf eb-4.4.3.orig.tar.bz2
+cd eb-4.4.3
+patch -p1 < /e/git/EBView/patches/libeb-4.4.3-win32-path.patch
+patch -p1 < /e/git/EBView/patches/libeb-4.4.3-win32-unicode-path.patch
+```
+
+`make` 在本机会挂在 libtool 上（`Cannot create temporary file in C:\Windows\`，
+且**只要 PATH 里有 `/usr/bin` 就必现**），所以照旧单文件编译后更新归档：
+
+```bash
+cd eb-4.4.3/eb
+export PATH="/c/Users/yx/msys64/ucrt64/bin:$PATH" TMPDIR=/tmp
+FLAGS="-DHAVE_CONFIG_H -I. -I.. -DEB_BUILD_LIBRARY -DWIN32_LEAN_AND_MEAN \
+       -D_WIN32_WINNT=0x0501 -g -O2 -DDLL_EXPORT -DPIC"
+for f in filename zio; do gcc $FLAGS -c $f.c -o .libs/$f.o; done
+ar r .libs/libeb.a .libs/filename.o .libs/zio.o && ranlib .libs/libeb.a
+cp .libs/libeb.a /c/Users/yx/msys64/ucrt64/lib/libeb.a
+```
+
+注意两个坑：
+
+- `TMPDIR` 要用 **POSIX 风格的 `/tmp`**（不是 `C:/Users/.../tmp`），否则
+  gcc 找不到临时目录，退到 `C:\Windows` 就被拒绝。
+- 链接 libeb 的测试程序也必须带 `-D_FILE_OFFSET_BITS=64`（§8），否则
+  `sizeof(EB_Book)` 差 8 字节，一调用就堆损坏。
+
+## 10. 复现/验证清单
 
 ```bash
 cd /e/git/EBView
@@ -577,9 +687,12 @@ cd build && ninja
   `eb_bind("E:\daijirin")` 成功并可检索（§7）。
 - 已修复：§3 Pango 启动崩溃、§4 gtkrc 提示、§5 Shift_JIS 文件名、§6 非 ASCII 路径
   的 stat/fopen 与 ShellExecute、§7 Windows 绝对路径导致找不到词典 + 扫描无反馈、
-  §8 结构体 ABI 不一致导致 `Search Disk` 后堆损坏崩溃。
+  §8 结构体 ABI 不一致导致 `Search Disk` 后堆损坏崩溃、§9 libeb 窄字符
+  `open()`/`opendir()` 导致非 ASCII 词典目录打不开。
 - 待实测：Dictionary Group 里 `Path=E:\daijirin`、`Depth=0`、点 `Search Disk`
   应出现在 “Disk Search Result” 组下；随后在新词条上做查词。
   （§8 修复后已用 `EBVIEW_AUTOSEARCH` 自动触发该路径连续跑 3 次，
   都走到 `search_disk done` 并通过 `HeapValidate`，验证后临时代码已移除。）
-- 已知限制：词典目录名必须 ASCII（libeb 用窄字符 `open()`/`opendir()`）。
+  想顺带验证 §9，可以把 `Path` 填成 `E:\测试词典`（用 `cp -rl /e/daijirin
+  "/e/测试词典"` 造的硬链接副本，不占空间）再 Scan 一次。
+- 已知限制：无。原「词典目录名必须 ASCII」的限制在 §9 已解除。

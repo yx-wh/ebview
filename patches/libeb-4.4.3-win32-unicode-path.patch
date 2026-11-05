@@ -1,0 +1,381 @@
+--- a/eb/filename.c
++++ b/eb/filename.c
+@@ -34,6 +34,9 @@
+ #endif
+ #include "build-post.h"
+ 
++/* Wide-character filesystem wrappers: see win32path.h. */
++#include "win32path.h"
++
+ #if defined(DOS_FILE_PATH) && defined(HAVE_MBSTRING_H)
+ /* a path may contain double-byte chars in SJIS. */
+ #include <mbstring.h>
+@@ -249,8 +252,8 @@
+ EB_Error_Code
+ eb_fix_directory_name(const char *path, char *directory_name)
+ {
+-    struct dirent *entry;
+-    DIR *dir;
++    const char *name;
++    EB_DIR *dir;
+ 
+ #ifdef ENABLE_EBNET
+     if (is_ebnet_url(path))
+@@ -260,7 +263,7 @@
+     /*
+      * Open the directory `path'.
+      */
+-    dir = opendir(path);
++    dir = eb_dir_open(path);
+     if (dir == NULL)
+         goto failed;
+ 
+@@ -268,16 +271,16 @@
+         /*
+          * Read the directory entry.
+          */
+-        entry = readdir(dir);
+-        if (entry == NULL)
++        name = eb_dir_read_name(dir);
++        if (name == NULL)
+             goto failed;
+ 
+-	if (strcasecmp(entry->d_name, directory_name) == 0)
++	if (strcasecmp(name, directory_name) == 0)
+ 	    break;
+     }
+ 
+-    strcpy(directory_name, entry->d_name);
+-    closedir(dir);
++    strcpy(directory_name, name);
++    eb_dir_close(dir);
+     return EB_SUCCESS;
+ 
+     /*
+@@ -285,7 +288,7 @@
+      */
+   failed:
+     if (dir != NULL)
+-	closedir(dir);
++	eb_dir_close(dir);
+     return EB_ERR_BAD_DIR_NAME;
+ }
+ 
+@@ -399,8 +402,8 @@
+     char ebz_target_file_name[EB_MAX_FILE_NAME_LENGTH + 1];
+     char org_target_file_name[EB_MAX_FILE_NAME_LENGTH + 1];
+     char candidate_file_name[EB_MAX_FILE_NAME_LENGTH + 1];
+-    DIR *dir;
+-    struct dirent *entry;
++    const char *name;
++    EB_DIR *dir;
+     size_t d_namlen;
+     int found = FOUND_NONE;
+ 
+@@ -420,7 +423,7 @@
+     /*
+      * Open the directory `path_name'.
+      */
+-    dir = opendir(path_name);
++    dir = eb_dir_open(path_name);
+     if (dir == NULL)
+ 	goto failed;
+ 
+@@ -428,8 +431,8 @@
+ 	/*
+ 	 * Read the directory entry.
+ 	 */
+-	entry = readdir(dir);
+-	if (entry == NULL)
++	name = eb_dir_read_name(dir);
++	if (name == NULL)
+ 	    break;
+ 
+ 	/*
+@@ -449,31 +452,31 @@
+ 	 * All the comparisons are done without case sensitivity.
+ 	 * We support version number ";1" only.
+ 	 */
+-	d_namlen = strlen(entry->d_name);
++	d_namlen = strlen(name);
+ 	if (2 < d_namlen
+-	    && *(entry->d_name + d_namlen - 2) == ';'
+-	    && ASCII_ISDIGIT(*(entry->d_name + d_namlen - 1))) {
++	    && *(name + d_namlen - 2) == ';'
++	    && ASCII_ISDIGIT(*(name + d_namlen - 1))) {
+ 	    d_namlen -= 2;
+ 	}
+-	if (1 < d_namlen && *(entry->d_name + d_namlen - 1) == '.')
++	if (1 < d_namlen && *(name + d_namlen - 1) == '.')
+ 	    d_namlen--;
+ 
+-	if (strcasecmp(entry->d_name, ebz_target_file_name) == 0
++	if (strcasecmp(name, ebz_target_file_name) == 0
+ 	    && *(ebz_target_file_name + d_namlen) == '\0'
+ 	    && found < FOUND_EBZ) {
+-	    strcpy(candidate_file_name, entry->d_name);
++	    strcpy(candidate_file_name, name);
+ 	    found = FOUND_EBZ;
+ 	}
+-	if (strncasecmp(entry->d_name, target_file_name, d_namlen) == 0
++	if (strncasecmp(name, target_file_name, d_namlen) == 0
+ 	    && *(target_file_name + d_namlen) == '\0'
+ 	    && found < FOUND_BASENAME) {
+-	    strcpy(candidate_file_name, entry->d_name);
++	    strcpy(candidate_file_name, name);
+ 	    found = FOUND_BASENAME;
+ 	}
+-	if (strcasecmp(entry->d_name, org_target_file_name) == 0
++	if (strcasecmp(name, org_target_file_name) == 0
+ 	    && *(org_target_file_name + d_namlen) == '\0'
+ 	    && found < FOUND_ORG) {
+-	    strcpy(candidate_file_name, entry->d_name);
++	    strcpy(candidate_file_name, name);
+ 	    found = FOUND_ORG;
+ 	    break;
+ 	}
+@@ -482,7 +485,7 @@
+     if (found == FOUND_NONE)
+ 	goto failed;
+ 
+-    closedir(dir);
++    eb_dir_close(dir);
+     strcpy(found_file_name, candidate_file_name);
+ 
+     return EB_SUCCESS;
+@@ -492,7 +495,7 @@
+      */
+   failed:
+     if (dir != NULL)
+-	closedir(dir);
++	eb_dir_close(dir);
+     return EB_ERR_BAD_FILE_NAME;
+ }
+ 
+--- a/eb/zio.c
++++ b/eb/zio.c
+@@ -50,6 +50,9 @@
+ #include "ebnet.h"
+ #endif
+ 
++/* Wide-character filesystem wrappers: see win32path.h. */
++#include "win32path.h"
++
+ /*
+  * Flags for open().
+  */
+@@ -1970,10 +1973,10 @@
+ 	zio->file = ebnet_open(file_name);
+     } else {
+ 	zio->is_ebnet = 0;
+-	zio->file = open(file_name, O_RDONLY | O_BINARY);
++	zio->file = eb_open_readonly(file_name);
+     }
+ #else
+-    zio->file = open(file_name, O_RDONLY | O_BINARY);
++    zio->file = eb_open_readonly(file_name);
+ #endif
+ 
+     return zio->file;
+--- a/eb/win32path.h
++++ b/eb/win32path.h
+@@ -0,0 +1,199 @@
++/*
++ * win32path.h - filesystem access for paths that cannot be expressed in the
++ * system ANSI code page.
++ *
++ * The library passes paths around as `char *' and, on Windows, EBView hands
++ * them over as UTF-8 (that is the GLib filesystem encoding there).  The
++ * narrow-character C library entry points -- open(), opendir() -- interpret
++ * their argument in the *system ANSI code page*, so a dictionary directory
++ * whose name contains, say, Japanese or Chinese characters simply cannot be
++ * opened: the bytes are re-interpreted as ANSI, produce a different path and
++ * the call fails with ENOENT.
++ *
++ * The wrappers below convert the incoming string to UTF-16 and call the wide
++ * entry points instead.  A string that is not valid UTF-8 is retried as an
++ * ANSI string, so callers that still pass ANSI paths keep working.
++ *
++ * Only paths need this treatment.  The directory entries themselves (CATALOG,
++ * HONMON, *.ebz, ...) are ASCII in every EPWING/EB book, so entry names are
++ * converted back to UTF-8 and everything above this layer stays byte-oriented.
++ *
++ * This file is header-only on purpose: libeb's autotools build would otherwise
++ * need a new object added to eb/Makefile.am.
++ */
++
++#ifndef EB_WIN32PATH_H
++#define EB_WIN32PATH_H
++
++#include <stdlib.h>
++#include <string.h>
++#include <fcntl.h>
++
++#ifndef O_BINARY
++#define O_BINARY 0
++#endif
++
++#ifdef _WIN32
++
++#ifndef WIN32_LEAN_AND_MEAN
++#define WIN32_LEAN_AND_MEAN
++#endif
++#include <windows.h>
++#include <io.h>
++#include <wchar.h>
++#include <dirent.h>
++
++/*
++ * POSIX callers talk to `DIR *'; on Windows the wide variant is `_WDIR *'.
++ */
++typedef _WDIR EB_DIR;
++
++/* Longest directory entry name we hand back to the caller. */
++#define EB_WIN32_NAME_MAX 512
++
++/*
++ * Convert a UTF-8 (or, failing that, ANSI) path to a freshly allocated
++ * UTF-16 string.  Returns NULL if the path cannot be converted at all; the
++ * caller then just lets the operation fail, exactly as before.
++ */
++static inline wchar_t *
++eb_win32_wide_path(const char *path)
++{
++    wchar_t *wide;
++    int length;
++
++    if (path == NULL)
++	return NULL;
++
++    length = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, path, -1,
++	NULL, 0);
++    if (length > 0) {
++	wide = (wchar_t *)malloc((size_t)length * sizeof(wchar_t));
++	if (wide == NULL)
++	    return NULL;
++	if (MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, path, -1,
++		wide, length) > 0)
++	    return wide;
++	free(wide);
++    }
++
++    /*
++     * Not UTF-8.  Treat it as an ANSI path so that existing callers, and
++     * paths that came from the C runtime rather than from GLib, still work.
++     */
++    length = MultiByteToWideChar(CP_ACP, 0, path, -1, NULL, 0);
++    if (length <= 0)
++	return NULL;
++    wide = (wchar_t *)malloc((size_t)length * sizeof(wchar_t));
++    if (wide == NULL)
++	return NULL;
++    if (MultiByteToWideChar(CP_ACP, 0, path, -1, wide, length) <= 0) {
++	free(wide);
++	return NULL;
++    }
++
++    return wide;
++}
++
++/*
++ * open(path, O_RDONLY | O_BINARY), with `path' interpreted as UTF-8.
++ */
++static inline int
++eb_open_readonly(const char *path)
++{
++    wchar_t *wide;
++    int file;
++
++    wide = eb_win32_wide_path(path);
++    if (wide == NULL)
++	return -1;
++    file = _wopen(wide, _O_RDONLY | _O_BINARY);
++    free(wide);
++
++    return file;
++}
++
++static inline EB_DIR *
++eb_dir_open(const char *path)
++{
++    wchar_t *wide;
++    EB_DIR *dir;
++
++    wide = eb_win32_wide_path(path);
++    if (wide == NULL)
++	return NULL;
++    dir = _wopendir(wide);
++    free(wide);
++
++    return dir;
++}
++
++/*
++ * Return the next entry name as UTF-8, or NULL at the end of the directory.
++ * The returned pointer is valid until the next call; libeb walks one
++ * directory at a time, so a single buffer is enough.
++ */
++static inline const char *
++eb_dir_read_name(EB_DIR *dir)
++{
++    static char name[EB_WIN32_NAME_MAX];
++    struct _wdirent *entry;
++    int length;
++
++    entry = _wreaddir(dir);
++    if (entry == NULL)
++	return NULL;
++
++    length = WideCharToMultiByte(CP_UTF8, 0, entry->d_name, -1, name,
++	(int)sizeof(name), NULL, NULL);
++    if (length <= 0)
++	return NULL;
++    name[sizeof(name) - 1] = '\0';
++
++    return name;
++}
++
++static inline void
++eb_dir_close(EB_DIR *dir)
++{
++    _wclosedir(dir);
++}
++
++#else /* not _WIN32 */
++
++#include <unistd.h>
++#include <dirent.h>
++
++typedef DIR EB_DIR;
++
++static inline int
++eb_open_readonly(const char *path)
++{
++    return open(path, O_RDONLY | O_BINARY);
++}
++
++static inline EB_DIR *
++eb_dir_open(const char *path)
++{
++    return opendir(path);
++}
++
++static inline const char *
++eb_dir_read_name(EB_DIR *dir)
++{
++    struct dirent *entry;
++
++    entry = readdir(dir);
++
++    return (entry == NULL) ? NULL : entry->d_name;
++}
++
++static inline void
++eb_dir_close(EB_DIR *dir)
++{
++    closedir(dir);
++}
++
++#endif /* not _WIN32 */
++
++#endif /* EB_WIN32PATH_H */
