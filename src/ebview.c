@@ -24,6 +24,7 @@
 #endif
 
 #ifdef __WIN32__
+#include <windows.h>
 #include <winsock.h>
 #else
 #include <sys/socket.h>
@@ -339,9 +340,31 @@ static gboolean show_unavailable_dicts(gpointer data)
 	return(FALSE);
 }
 
+/* The binary is a console-subsystem executable (CMakeLists.txt does not pass
+ * WIN32 to add_executable), because LOG() writes to stderr and that is worth
+ * keeping when the program is started from a terminal.  Double-clicking it in
+ * Explorer, however, makes Windows allocate a console window of its own, which
+ * then sits next to the GUI looking like a leftover terminal.  Hide it only in
+ * that case: GetConsoleProcessList() returns 1 when this process is the sole
+ * owner of the console, more when a shell shares it, and 0 when there is no
+ * console at all (detached process).  The console still exists after hiding,
+ * so stderr keeps working and nothing else changes. */
+#ifdef __WIN32__
+static void hide_own_console(void)
+{
+	DWORD owners[2];
+
+	if(GetConsoleProcessList(owners, 2) == 1)
+		ShowWindow(GetConsoleWindow(), SW_HIDE);
+}
+#endif
+
 int main( int   argc,
 	  char *argv[] )
 {
+#ifdef __WIN32__
+	hide_own_console();
+#endif
 #if 0
 	gint rc;
 

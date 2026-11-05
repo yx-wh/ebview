@@ -1117,11 +1117,21 @@ EUC-JP，所以非日语一律回退英文（ASCII，两边都安全）。
 的导入）。所以二进制层面 Win7 SP1 x64 + KB2999226 理论上能跑，但 UCRT64 工具链和
 GTK2 那套只对 Windows 10+ 提供保证，实际按 **Windows 10/11 x64** 说。
 
-**已知瑕疵**：PE 子系统是 CUI（`add_executable` 没加 `WIN32`），从资源管理器双击会
-多出一个标题为 exe 路径的控制台窗口（`LOG()` 走 stderr）。要消掉它有两种办法：加
-`set_target_properties(ebview PROPERTIES WIN32_EXECUTABLE TRUE)`，或者保留 CUI 但在
-`main()` 里 `GetConsoleProcessList() == 1` 时 `ShowWindow(GetConsoleWindow(), SW_HIDE)`
-（从终端启动时仍能看到日志）。
+**控制台窗口（已修）**：PE 子系统保持 CUI——`LOG()` 走 stderr，从终端起还是得看得见。
+但双击时 Windows 会给自己独占一个控制台窗口，横在 GUI 旁边像个没关掉的终端。
+`main()` 开头调用 `hide_own_console()`：`GetConsoleProcessList()` 返回 1（控制台只有
+本进程）就 `ShowWindow(GetConsoleWindow(), SW_HIDE)`；返回 >1 说明是终端共享的，不动；
+返回 0 说明根本没有控制台（detached），也不动。控制台只是隐藏、没销毁，stderr 照常。
+
+验证（`build/dist/EBView/ebview.exe`，PATH 只剩 system32）：
+
+| 启动方式 | 控制台窗口 | 主窗口 | stderr |
+| --- | --- | --- | --- |
+| `CREATE_NEW_CONSOLE`（等价双击） | 存在但不可见 | 可见 | 照常 |
+| 从终端继承控制台 | 不属于本进程，未动 | 可见 | 61 行日志（log_level=255） |
+| `DETACHED_PROCESS`（无控制台） | 无 | 可见，不崩 | — |
+
+没选 `WIN32_EXECUTABLE TRUE`：那会让 stderr 彻底没有去处，排查问题只剩弹窗。
 
 ## 15. 复现/验证清单
 
