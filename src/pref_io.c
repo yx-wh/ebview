@@ -321,6 +321,12 @@ gboolean load_dictgroup()
 				   DICT_TITLE_COLUMN, strdup(xml_get_attr(xgroup, "name")),
 				   DICT_ACTIVE_COLUMN, atoi(xml_get_attr(xgroup, "active")),
 				   DICT_EDITABLE_COLUMN, TRUE,
+				   /* A group is always usable; only a dictionary whose
+				    * book failed to open is marked unavailable.  The
+				    * "Name" cell binds "sensitive" to this column, so
+				    * leaving it at the FALSE default greys out every
+				    * group name and makes it unrenamable. */
+				   DICT_AVAILABLE_COLUMN, TRUE,
 				   -1);
 		xdict = xml_get_child(xgroup);
 		while(xdict){

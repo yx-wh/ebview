@@ -654,6 +654,7 @@ static void add_group(GtkWidget *widget,gpointer *data)
 			   DICT_TYPE_COLUMN, 0,
 			   DICT_TITLE_COLUMN, name,
 			   DICT_EDITABLE_COLUMN, TRUE,
+			   DICT_AVAILABLE_COLUMN, TRUE,
 			   -1);
 
 	gtk_entry_set_text(GTK_ENTRY(entry_group_name), "");
@@ -792,6 +793,7 @@ static int enumerate_subbook(char *path)
 						   DICT_TYPE_COLUMN, 0,
 						   DICT_TITLE_COLUMN, "Disk Search Result",
 						   DICT_EDITABLE_COLUMN, TRUE,
+						   DICT_AVAILABLE_COLUMN, TRUE,
 						   -1);
 
 			}
