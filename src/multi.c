@@ -423,6 +423,12 @@ static void show_candidate_tree(BOOK_INFO *binfo, gint page, gint offset, GtkTre
 				get_content(p, tag_name, &content, &content_length);
 				candidate = g_strndup(content, content_length);
 				utf_str = iconv_convert("euc-jp", "utf-8", candidate);
+				{
+					gchar *tmp_str;
+					tmp_str = utf_str;
+					utf_str = decode_gb2312_marks(utf_str);
+					g_free(tmp_str);
+				}
 
 				gtk_tree_store_append(candidate_store, &iter, parent);
 				gtk_tree_store_set (candidate_store, &iter,

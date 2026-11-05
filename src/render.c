@@ -171,6 +171,14 @@ static void draw_string2(CANVAS *canvas, DRAW_TEXT *text, TAG *tag)
 	euc_str = g_strndup(text->text, text->length);
 	utf_str = iconv_convert("euc-jp", "utf-8", euc_str);
 
+	/* Replace [[gbrg:XXXX]] markers (GB2312 characters) by UTF-8 text. */
+	{
+		gchar *tmp_str;
+		tmp_str = utf_str;
+		utf_str = decode_gb2312_marks(utf_str);
+		g_free(tmp_str);
+	}
+
 	if(tag == NULL){
 		if((0 <= canvas->indent)  && (canvas->indent < MAX_INDENT)){
 			gtk_text_buffer_insert_with_tags(

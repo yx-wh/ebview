@@ -1299,3 +1299,63 @@ cd build && ninja
   （`Added N dictionaries. M could not be used ...`），且该对话框的 OK 可以
   正常点掉——不再出现"弹出警告后整个界面无响应"。
 - 已知限制：无。原「词典目录名必须 ASCII」的限制在 §9 已解除。
+
+## 17. 小学館中日日中統合辞書的中文部分乱码（已修复）
+
+**现象**：查询 `かみあわせ` 等词，释文中日方给的中文对译全部变成
+无意义汉字（`喷嚏猛 qiànguān 嘘威ぶ …` 之类），日文与拼音声调部分正常。
+
+**定位过程**：
+
+1. 写 libeb 探针（`build/dump2.c`/`dump3.c`/`dump4.c`，链接系统 libeb）逐层
+   观察：原始文本流里日文是普通 EUC-JP，拼音声调用 JIS X 0208 第 8 区字符
+   （所以正常），而中文对译 `咬合` 的字节是 `d2 a7` —— 这不是 EUC-JP，
+   是 **GB2312**（`D2A7`=咬，`BACF`=合，`B5C4`=的…）。
+2. 该书是 EBStudio 制作，惯例是：中文用 GB2312 内码直接混在文本流里，
+   GB2312 装不下的字用外字 + 外字マップ（`xxg2.map.ebz`，zlib 分片流，
+   每行 `z<外字号> u<Unicode>`）表达。EBWin 靠此显示正常；EBView 没有
+   对应处理。
+3. 但 GB2312 字节对 `(D2,A7)` 与 JIS X 0208 的 `(82区,39点)` 码位重叠，
+   **事后无法从纯文本里区分 GB 与 JIS**——必须在 hook 层拿到标记。
+4. 读 libeb 4.4.3 源码（`eb/readtext.c:1390-1443`）确认：书内把 GB2312
+   存成 `(高位字节 & 0x7f, 低位字节)` 的变体，libeb 解析出 `EB_HOOK_GB2312`
+   escape（0x1f 0x19 + 2 字节），并给出 **argv[0] = 码值 | 0x8000**；
+   用户未设 hook 时默认输出 `(高位|0x80, 低位)`——正好落回与 JIS 重叠的
+   EUC-CN 字节，随后被 EBView 的 `euc-jp → utf-8` iconv 转成错字。
+   注意 libeb 的一个毛病：hook 回调的 `argc` 硬编码为 0，**码值在 argv[0]
+   里但 argc 不告诉**你，必须忽略 argc 直接读 argv[0]。
+
+**修复**（标记 + 出口解码，不碰 libeb）：
+
+- `hook.c`：新增 `hook_gb2312()`，把 GB 码写成纯 ASCII 标记
+  `[[gbrg:XXXX]]`（高位已 `|0x80` 还原）；挂进 `text_hooks` /
+  `heading_hooks` / `candidate_hooks` 三个 hookset（带
+  `#ifdef EB_HOOK_GB2312` 兼容旧版 libeb）
+- `jcode.c`：新增 `decode_gb2312_marks()`，把标记换成
+  `iconv_convert("euc-cn","utf-8",2字节)` 的结果；转换失败（超出 GB2312
+  的码）按既有惯例跳过
+- `render.c` `draw_string2()`：`euc-jp→utf-8` 之后解码标记。标记是 ASCII，
+  能无损穿过 EUC-JP 转换，且不含 `<`，不会触发 draw_content 的标签解析，
+  关键词/斜体等样式对解码出的中文字符照常生效
+- `eb.c`（3 处 heading）、`multi.c`（候选词）：转换后同样解码，结果列表、
+  复合检索候选里的中文标题不再乱码
+
+**验证**：
+
+- 链接真实 `hook.c.o`/`jcode.c.o` 的端到端测试：`かみあわせ` 释文输出
+  `咬合yǎohé.…镶牙xiàngyá的咬合不好.…上下臼齿jiǔchǐ咬合部分`，全部正确
+- Xvfb 不可用，直接在 :0 上跑 `./build/ebview --search かみあわせ` + xwd
+  截图：GUI 中中文对译、拼音、日文全部正常
+- 复现命令（Linux）：
+  `cd build && gcc -o test_gb test_gb.c CMakeFiles/ebview.dir/src/hook.c.o
+  CMakeFiles/ebview.dir/src/jcode.c.o CMakeFiles/ebview.dir/src/log.c.o
+  $(pkg-config --cflags --libs gtk+-2.0) -leb`
+
+**已知限制**：
+
+- 外字（GB2312 装不下的繁体/罕用字）仍按外字位图（`Xxg2/GAIJI/GAI16F00`）
+  渲染，能显示但是点阵；书内附带的 `xxg2.map.ebz`（外字→Unicode 映射）
+  尚未利用，后续可做外字文本化
+- 中文词的**输入检索**未处理：输入框的词按 EUC-JP 转码，中文输入会被
+  `replace_char()` 吃掉。要支持「输中文查中日辞典」需把输入词转成
+  书内索引使用的 `(hi&0x7f, lo)` 变体再调 eb_search_*，另行处理

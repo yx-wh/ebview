@@ -33,6 +33,8 @@ static EB_Error_Code hook_narrow_font(EB_Book *book, EB_Appendix *appendix, void
 
 static EB_Error_Code hook_wide_font(EB_Book *book, EB_Appendix *appendix, void *container, EB_Hook_Code code, int argc, const unsigned int *argv);
 
+static EB_Error_Code hook_gb2312(EB_Book *book, EB_Appendix *appendix, void *container, EB_Hook_Code code, int argc, const unsigned int *argv);
+
 static EB_Error_Code hook_indent(EB_Book *book, EB_Appendix *appendix, void *container, EB_Hook_Code code, int argc, const unsigned int *argv);
 
 static EB_Error_Code hook_newline(EB_Book *book, EB_Appendix *appendix, void *container, EB_Hook_Code code, int argc, const unsigned int *argv);
@@ -77,6 +79,9 @@ static EB_Hook text_hooks[] = {
   {EB_HOOK_NEWLINE,                hook_newline},
   {EB_HOOK_NARROW_FONT,            hook_narrow_font},
   {EB_HOOK_WIDE_FONT,	           hook_wide_font},
+#ifdef EB_HOOK_GB2312
+  {EB_HOOK_GB2312,                 hook_gb2312},
+#endif
   {EB_HOOK_BEGIN_REFERENCE,        hook_reference},
   {EB_HOOK_END_REFERENCE,          hook_reference},
   {EB_HOOK_BEGIN_CANDIDATE,        hook_candidate},
@@ -123,6 +128,9 @@ static EB_Hook heading_hooks[] = {
   {EB_HOOK_NEWLINE,                hook_newline},
   {EB_HOOK_NARROW_FONT,            hook_narrow_font},
   {EB_HOOK_WIDE_FONT,	           hook_wide_font},
+#ifdef EB_HOOK_GB2312
+  {EB_HOOK_GB2312,                 hook_gb2312},
+#endif
 //  {EB_HOOK_BEGIN_CANDIDATE,        hook_candidate},
 //  {EB_HOOK_END_CANDIDATE_LEAF,     hook_candidate},
 //  {EB_HOOK_END_CANDIDATE_GROUP,    hook_candidate},
@@ -137,6 +145,9 @@ static EB_Hook heading_hooks[] = {
 static EB_Hook candidate_hooks[] = {
   {EB_HOOK_NARROW_FONT,            hook_narrow_font},
   {EB_HOOK_WIDE_FONT,	           hook_wide_font},
+#ifdef EB_HOOK_GB2312
+  {EB_HOOK_GB2312,                 hook_gb2312},
+#endif
   {EB_HOOK_BEGIN_CANDIDATE,        hook_candidate},
   {EB_HOOK_END_CANDIDATE_LEAF,     hook_candidate},
   {EB_HOOK_END_CANDIDATE_GROUP,    hook_candidate},
@@ -203,6 +214,29 @@ static EB_Error_Code hook_wide_font(EB_Book *book, EB_Appendix *appendix, void *
 	char text[64];
 
 	sprintf (text, "<gaiji code=z%04x>", argv[0]);
+	eb_write_text_string(book, text);
+
+	return EB_SUCCESS;
+}
+
+/* GB2312 characters used by Chinese EPWING books (EBStudio's
+ * 中日/日中 dictionaries). libeb stores them packed as
+ * (high byte & 0x7f, low byte) and hands the code over in argv[0]
+ * with the 0x8000 flag set. Note that argc is 0 despite the code
+ * being present. Emit an ASCII marker here; it is turned into a
+ * real UTF-8 character by decode_gb2312_marks() just before the
+ * text is displayed. */
+static EB_Error_Code hook_gb2312(EB_Book *book, EB_Appendix *appendix, void *container, EB_Hook_Code code, int argc, const unsigned int *argv)
+{
+	char text[64];
+	unsigned int gb;
+
+	if(argv == NULL)
+		return EB_SUCCESS;
+
+	gb = ((argv[0] >> 8) | 0x80) << 8 | (argv[0] & 0xff);
+
+	sprintf (text, "[[gbrg:%04x]]", gb & 0xffff);
 	eb_write_text_string(book, text);
 
 	return EB_SUCCESS;

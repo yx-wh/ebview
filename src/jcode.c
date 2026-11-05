@@ -299,6 +299,64 @@ gchar *iconv_convert2(const gchar *icode, const gchar *ocode, const gchar *orig)
 	return(result);
 }
 
+/* GB2312 characters in Chinese EPWING books (EBStudio's 中日/日中
+ * dictionaries) are emitted by hook.c as "[[gbrg:XXXX]]" markers, where
+ * XXXX is the GB2312 code in hex. The marker is plain ASCII, so it
+ * survives the EUC-JP -> UTF-8 conversion; this function turns the
+ * markers into real UTF-8 characters just before the text is displayed. */
+gchar *decode_gb2312_marks(const gchar *str)
+{
+	const gchar *p;
+	GString *out;
+
+	g_assert(str != NULL);
+
+	out = g_string_new("");
+	p = str;
+
+	while(*p != '\0'){
+		const gchar *m;
+		const gchar *end;
+		guint code;
+		gchar gb[3];
+		gchar *utf;
+
+		if((m = strstr(p, "[[gbrg:")) == NULL){
+			g_string_append(out, p);
+			break;
+		}
+
+		g_string_append_len(out, p, m - p);
+		end = m + 7;
+
+		if(g_ascii_isxdigit(end[0]) && g_ascii_isxdigit(end[1]) &&
+		   g_ascii_isxdigit(end[2]) && g_ascii_isxdigit(end[3]) &&
+		   (end[4] == ']') && (end[5] == ']')){
+			code = ((guint)g_ascii_xdigit_value(end[0]) << 12) |
+			       ((guint)g_ascii_xdigit_value(end[1]) << 8) |
+			       ((guint)g_ascii_xdigit_value(end[2]) << 4) |
+			       ((guint)g_ascii_xdigit_value(end[3]));
+
+			gb[0] = (code >> 8) & 0xff;
+			gb[1] = code & 0xff;
+			gb[2] = '\0';
+
+			utf = iconv_convert("euc-cn", "utf-8", gb);
+			if(utf != NULL){
+				g_string_append(out, utf);
+				g_free(utf);
+			}
+			p = end + 6;
+		} else {
+			/* Not a marker after all. Keep it as is. */
+			g_string_append_len(out, m, 7);
+			p = end;
+		}
+	}
+
+	return(g_string_free(out, FALSE));
+}
+
 gboolean isjisp(const gchar *buff){
         g_assert(buff != NULL);
 
