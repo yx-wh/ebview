@@ -994,7 +994,75 @@ python build/drag_any.py build/ebview.exe --resize
   自己 `run` 启动目标，再用外部 `DebugBreakProcess()` 注入断点，gdb 就能拿到
   完整栈。gdb 18.1（MSYS2）**不支持** `target minidump`，别指望离线分析 dump。
 
-## 13. 复现/验证清单
+## 13. Windows 下界面不跟着系统语言走（已修复）
+
+### 现象
+
+同一份源码在 Debian 上，`LANG=zh_CN.UTF-8` 启动就是简体中文、`zh_TW` 是繁体、
+`ja_JP` 是日文；换到 Windows 上不管系统语言是什么，界面**永远是英文**。
+`po/` 里的 `zh_CN.po` / `zh_TW.po` / `ja.po` 都在，`build/locale/*/LC_MESSAGES/
+ebview.mo` 也编译出来了，就是不生效。
+
+### 先排除"gettext 认不出中文 Windows"
+
+容易先怀疑 Windows 没有 `LANG`。实测**不是**：mingw-w64 的 libintl 在找不到
+`LC_ALL`/`LC_MESSAGES`/`LANG` 时会自己去问 Windows（`GetUserDefaultUILanguage`
+那一套，glib 的 `g_win32_getlocale()` 给出同样的结果）。拿一个 10 行的探针程序
+验证：
+
+```
+=== 清空 LANG/LC_ALL（等价于资源管理器双击启动）
+g_win32_getlocale()    = zh_CN
+translated("File")     = [文件]          <- 只要 mo 能被找到，就是中文
+```
+
+（探针源码留在 `build/probe_intl.c`，只链接 glib 和 intl。）
+
+所以问题只在 **mo 的路径**。
+
+### 根因
+
+`main()` 里 Windows 分支写的是：
+
+```c
+bindtextdomain(PACKAGE, package_dir);     /* package_dir = <exe>\share\ebview */
+```
+
+而 CMake 把目录树编译到 `<build>/locale/<lang>/LC_MESSAGES/ebview.mo`，
+`package_dir` 指向 `<build>\share\ebview`，**从未包含 locale 目录**。
+gettext 找不到 catalog 就静默回退到 msgid（英文），连一条警告都没有。
+非 Windows 分支反而做了探测（`<exe_dir>/locale` 存在就用它），所以 Debian 正常。
+
+### 修复
+
+- `src/preference.c` 新增 `locate_locale_dir()`，和已有的 `locate_package_dir()`
+  一个套路：依次探测 `$EBVIEW_LOCALEDIR`、`<exe-dir>/locale`（构建树）、
+  `<exe-dir>/share/locale`、`<exe-dir>/../share/locale`（安装前缀），最后
+  `LOCALEDIR`。**候选目录必须真的含 `<lang>/LC_MESSAGES/ebview.mo` 才算数**
+  （否则一个空目录会把 `LOCALEDIR` 顶掉）。两个平台共用，结果存进新全局
+  `locale_dir`。
+- `src/ebview.c` 的 `bindtextdomain()` 改用 `locale_dir`，那段 `#ifdef` 探测删掉。
+- 顺带修两处同一来源的问题：`show_about()` / `show_usage()` 原来 Windows 分支
+  **写死日语**（`about.jp`、`help/ja`），现在统一走新的 `ui_language()`
+  （`src/misc.c`，Windows 用 `g_win32_getlocale()`，其它平台看 `LANG`）。
+  而且旧代码指向 `help/index.html`——任何布局里都没有这个文件，Help 菜单在
+  Windows 上一直是打不开的，现在指向 `help/<lang>/index.html`。
+
+### 验证
+
+| 环境 | 菜单栏 |
+| --- | --- |
+| 无 `LANG`/`LC_*`（系统 zh-CN） | 文件 视图 检索方式 工具 帮助 |
+| `LANG=zh_TW.UTF-8` | 檔案 檢視 檢索方式 工具 幫助 |
+| `LANG=ja_JP.UTF-8` | ファイル 表示 検索方法 ツール ヘルプ |
+| `LANG=en_US.UTF-8` | File View Search Method Tools Help |
+
+实测脚本 `build/i18n_test.py`（gitignore）：清掉所有 `LC_*`/`LANG` 再启动，
+按窗口类 `gdkWindowToplevel` 找主窗口截图，用来肉眼比对。
+另外确认中文界面下没有豆腐块——`data/gtkrc` 的兜底字体 `MS Gothic 9` 覆盖
+大部分汉字，缺的字由 Pango 的 win32 fallback 补上。
+
+## 14. 复现/验证清单
 
 ```bash
 cd /e/git/EBView
@@ -1011,7 +1079,8 @@ cd build && ninja
   §8 结构体 ABI 不一致导致 `Search Disk` 后堆损坏崩溃、§9 libeb 窄字符
   `open()`/`opendir()` 导致非 ASCII 词典目录打不开、§10 Samba 共享上
   `Search Disk` 弹窗后界面卡死（GTK grab 栈）、§11 配置里失效词典被静默删除、
-  §12 Win10 拖动标题栏 / 拉边框缩放导致界面永久卡死（`gdk_threads_init`）。
+  §12 Win10 拖动标题栏 / 拉边框缩放导致界面永久卡死（`gdk_threads_init`）、
+  §13 Windows 上界面语言永远是英文（mo 路径绑错）。
 - 已验证（§12）：空窗口 + `gdk_threads_init()` 即可复现，去掉后 3/3 拖动、
   3/3 缩放均正常且有真实位移；搜索线程跑完整链路，搜索进行中拖动也不卡。
 - 已验证（§11）：往 `dictgroup.xml` 注入一条指向不存在目录的条目，启动后

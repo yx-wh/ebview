@@ -112,6 +112,29 @@ gboolean find_file(gchar *filename)
 
 }
 
+/* Two-letter language tag used to choose the shipped about.<lang> file and
+ * help/<lang>/ directory.  Only "ja" and "en" are shipped; every other
+ * language (zh_CN and zh_TW included) falls back to English, matching what
+ * the message catalogue does for those. */
+const gchar *ui_language(void)
+{
+#ifdef __WIN32__
+	/* There is no LANG on Windows; glib derives the name from the user's
+	 * locale settings, giving e.g. "ja_JP", "zh_CN" or "en_US". */
+	gchar *loc = g_win32_getlocale();
+	gboolean is_ja = (loc != NULL && strncmp(loc, "ja", 2) == 0);
+
+	g_free(loc);
+	return is_ja ? "ja" : "en";
+#else
+	const gchar *lang = getenv("LANG");
+
+	if(lang != NULL && strncmp(lang, "ja", 2) == 0)
+		return "ja";
+	return "en";
+#endif
+}
+
 gboolean find_config_file(gchar *filename){
 	gchar fullpath[512];
 	gboolean ret;

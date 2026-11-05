@@ -105,6 +105,7 @@ global gint gaiji_adjustment;
 global gchar *user_dir;
 global gchar *temp_dir;
 global gchar *package_dir;
+global gchar *locale_dir;
 global gchar *cache_dir;
 
 global gchar *fontset_normal;

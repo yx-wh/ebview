@@ -375,7 +375,6 @@ static gint entry_activate_event(GtkWidget *widget, GdkEventKey *event){
 
 void show_about()
 {
-	gchar *lang;
 	gchar buff[65536];
 	gchar filename[512];
 	FILE *fp;
@@ -383,18 +382,8 @@ void show_about()
 
 	LOG(LOG_DEBUG, "IN : show_about()");
 
-#ifdef __WIN32__
-	sprintf(filename, "%s%sabout.jp", package_dir, DIR_DELIMITER);
-#else
-	lang = getenv("LANG");
-	if(lang == NULL){
-		sprintf(filename, "%s%sabout.en", package_dir, DIR_DELIMITER);
-	} else if(strncmp(lang, "ja_JP", 5) == 0){
-		sprintf(filename, "%s%sabout.jp", package_dir, DIR_DELIMITER);
-	} else {
-		sprintf(filename, "%s%sabout.en", package_dir, DIR_DELIMITER);
-	}
-#endif
+	sprintf(filename, "%s%sabout.%s", package_dir, DIR_DELIMITER,
+		ui_language());
 
 	fp = fopen(filename, "r");
 	if(fp == NULL){
@@ -418,24 +407,20 @@ void show_about()
 void show_usage()
 {
 
-	gchar *lang;
 	gchar filename[512];
 	gchar *tmp_str;
 
 	LOG(LOG_DEBUG, "IN : show_usage()");
 
 #ifdef __WIN32__
-	sprintf(filename, "%s%shelp%sindex.html", package_dir,
-		DIR_DELIMITER, DIR_DELIMITER);
+	/* ShellExecute() wants a plain path; it opens .html with the default
+	 * browser.  Note the language level directory: the old code pointed at
+	 * help/index.html, which does not exist in any layout. */
+	sprintf(filename, "%s%shelp%s%s%sindex.html", package_dir,
+		DIR_DELIMITER, DIR_DELIMITER, ui_language(), DIR_DELIMITER);
 #else
-	lang = getenv("LANG");
-	if(lang == NULL){
-		sprintf(filename, "file://%s/help/en/index.html", package_dir);
-	} else if(strncmp(lang, "ja_JP", 5) == 0){
-		sprintf(filename, "file://%s/help/ja/index.html", package_dir);
-	} else {
-		sprintf(filename, "file://%s/help/en/index.html", package_dir);
-	}
+	sprintf(filename, "file://%s/help/%s/index.html", package_dir,
+		ui_language());
 #endif
 	tmp_str = iconv_convert("utf-8", "euc-jp", _("Help will be shown in external web browser."));
 	show_text(0, tmp_str, NULL);

@@ -28,5 +28,6 @@ void alloc_colors();
 gboolean find_file(gchar *filename);
 gboolean find_config_file(gchar *filename);
 gboolean find_or_copy_file(gchar *filename);
+const gchar *ui_language(void);
 
 #endif /* __MISC_H__ */

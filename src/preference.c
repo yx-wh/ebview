@@ -156,6 +156,55 @@ static gchar *locate_package_dir(void)
 }
 #endif /* !__WIN32__ */
 
+/* Directory that holds the compiled message catalogues, i.e. the parent of
+ * <lang>/LC_MESSAGES/ebview.mo.
+ *
+ * This used to be bound to package_dir on Windows, which is wrong: the build
+ * tree puts the catalogues in <exe-dir>/locale (see CMakeLists.txt), while
+ * package_dir is <exe-dir>/share/ebview.  gettext then found no .mo at all and
+ * silently fell back to the untranslated (English) strings.  Probe the same
+ * way locate_package_dir() does, and only accept a candidate that really
+ * contains a catalogue, so a half-populated directory cannot shadow
+ * LOCALEDIR. */
+static gchar *locate_locale_dir(const gchar *exe_dir)
+{
+	static const gchar *langs[] = { "zh_CN", "zh_TW", "ja", NULL };
+	const gchar *env_locale_dir = g_getenv("EBVIEW_LOCALEDIR");
+	gchar *candidates[4];
+	gchar *result = NULL;
+	gint i, j;
+
+	if(env_locale_dir && *env_locale_dir)
+		return g_strdup(env_locale_dir);
+
+	candidates[0] = g_build_filename(exe_dir, "locale", NULL);
+	candidates[1] = g_build_filename(exe_dir, "share", "locale", NULL);
+	candidates[2] = g_build_filename(exe_dir, "..", "share", "locale", NULL);
+	candidates[3] = NULL;
+
+	for(i = 0; candidates[i] != NULL && result == NULL; i++){
+		for(j = 0; langs[j] != NULL; j++){
+			gchar *probe = g_build_filename(candidates[i], langs[j],
+							"LC_MESSAGES",
+							PACKAGE ".mo", NULL);
+			if(g_file_test(probe, G_FILE_TEST_IS_REGULAR)){
+				result = g_strdup(candidates[i]);
+				g_free(probe);
+				break;
+			}
+			g_free(probe);
+		}
+	}
+
+	for(i = 0; candidates[i] != NULL; i++)
+		g_free(candidates[i]);
+
+	if(result == NULL)
+		result = g_strdup(LOCALEDIR);
+
+	return result;
+}
+
 void initialize_preference(){
 	gchar *home_dir;
 	GDir *dir;
@@ -369,6 +418,9 @@ void initialize_preference(){
 		}
 	}
 
+	/* home_dir is the executable's directory here. */
+	locale_dir = locate_locale_dir(home_dir);
+
 
 	SHGetSpecialFolderLocation(NULL, CSIDL_APPDATA, &idl);
 	SHGetPathFromIDList(idl, (LPSTR)&apppath);
@@ -385,6 +437,11 @@ void initialize_preference(){
 #else
 	home_dir = getenv("HOME");
 	package_dir = locate_package_dir();
+	{
+		gchar *exe_dir = g_path_get_dirname(exe_path ? exe_path : PACKAGE);
+		locale_dir = locate_locale_dir(exe_dir);
+		g_free(exe_dir);
+	}
 
 	user_dir = g_strdup_printf("%s%s.%s", home_dir, DIR_DELIMITER, PACKAGE);
 	temp_dir = g_strdup_printf("%s%stmp", user_dir, DIR_DELIMITER);
