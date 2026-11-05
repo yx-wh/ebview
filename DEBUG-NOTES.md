@@ -456,7 +456,114 @@ ar r .libs/libeb.a .libs/filename.o && ranlib .libs/libeb.a
 cp .libs/libeb.a /c/Users/yx/msys64/ucrt64/lib/libeb.a
 ```
 
-## 8. 复现/验证清单
+## 8. `Search Disk` 之后直接闪崩：`_FILE_OFFSET_BITS` 导致结构体 ABI 不一致（已修复）
+
+第 7 节修完路径问题后，`Search Disk` 能扫到词典了，但接着整个进程无声消失。
+
+### (a) 现象不是「段错误」
+
+在 bash 里只能看到退出码 `127`，很容易误判成 `_exit(127)`。用一个
+`CreateProcess` + `GetExitCodeProcess` 的小外壳去观察，真实退出码是：
+
+```
+child exit code = 0xC0000374 (3221226356)   -> STATUS_HEAP_CORRUPTION
+```
+
+不是访问违例（`0xC0000005`），是**堆损坏**。这类错误由 CRT / ntdll 内部
+`abort()`，`SetUnhandledExceptionFilter`、`AddVectoredExceptionHandler` 都拦不到，
+而且 `my_log_handler` 原先是个空函数，把 GLib 的 `g_critical` 也一起吞了 —— 所以
+表现出来就是「什么都没打印就死了」。
+
+### (b) 让 Windows 自己说出坏在哪
+
+关键技巧：**在 gdb 下运行**。gdb 用 `DEBUG_PROCESS` 创建进程，ntdll 会启用
+debug heap，任何「写超过 request size」都会被精确报告：
+
+```bash
+gdb -batch -q -ex "set confirm off" -ex run -ex "bt 40" --args ./ebview.exe
+```
+
+于是拿到第一条确定性的证据：
+
+```
+warning: HEAP[ebview.exe]:
+warning: Heap block at 0000000009023950 modified at 0000000009024738 past requested size of dd8
+```
+
+`0xdd8 = 3544` —— 一个 3544 字节的块被越界写。再配合自己埋的
+`HeapValidate(GetProcessHeap(), 0, NULL)` 检查点（**先打印 tag 再校验**，否则
+ntdll 的 SIGTRAP 会在你的 `fprintf` 之前打断），把范围压缩到两条语句之间：
+
+```
+SZ binfo=224 ebook=3544 book=1200
+HV> lb4 after malloc book
+HV> lb5 after eb_initialize_book      <- 已打印，随后 SIGTRAP
+```
+
+即 `malloc(sizeof(EB_Book))` 之后紧跟的 `eb_initialize_book()` 把这块写穿了，
+而 `sizeof(EB_Book)` 恰好就是 3544。
+
+### (c) 根因：`off_t` 一边 4 字节一边 8 字节
+
+用 gdb 读**库里编译时**的结构体布局（`ebview.exe` 自身没带 `-g`，所以 gdb 只会
+用 libeb.a 里的调试信息）：
+
+```bash
+gdb -batch -q -ex "ptype /o EB_Book" ./某个链接了 libeb 的程序
+```
+
+| | 本程序编译出来的 | libeb.a 里的 |
+|---|---|---|
+| `sizeof(EB_Text_Context)` | 336 | **344** |
+| `offsetof(EB_Book, text_context)` | 56 | 56 |
+| `offsetof(EB_Book, binary_context)` | 392 | **400** |
+| `offsetof(EB_Book, search_contexts)` | 584 | **592** |
+| `sizeof(EB_Book)` | 3544 | **3552** |
+
+差的 8 字节出自 `EB_Text_Context::location` 的类型 —— `off_t`：
+
+```
+off_t = 4 字节 -> sizeof(EB_Text_Context) = 336, sizeof(EB_Book) = 3544
+off_t = 8 字节 -> sizeof(EB_Text_Context) = 344, sizeof(EB_Book) = 3552
+```
+
+libeb 用 autoconf 构建，`AC_SYS_LARGEFILE` 在它的 `config.h` 里写了
+`#define _FILE_OFFSET_BITS 64`（MinGW 下这会把 `off_t` 变成 8 字节）；而
+`eb/defs.h` 是**被编进客户端**的，ebview 的 CMake 构建没有这个宏，于是拿到了
+4 字节的 `off_t`。上游的 autotools 构建对 libeb 和 ebview 都套了
+`AC_SYS_LARGEFILE`，移植到 CMake 时把这个宏丢掉了。
+
+`eb_initialize_book()` 会逐个字段初始化 `search_contexts[]`，最后写到
+`keyword_heading.offset`，正好落在它认为的 3548 处 —— 比我们分配的 3544 多 4 字节，
+踩进堆块尾巴，之后任意一次 `free()`/分配就报 `STATUS_HEAP_CORRUPTION`。
+
+### (d) 修复
+
+`CMakeLists.txt`（`target_include_directories` 之后）补上，让两边 ABI 一致：
+
+```cmake
+target_compile_definitions(ebview PRIVATE _FILE_OFFSET_BITS=64)
+```
+
+同时在 `eb.c` 加了一个一次性自检 `check_eb_abi_structure()`（在
+`ebook_start()` 里 `eb_initialize_library()` 之后调用）：分配
+`sizeof(EB_Book) + 256` 字节、填 `0xAA`、调一次 `eb_initialize_book()`，若
+`sizeof(EB_Book)` 之后有字节被改写，就用 `LOG_CRITICAL` 明确指出
+「头和库的 ABI 设置不一致，最可能是 `_FILE_OFFSET_BITS`」。这类错配以后再出现，
+不必再花一轮 gdb 才能定位。
+
+### (e) 经验
+
+- **静态库 + 公开头文件里的结构体 = 必须共享全部 ABI 宏**
+  （`_FILE_OFFSET_BITS`、`_REENTRANT`、`-mms-bitfields`、`_WIN32_WINNT`…）。
+  库若不带 `.pc` 文件，CMake 的 `find_path`/`find_library` 完全看不到这些宏。
+- 崩溃点离开真实原因很远时，**不要继续加 printf**，先让运行环境给出精确位置：
+  Windows 上是 gdb（debug heap）+ `HeapValidate` 检查点，Linux 上是
+  `MALLOC_CHECK_=3` / ASan。
+- `127` 这个退出码在 MSYS2 bash 下**同时**代表 `abort()` 和 `_exit(127)`，
+  不能用来区分。
+
+## 9. 复现/验证清单
 
 ```bash
 cd /e/git/EBView
@@ -469,7 +576,10 @@ cd build && ninja
   （libeb 静态链接）；`gtkrc` 提示已消除；文件搜索可展开目录/命中/打开；
   `eb_bind("E:\daijirin")` 成功并可检索（§7）。
 - 已修复：§3 Pango 启动崩溃、§4 gtkrc 提示、§5 Shift_JIS 文件名、§6 非 ASCII 路径
-  的 stat/fopen 与 ShellExecute、§7 Windows 绝对路径导致找不到词典 + 扫描无反馈。
+  的 stat/fopen 与 ShellExecute、§7 Windows 绝对路径导致找不到词典 + 扫描无反馈、
+  §8 结构体 ABI 不一致导致 `Search Disk` 后堆损坏崩溃。
 - 待实测：Dictionary Group 里 `Path=E:\daijirin`、`Depth=0`、点 `Search Disk`
   应出现在 “Disk Search Result” 组下；随后在新词条上做查词。
+  （§8 修复后已用 `EBVIEW_AUTOSEARCH` 自动触发该路径连续跑 3 次，
+  都走到 `search_disk done` 并通过 `HeapValidate`，验证后临时代码已移除。）
 - 已知限制：词典目录名必须 ASCII（libeb 用窄字符 `open()`/`opendir()`）。

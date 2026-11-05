@@ -65,6 +65,24 @@ target_include_directories(ebview PRIVATE
     "${CMAKE_CURRENT_BINARY_DIR}"
     "${CMAKE_CURRENT_SOURCE_DIR}/src"
     "${EB_INCLUDE_DIR}")
+
+# libeb is configured with autoconf's AC_SYS_LARGEFILE, which puts
+# _FILE_OFFSET_BITS=64 into its config.h.  That macro widens off_t to 64 bits,
+# and EB_Text_Context stores an off_t (EB_Text_Context::location), so it
+# changes the *binary layout* of every EB_Book the library touches:
+#
+#     off_t 32-bit -> sizeof(EB_Text_Context) = 336, sizeof(EB_Book) = 3544
+#     off_t 64-bit -> sizeof(EB_Text_Context) = 344, sizeof(EB_Book) = 3552
+#
+# eb/defs.h is compiled into the client, so a client built without the same
+# macro allocates an 8-byte-short EB_Book; eb_initialize_book() then writes
+# past the end of it and the process dies later with STATUS_HEAP_CORRUPTION
+# (0xC0000374) in an unrelated place.  The upstream autotools build compiled
+# both sides with AC_SYS_LARGEFILE, so restoring the macro restores the ABI.
+#
+# This must stay in sync with whatever libeb itself was built with.
+target_compile_definitions(ebview PRIVATE _FILE_OFFSET_BITS=64)
+
 target_link_libraries(ebview PRIVATE
     PkgConfig::GTK2
     ${EB_LIBRARY}

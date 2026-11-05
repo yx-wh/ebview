@@ -56,6 +56,56 @@ gboolean full_text_search_ignore_case = TRUE;
 
 EB_Error_Code ebook_set_subbook(BOOK_INFO *binfo);
 
+/* eb/defs.h is compiled into this program, but the structures in it are also
+ * compiled into libeb.  If the two are not built with identical ABI-affecting
+ * macros the layouts silently disagree and every EB_Book we hand to the
+ * library is the wrong size.  That is not hypothetical: libeb is configured
+ * with autoconf's AC_SYS_LARGEFILE, so its off_t is 64-bit
+ * (_FILE_OFFSET_BITS=64) while a client built without that macro gets a
+ * 32-bit off_t, making EB_Text_Context 8 bytes smaller.  eb_initialize_book()
+ * then writes past the end of our EB_Book and the process later dies with
+ * STATUS_HEAP_CORRUPTION far away from the real cause.
+ *
+ * This probe lets the library shape a slightly oversized buffer once, at
+ * startup, and reports if it reached past what we allocated.  It only warns:
+ * the app still runs, and the message points at the real problem. */
+#define EB_ABI_PROBE_SLACK 256
+
+static void check_eb_abi_structure(void)
+{
+	EB_Book *probe;
+	size_t i;
+	gboolean overflow = FALSE;
+
+	probe = (EB_Book *)malloc(sizeof(EB_Book) + EB_ABI_PROBE_SLACK);
+	if(probe == NULL)
+		return;
+	memset(probe, 0xAA, sizeof(EB_Book) + EB_ABI_PROBE_SLACK);
+
+	eb_initialize_book(probe);
+
+	for(i = sizeof(EB_Book); i < sizeof(EB_Book) + EB_ABI_PROBE_SLACK; i++){
+		if(((unsigned char *)probe)[i] != 0xAA){
+			overflow = TRUE;
+			break;
+		}
+	}
+	free(probe);
+
+	if(overflow){
+		LOG(LOG_CRITICAL,
+		    _("This build does not match the installed EB Library: "
+		      "eb_initialize_book() wrote past the end of EB_Book "
+		      "(our sizeof(EB_Book) is %d). The headers and the library "
+		      "were compiled with different ABI settings -- most likely "
+		      "_FILE_OFFSET_BITS. Rebuild with the same flags as libeb."),
+		    (int)sizeof(EB_Book));
+	} else {
+		LOG(LOG_DEBUG, "[abi] EB_Book layout matches the library (%d bytes)",
+		    (int)sizeof(EB_Book));
+	}
+}
+
 static gchar *ebook_message = NULL;
 
 gchar *ebook_error_message(EB_Error_Code error_code)
@@ -501,6 +551,8 @@ gint ebook_start(){
 			ebook_error_message(error_code));
 		return(1);
 	}
+
+	check_eb_abi_structure();
 
 	error_code = initialize_hooksets();
 	if(error_code != EB_SUCCESS){

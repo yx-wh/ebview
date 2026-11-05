@@ -10,3 +10,6 @@ upstream/.git/
 
 # sanitizer/debug build trees
 build-*/
+
+# local agent scratch state (per-machine notes, not project content)
+.workbuddy/
