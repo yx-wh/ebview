@@ -459,20 +459,108 @@ static gboolean lookup_startup_word(gpointer data)
 	return(FALSE);
 }
 
+/* Diagnostic for the Win7 "frozen window": the main loop is provably alive
+ * (mainloop_tick, below), so a non-responsive window is one of three things:
+ * (a) never actually shown, (b) not receiving input, or (c) not repainting.
+ * Counting GDK events tells us which -- see the "HB" summary line. */
+#ifdef __WIN32__
+static struct {
+	guint press, release, keypress, keyrel, expose, configure, map, focus, motion;
+} evt;
+
+static void debug_event_handler(GdkEvent *event, gpointer data)
+{
+	switch(event->type){
+	case GDK_BUTTON_PRESS:   evt.press++;    break;
+	case GDK_BUTTON_RELEASE: evt.release++;  break;
+	case GDK_KEY_PRESS:      evt.keypress++; break;
+	case GDK_KEY_RELEASE:    evt.keyrel++;   break;
+	case GDK_EXPOSE:         evt.expose++;   break;
+	case GDK_CONFIGURE:      evt.configure++;break;
+	case GDK_MAP:            evt.map++;      break;
+	case GDK_FOCUS_CHANGE:   evt.focus++;    break;
+	case GDK_MOTION_NOTIFY:  evt.motion++;   break;
+	default: break;
+	}
+	gtk_main_do_event(event);
+}
+
+/* Decisive probe for the Win7 input problem: a thread-local WH_GETMESSAGE
+ * hook sees the raw Win32 messages the thread retrieves from its queue,
+ * BEFORE GDK translates them.  If WM_LBUTTONDOWN / WM_KEYDOWN show up here
+ * but GDK press/keypress stay 0, GDK's Win32->GDK translation is broken.
+ * If they never show up, the thread simply isn't receiving input (a focus
+ * problem / an overlay window is stealing it).  Only installed when the
+ * debug log is enabled, so release builds are untouched. */
+static HHOOK g_msg_hook = NULL;
+static struct {
+	UINT lbdown, lbup, mousemove, keydown, keyup, activate, setfocus, command;
+} winmsg;
+
+static LRESULT CALLBACK diag_msg_hook(int code, WPARAM wParam, LPARAM lParam)
+{
+	if(code == HC_ACTION && ebview_debug_fp != NULL){
+		MSG *m = (MSG *)lParam;
+		switch(m->message){
+		case WM_LBUTTONDOWN:  winmsg.lbdown++;   break;
+		case WM_LBUTTONUP:    winmsg.lbup++;     break;
+		case WM_MOUSEMOVE:    winmsg.mousemove++;break;
+		case WM_KEYDOWN:      winmsg.keydown++;  break;
+		case WM_KEYUP:        winmsg.keyup++;    break;
+		case WM_ACTIVATE:     winmsg.activate++; break;
+		case WM_SETFOCUS:     winmsg.setfocus++; break;
+		case WM_COMMAND:      winmsg.command++;  break;
+		default: break;
+		}
+	}
+	return CallNextHookEx(g_msg_hook, code, wParam, lParam);
+}
+#endif
+
 /* Diagnostic: proves whether the GTK main loop is actually dispatching
  * events, and how busy it is.  Registered as a 250 ms timeout (NOT an idle)
  * so it can never itself spin the loop.  The dt between ticks is logged:
  * - dt ~250 ms  -> loop is idle and blocking on messages (app responsive)
  * - dt << 250 ms -> loop is busy (an internal busy loop / storm)
- * If the ticks never appear the loop is stuck before dispatch (deadlock). */
+ * If the ticks never appear the loop is stuck before dispatch (deadlock).
+ * Every ~2 s it also prints a GDK event tally so we can see whether input
+ * (press/keypress) and repaint (expose/configure/map) are reaching GTK. */
 static gboolean mainloop_tick(gpointer data)
 {
 	static DWORD last = 0;
+	static gint n = 0;
 	DWORD now = GetTickCount();
 	DWORD dt = last ? (now - last) : 0;
 	last = now;
 
+#ifdef __WIN32__
+	if((n++ % 8) == 0){
+		gint wm = 0, wv = 0, ww = 0, wh = 0;
+		if(main_window != NULL){
+			wm = GTK_WIDGET_MAPPED(main_window)   ? 1 : 0;
+			wv = GTK_WIDGET_VISIBLE(main_window)  ? 1 : 0;
+			ww = main_window->allocation.width;
+			wh = main_window->allocation.height;
+		}
+		LOG(LOG_DEBUG,
+		    "HB dt=%lu events press=%u release=%u keypress=%u keyrel=%u "
+		    "expose=%u configure=%u map=%u focus=%u motion=%u "
+		    "win mapped=%d vis=%d %dx%d "
+		    "win LB=%u/%u MV=%u KEY=%u/%u ACT=%u FOC=%u CMD=%u",
+		    dt, evt.press, evt.release, evt.keypress, evt.keyrel,
+		    evt.expose, evt.configure, evt.map, evt.focus, evt.motion,
+		    wm, wv, ww, wh,
+		    winmsg.lbdown, winmsg.lbup, winmsg.mousemove,
+		    winmsg.keydown, winmsg.keyup, winmsg.activate,
+		    winmsg.setfocus, winmsg.command);
+		memset(&evt, 0, sizeof(evt));
+		memset(&winmsg, 0, sizeof(winmsg));
+	} else {
+		LOG(LOG_DEBUG, "MAINLOOP tick dt=%lu", dt);
+	}
+#else
 	LOG(LOG_DEBUG, "MAINLOOP tick dt=%lu", dt);
+#endif
 	return(TRUE);
 }
 
@@ -569,6 +657,21 @@ int main( int   argc,
 	signal(SIGPIPE, sig_handler);
 #endif
 
+#ifdef __WIN32__
+	/* Win7 "frozen window" root cause (see DEBUG-NOTES.md §18): GTK2's
+	 * built-in Windows IME context (GtkIMContextIME, statically linked into
+	 * libgtk on Windows) initialises the Text Services Framework during
+	 * startup and deadlocks it.  The whole window freezes, no mouse/keyboard
+	 * input reaches GTK, and the system language bar vanishes until the
+	 * process is killed.  Fall back to GTK's built-in "simple" input context
+	 * (no Windows IME / TSF integration) unless the user explicitly chooses
+	 * another module.  Japanese IME input is traded for a working app; set
+	 * GTK_IM_MODULE=ime in a .bat to re-enable it if a given Win7 box copes.
+	 */
+	if(g_getenv("GTK_IM_MODULE") == NULL)
+		g_setenv("GTK_IM_MODULE", "gtk-im-context-simple", TRUE);
+#endif
+
 	{
 		/* gtk_init_with_args() parses the GTK options, then ours, and
 		 * leaves the leftovers - the search words - in argv.  It also
@@ -592,6 +695,16 @@ int main( int   argc,
 			g_printerr("%s\n", error->message);
 			g_error_free(error);
 			return(1);
+		}
+
+		/* Win7 "frozen window" diagnosis: count every GDK event so we can
+		 * tell whether input / repaint reach GTK.  Only when the debug log
+		 * is enabled, so release builds are untouched. */
+		if(ebview_debug_fp != NULL){
+			gdk_event_handler_set(debug_event_handler, NULL, NULL);
+			g_msg_hook = SetWindowsHookEx(WH_GETMESSAGE, diag_msg_hook,
+			                             GetModuleHandle(NULL),
+			                             GetCurrentThreadId());
 		}
 
 		if(show_version){

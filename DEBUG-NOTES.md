@@ -1658,3 +1658,40 @@ https://paper.people.com.cn/rmrbhwb/pad/content/202604/14/content_30150842.html
 待 Win7 验证：直接双击，应当焦点正常、可操作；若仍异常，用 `run-debug.bat`
 （`set EBVIEW_DEBUG_LOG=1` + `ebview.exe`）复现，看日志里 `MAINLOOP tick dt=`
 的数值与最后一条 `IN :`。
+
+---
+
+## §18 Win7 冻结真凶：GTK2 内置 IME 模块锁死 TSF（2026-11-06）
+
+**决定性线索（用户观察）**：EBView 在 Win7 上冻结时，**系统语言栏（右下角）也
+一起消失**，强行结束进程后语言栏才恢复。这条把之前所有假设（死锁 / 忙循环 /
+剪贴板 / 焦点 / 控制台子系统）全部推翻，直接指向 GTK2 的 Windows IME 输入法
+模块。
+
+**机制**：GTK2 在 Windows 上把 `GtkIMContextIME` **静态编进 libgtk**（不是独立
+immodule DLL）。它在初始化时介入 Windows 的 **Text Services Framework (TSF)**。
+Win7 上这一步会把 TSF 锁死：
+- 进程没死（心跳 `dt=250` 仍正常，窗口 `mapped=1 vis=1 670x440` 已渲染）；
+- 但 OS 原始输入消息（WM_LBUTTONDOWN/WM_KEYDOWN）进不到 GTK 队列
+  （`press=0 keypress=0`）——被 IME/TSF 子系统劫持；
+- 语言栏由 TSF 渲染，TSF 卡住 → 语言栏消失；强杀 EBView 释放锁 → 语言栏回来；
+- 点击后 Windows 判定“输入无人处理” → 标“未响应”。
+
+**修复**（`src/ebview.c`，`main()` 里 `gtk_init_with_args()` 之前）：Windows 上
+若用户未自行设置 `GTK_IM_MODULE`，则默认置为 `gtk-im-context-simple`
+（`g_setenv(..., "gtk-im-context-simple", TRUE)`，FALSE 不改已设值 → 可覆盖）。
+该上下文是 GTK 内建的，**完全不碰 Windows IME/TSF** → 输入正常送达、语言栏不消失、
+不再冻结。已在 exe 与 `libgtk-win32-2.0-0.dll` 中验证 `gtk-im-context-simple`
+/`GtkIMContextSimple` 均存在。
+
+**代价**：`simple` 上下文无 Windows IME 集成 → **不能在 app 内用系统日语输入法
+打字**（可粘贴日文、或打英文/罗马字）。如需在 Win7 上恢复日语 IME，在 bat 里
+`set GTK_IM_MODULE=ime` 再启动（部分 Win7 配置可忍受，部分仍会冻，属 GTK2 旧版
+TSF 兼容问题，根治需给 GTK2 打 IME 补丁或换输入策略）。
+
+**验证**：直接双击新 `ebview.exe` → 应正常可点、语言栏常驻。仍异常则
+`run-debug.bat`（`set EBVIEW_DEBUG_LOG=1` + `ebview.exe`）复现并把
+`%TEMP%\ebview-debug.log` 末 20 行发回。
+
+**状态**：代码已改、本地重编并打包（`build/dist/EBView-0.4.0-win64.zip`）。
+待 Win7 验证后连同提交。
