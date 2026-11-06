@@ -1695,3 +1695,40 @@ TSF 兼容问题，根治需给 GTK2 打 IME 补丁或换输入策略）。
 
 **状态**：代码已改、本地重编并打包（`build/dist/EBView-0.4.0-win64.zip`）。
 待 Win7 验证后连同提交。
+
+---
+
+## §19 Win7 冻结真凶确认：OS 级 TSF 劫持输入（2026-11-06 晚）
+
+**决定性日志**（`ebview-debug (4).log`，已是带 `GTK_IM_MODULE=simple` 的新构建）：
+- `FOREGROUND hwnd=...30282 pid=1556 self=1556` → **前台窗口就是 EBView 自己**（pid 一致），
+  窗口 `vis=1 en=1 rect=0,0,686,478 title=EBView` 可见可用、尺寸正常；
+- 主循环健康（`dt=250` 稳定空闲）；
+- **`WH_GETMESSAGE` 钩子从头到尾 `LB=0 MV=0 KEY=0 ACT=0 FOC=0`** → 鼠标/键盘/
+  激活/焦点消息**一个都没进线程队列**；
+- `MSCTFIME UI` / `Default IME` 窗口均 `vis=0 en=0`（不可见、不遮挡）。
+
+**结论**：前台窗口是 EBView、消息泵在转，但输入消息不进队列 —— 不是焦点问题、
+不是别的窗口遮挡、不是代码死循环，而是 **Windows 的 Text Services Framework
+（TSF）把输入劫持了**。TSF 给每个前台窗口自动挂 IME 上下文，GTK2 旧 IME 处理
+不兼容，Win7 上 TSF 一挂就死锁，吞掉键盘+鼠标输入、连带语言栏消失（用户早先观察
+到的"语言栏消失、点一下标未响应"正是此因）。之前加的 `GTK_IM_MODULE=simple` 只让
+GTK 自己不碰 IME，**操作系统级 TSF 仍会挂上来**，所以没用。
+
+**修复**（`src/ebview.c`，`main()` 里 `GTK_IM_MODULE` 设置之后、`gtk_init` 之前）：
+- `#include <imm.h>` + `#pragma comment(lib, "imm32.lib")`；
+- 通过 `RtlGetVersion`（GetProcAddress 自 ntdll，绕过 manifest 版本谎言）判定系统，
+  **仅当 `dwMajorVersion < 10`（即 Win7/Win8 等 NT 6.x）** 时调用 `ImmDisableIME(0)`
+  —— 关闭整个进程的 IME 上下文，TSF 无处挂靠，输入恢复、语言栏不消失；
+- Win10/11 不动，避免退化；用户可用 `EBVIEW_NO_DISABLE_IME=1` 强制跳过。
+- 加了 `LOG(LOG_DEBUG, "Win%d.%d: disabled process IME context ...")` 供调试确认。
+
+**代价同 §18**：`simple` 上下文 + 进程禁用 IME → app 内不能用系统日语输入法打字
+（可粘贴日文/打英文）。Win7 上若某台机器确需 IME，设 `EBVIEW_NO_DISABLE_IME=1` 再
+`GTK_IM_MODULE=ime` 启动（可能仍冻，属 GTK2 旧版 TSF 兼容老毛病）。
+
+**状态**：已重编并打包（`build/dist/EBView-0.4.0-win64.zip`）。待 Win7 验证：直接双击
+应可点击、语言栏常驻。仍异常则保留的 `run-debug.bat`（`set EBVIEW_DEBUG_LOG=1`）
+复现，看日志是否出现 "disabled process IME context" 及 `HB` 行的 `win LB=` 是否起数。
+若仍 0，下一步是主窗口创建后对其 `ImmAssociateContext(hwnd, NULL)`（gdkwin32.h 的
+`gdk_win32_window_get_impl_hwnd` 可取 HWND）作双保险。

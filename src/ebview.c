@@ -26,6 +26,8 @@
 #ifdef __WIN32__
 #include <windows.h>
 #include <winsock.h>
+#include <imm.h>
+#pragma comment(lib, "imm32.lib")
 #else
 #include <sys/socket.h>
 #include <sys/un.h>
@@ -515,6 +517,40 @@ static LRESULT CALLBACK diag_msg_hook(int code, WPARAM wParam, LPARAM lParam)
 	}
 	return CallNextHookEx(g_msg_hook, code, wParam, lParam);
 }
+
+/* Enumerate every top-level window owned by this process and dump its
+ * geometry / visibility / enabled state / style / title, plus the current
+ * foreground window.  If a stray or covering window (e.g. an undestroyed
+ * splash / hidden window) is stealing input, it shows up here. */
+static BOOL CALLBACK diag_enum_proc(HWND hwnd, LPARAM lp)
+{
+	DWORD pid = 0;
+	GetWindowThreadProcessId(hwnd, &pid);
+	if(pid != GetCurrentProcessId())
+		return TRUE;
+	RECT r; GetWindowRect(hwnd, &r);
+	LONG st  = GetWindowLongW(hwnd, GWL_STYLE);
+	LONG ex  = GetWindowLongW(hwnd, GWL_EXSTYLE);
+	WCHAR title[128];
+	GetWindowTextW(hwnd, title, 128);
+	LOG(LOG_DEBUG,
+	    "WIN hwnd=%p rect=%ld,%ld,%ld,%ld vis=%d en=%d owner=%p "
+	    "style=0x%lx ex=0x%lx title=%ls",
+	    hwnd, r.left, r.top, r.right, r.bottom,
+	    IsWindowVisible(hwnd), IsWindowEnabled(hwnd),
+	    GetWindow(hwnd, GW_OWNER), st, ex, title);
+	return TRUE;
+}
+
+static void diag_dump_windows(void)
+{
+	HWND fg = GetForegroundWindow();
+	DWORD fgpid = 0;
+	if(fg) GetWindowThreadProcessId(fg, &fgpid);
+	LOG(LOG_DEBUG, "FOREGROUND hwnd=%p pid=%lu self=%lu",
+	    fg, fgpid, GetCurrentProcessId());
+	EnumWindows(diag_enum_proc, 0);
+}
 #endif
 
 /* Diagnostic: proves whether the GTK main loop is actually dispatching
@@ -553,6 +589,7 @@ static gboolean mainloop_tick(gpointer data)
 		    winmsg.lbdown, winmsg.lbup, winmsg.mousemove,
 		    winmsg.keydown, winmsg.keyup, winmsg.activate,
 		    winmsg.setfocus, winmsg.command);
+		diag_dump_windows();
 		memset(&evt, 0, sizeof(evt));
 		memset(&winmsg, 0, sizeof(winmsg));
 	} else {
@@ -670,6 +707,31 @@ int main( int   argc,
 	 */
 	if(g_getenv("GTK_IM_MODULE") == NULL)
 		g_setenv("GTK_IM_MODULE", "gtk-im-context-simple", TRUE);
+
+	/* OS-level cure for the Win7 freeze (DEBUG-NOTES.md §18/§19).  Even with
+	 * GTK_IM_MODULE=simple, Windows still attaches its Text Services
+	 * Framework (TSF) to the foreground window's IME context, and GTK2's old
+	 * IME handling makes TSF deadlock -- it swallows every mouse/keyboard
+	 * message (the WH_GETMESSAGE probe saw zero input events) and kills the
+	 * language bar.  Disabling the IME context for the whole process stops TSF
+	 * from attaching, which is what actually restores input.  Win10/11 do not
+	 * exhibit this, so only do it on pre-Win10 (NT 6.x) systems.  The user can
+	 * set EBVIEW_NO_DISABLE_IME=1 to skip this if a given box needs the IME. */
+	if(g_getenv("EBVIEW_NO_DISABLE_IME") == NULL){
+		typedef LONG (WINAPI *PFN_RTLGETVERSION)(OSVERSIONINFOEXW *);
+		OSVERSIONINFOEXW osi;
+		HMODULE ntdll = GetModuleHandleA("ntdll.dll");
+		PFN_RTLGETVERSION pRtl = ntdll ?
+			(PFN_RTLGETVERSION)GetProcAddress(ntdll, "RtlGetVersion") : NULL;
+		memset(&osi, 0, sizeof(osi));
+		osi.dwOSVersionInfoSize = sizeof(osi);
+		if(pRtl && pRtl(&osi) == 0 && osi.dwMajorVersion < 10){
+			ImmDisableIME(0);   /* 0 = every thread in this process */
+			LOG(LOG_DEBUG,
+			    "Win%d.%d: disabled process IME context (TSF freeze fix)",
+			    (int)osi.dwMajorVersion, (int)osi.dwMinorVersion);
+		}
+	}
 #endif
 
 	{
@@ -845,6 +907,10 @@ int main( int   argc,
 #endif
 
 	LOG(LOG_DEBUG, "IN : gtk_main()");
+#ifdef __WIN32__
+	if(ebview_debug_fp != NULL)
+		diag_dump_windows();
+#endif
 	gtk_main ();
 #ifndef __WIN32__
 	gdk_threads_leave();
