@@ -672,8 +672,10 @@ int main( int   argc,
 
 	// Create main window
 	create_main_window();
+	LOG(LOG_DEBUG, "after create_main_window()");
 
 	calculate_font_size();
+	LOG(LOG_DEBUG, "after calculate_font_size()");
 
 	search_result = NULL;
 	current_result = NULL;
@@ -686,6 +688,7 @@ int main( int   argc,
 #endif
 
 	splash_destroy();
+	LOG(LOG_DEBUG, "after splash_destroy()");
 
 	// main loop
 #ifndef __WIN32__
@@ -703,6 +706,7 @@ int main( int   argc,
 	if(startup_search_word != NULL)
 		g_timeout_add(50, lookup_startup_word, NULL);
 
+	LOG(LOG_DEBUG, "IN : gtk_main()");
 	gtk_main ();
 #ifndef __WIN32__
 	gdk_threads_leave();

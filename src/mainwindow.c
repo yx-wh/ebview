@@ -700,8 +700,10 @@ static void unset_focus(GtkWidget *widget, gpointer data){
  * after the loop can answer. */
 static gboolean claim_primary_selection_idle(gpointer data)
 {
+	LOG(LOG_DEBUG, "IN : claim_primary_selection_idle()");
 	gtk_selection_owner_set(main_window, GDK_SELECTION_PRIMARY,
 				GDK_CURRENT_TIME);
+	LOG(LOG_DEBUG, "OUT : claim_primary_selection_idle()");
 	return(FALSE);
 }
 
@@ -764,10 +766,16 @@ void create_main_window()
 	gtk_widget_set_size_request(note_tree, tree_width, tree_height);
 	gtk_widget_show_all (main_window);
 
-	/* Claim PRIMARY from inside the main loop (see
-	 * claim_primary_selection_idle); claiming it here, before gtk_main(),
-	 * deadlocks the process on Windows 7. */
+	/* Claim the X11 PRIMARY selection from inside the main loop (see
+	 * claim_primary_selection_idle).  This is X11-only: Windows has no
+	 * PRIMARY selection -- its clipboard is CLIPBOARD and is handled by
+	 * copy_clipboard_win().  Claiming PRIMARY on Windows re-enters
+	 * OpenClipboard() from inside the main-loop idle callback, which
+	 * deadlocks the Win32 event loop and froze the UI on Windows 7.  So
+	 * skip it entirely on Windows; it contributes nothing there. */
+#ifndef __WIN32__
 	g_idle_add(claim_primary_selection_idle, NULL);
+#endif
 
 	if(!bshow_menu_bar)
 		hide_menu_bar();
