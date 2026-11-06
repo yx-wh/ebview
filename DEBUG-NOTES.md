@@ -1786,3 +1786,38 @@ GTK 自己不碰 IME，**操作系统级 TSF 仍会挂上来**，所以没用。
    迄今所有日志都是 bat 模式，这一点从未验证过。
 2. 若仍卡，右键 exe → 属性 → 兼容性 → 勾选"以兼容模式运行 Windows XP SP3"
    与"禁用桌面元素"，重试。
+
+---
+
+## §21 收尾：结论、放弃 Win7 实验、代码回滚（2026-11-07）
+
+**对照实验结果**：`gtk_input_probe.exe`（最小 GTK2 程序，窗口 + 按钮，无
+EBView 代码 / 无 IME 干预 / 无钩子）在 Win7 上也**同样冻结、计数恒为 0**。
+同一套二进制在 **Win10 虚拟机**上——探针和 EBView 本体都**完全可用**。
+
+=> 责任边界确定：问题既**不在 EBView 应用代码**，也**不在 UCRT64 的 C 运行时**
+选择上（否则不会出现"同一 exe 在 Win10 VM 正常、Win7 VM 必冻"）。是
+**Windows 7 那台虚拟机的环境**（GTK2 的 Win32 消息泵 × 该 VM 的输入注入 /
+显示 / TSF 栈）层面。Win7 x64 也没有 XP SP3 兼容模式可用（§20 建议作废）。
+
+**未执行的方案：换 MINGW64（msvcrt）重编**。本机 MSYS2 只装了 UCRT64 一套：
+`mingw64/bin` 无 gcc / pkg-config / cmake / GTK2，`clang64` 同样为空，
+`mirrorlist.mingw64` 不存在；装齐工具链 + GTK2 需数 GB，而 C 盘仅剩
+~0.8 GiB 可用。且 MINGW64 与 UCRT64 的 GTK2 是**同一份 Win32 后端源码**
+（仅 CRT 不同），消息循环与 CRT 无关，理论上不会改变"输入不进队列"。
+按用户决定**放弃 Win7 适配**，不再投入。
+
+**回滚范围（本轮）**：代码回到实验开始前 `250f248` 的状态。
+- 恢复：`src/ebview.c`、`src/log.c`、`src/log.h`、`src/mainwindow.c`
+  （移除 `EBVIEW_DEBUG_LOG` 落盘日志、启动步骤插桩、主循环心跳、
+  GDK 事件计数、`WH_GETMESSAGE` 钩子、窗口枚举、PRIMARY 选区延迟/跳过、
+  以及全部已证伪的 IME 干预）。
+- **保留**：`tools/gtk_input_probe.c`（最小 GTK2 对照探针源码）。它不在
+  `src/` 下、不参与 CMake 构建，留着不影响主程序；编译与判读方法见 §20。
+  但交付 zip 不再随包分发 `gtk_input_probe.exe`。
+- **保留**：`CMakeLists.txt` 的 `add_executable(ebview WIN32 ...)`（GUI 子系统，
+  消除启动黑框，Win10 上确认有益）；注释已去掉被证伪的"Win7 焦点"说法。
+- **保留**：本文件 §16–§21 全部诊断记录（含被证伪的假设，留作教训）。
+
+**最终状态**：Windows 构建 = 实验前的干净代码 + GUI 子系统。Win10 正常；
+Win7 冻结问题未解决，属该 VM 环境，不再追查。

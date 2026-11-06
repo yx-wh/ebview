@@ -53,7 +53,6 @@
 #include "shortcut.h"
 #include "pref_io.h"
 #include "splash.h"
-#include "log.h"
 
 static pthread_t server_tid=(pthread_t)-1;
 
@@ -293,16 +292,6 @@ void execute_remote_command(gint argc, gchar **argv){
 #ifdef __WIN32
 void  my_log_handler(const gchar *log_domain, GLogLevelFlags log_level, const gchar *message, gpointer user_data)
 {
-	/* The release build installs this handler to swallow GLib/GTK/Gdk
-	 * warnings (lines 482-494).  When the diagnostic log is open we mirror
-	 * those messages to it, because on a headless/console-hidden launch a
-	 * GTK CRITICAL on Windows 7 would otherwise be invisible. */
-	if(ebview_debug_fp != NULL){
-		fprintf(ebview_debug_fp, "[%s] %s\n",
-			log_domain ? log_domain : "ebview",
-			message ? message : "(null)");
-		fflush(ebview_debug_fp);
-	}
 }
 
 #endif
@@ -459,188 +448,11 @@ static gboolean lookup_startup_word(gpointer data)
 	return(FALSE);
 }
 
-/* Diagnostic for the Win7 "frozen window": the main loop is provably alive
- * (mainloop_tick, below), so a non-responsive window is one of three things:
- * (a) never actually shown, (b) not receiving input, or (c) not repainting.
- * Counting GDK events tells us which -- see the "HB" summary line. */
-#ifdef __WIN32__
-static struct {
-	guint press, release, keypress, keyrel, expose, configure, map, focus, motion;
-} evt;
-
-static void debug_event_handler(GdkEvent *event, gpointer data)
-{
-	switch(event->type){
-	case GDK_BUTTON_PRESS:   evt.press++;    break;
-	case GDK_BUTTON_RELEASE: evt.release++;  break;
-	case GDK_KEY_PRESS:      evt.keypress++; break;
-	case GDK_KEY_RELEASE:    evt.keyrel++;   break;
-	case GDK_EXPOSE:         evt.expose++;   break;
-	case GDK_CONFIGURE:      evt.configure++;break;
-	case GDK_MAP:            evt.map++;      break;
-	case GDK_FOCUS_CHANGE:   evt.focus++;    break;
-	case GDK_MOTION_NOTIFY:  evt.motion++;   break;
-	default: break;
-	}
-	gtk_main_do_event(event);
-}
-
-/* Decisive probe for the Win7 input problem: a thread-local WH_GETMESSAGE
- * hook sees the raw Win32 messages the thread retrieves from its queue,
- * BEFORE GDK translates them.  If WM_LBUTTONDOWN / WM_KEYDOWN show up here
- * but GDK press/keypress stay 0, GDK's Win32->GDK translation is broken.
- * If they never show up, the thread simply isn't receiving input (a focus
- * problem / an overlay window is stealing it).  Only installed when the
- * debug log is enabled, so release builds are untouched. */
-static HHOOK g_msg_hook = NULL;
-static struct {
-	UINT lbdown, lbup, mousemove, keydown, keyup, activate, setfocus, command;
-} winmsg;
-
-static LRESULT CALLBACK diag_msg_hook(int code, WPARAM wParam, LPARAM lParam)
-{
-	if(code == HC_ACTION && ebview_debug_fp != NULL){
-		MSG *m = (MSG *)lParam;
-		switch(m->message){
-		case WM_LBUTTONDOWN:  winmsg.lbdown++;   break;
-		case WM_LBUTTONUP:    winmsg.lbup++;     break;
-		case WM_MOUSEMOVE:    winmsg.mousemove++;break;
-		case WM_KEYDOWN:      winmsg.keydown++;  break;
-		case WM_KEYUP:        winmsg.keyup++;    break;
-		case WM_ACTIVATE:     winmsg.activate++; break;
-		case WM_SETFOCUS:     winmsg.setfocus++; break;
-		case WM_COMMAND:      winmsg.command++;  break;
-		default: break;
-		}
-	}
-	return CallNextHookEx(g_msg_hook, code, wParam, lParam);
-}
-
-/* Enumerate every top-level window owned by this process and dump its
- * geometry / visibility / enabled state / style / title, plus the current
- * foreground window.  If a stray or covering window (e.g. an undestroyed
- * splash / hidden window) is stealing input, it shows up here. */
-static BOOL CALLBACK diag_enum_proc(HWND hwnd, LPARAM lp)
-{
-	DWORD pid = 0;
-	GetWindowThreadProcessId(hwnd, &pid);
-	if(pid != GetCurrentProcessId())
-		return TRUE;
-	RECT r; GetWindowRect(hwnd, &r);
-	LONG st  = GetWindowLongW(hwnd, GWL_STYLE);
-	LONG ex  = GetWindowLongW(hwnd, GWL_EXSTYLE);
-	WCHAR title[128];
-	GetWindowTextW(hwnd, title, 128);
-	LOG(LOG_DEBUG,
-	    "WIN hwnd=%p rect=%ld,%ld,%ld,%ld vis=%d en=%d owner=%p "
-	    "style=0x%lx ex=0x%lx title=%ls",
-	    hwnd, r.left, r.top, r.right, r.bottom,
-	    IsWindowVisible(hwnd), IsWindowEnabled(hwnd),
-	    GetWindow(hwnd, GW_OWNER), st, ex, title);
-	return TRUE;
-}
-
-static void diag_dump_windows(void)
-{
-	HWND fg = GetForegroundWindow();
-	DWORD fgpid = 0;
-	if(fg) GetWindowThreadProcessId(fg, &fgpid);
-	LOG(LOG_DEBUG, "FOREGROUND hwnd=%p pid=%lu self=%lu",
-	    fg, fgpid, GetCurrentProcessId());
-	EnumWindows(diag_enum_proc, 0);
-}
-#endif
-
-/* Diagnostic: proves whether the GTK main loop is actually dispatching
- * events, and how busy it is.  Registered as a 250 ms timeout (NOT an idle)
- * so it can never itself spin the loop.  The dt between ticks is logged:
- * - dt ~250 ms  -> loop is idle and blocking on messages (app responsive)
- * - dt << 250 ms -> loop is busy (an internal busy loop / storm)
- * If the ticks never appear the loop is stuck before dispatch (deadlock).
- * Every ~2 s it also prints a GDK event tally so we can see whether input
- * (press/keypress) and repaint (expose/configure/map) are reaching GTK. */
-static gboolean mainloop_tick(gpointer data)
-{
-	static DWORD last = 0;
-	static gint n = 0;
-	DWORD now = GetTickCount();
-	DWORD dt = last ? (now - last) : 0;
-	last = now;
-
-#ifdef __WIN32__
-	if((n++ % 8) == 0){
-		gint wm = 0, wv = 0, ww = 0, wh = 0;
-		if(main_window != NULL){
-			wm = GTK_WIDGET_MAPPED(main_window)   ? 1 : 0;
-			wv = GTK_WIDGET_VISIBLE(main_window)  ? 1 : 0;
-			ww = main_window->allocation.width;
-			wh = main_window->allocation.height;
-		}
-		LOG(LOG_DEBUG,
-		    "HB dt=%lu events press=%u release=%u keypress=%u keyrel=%u "
-		    "expose=%u configure=%u map=%u focus=%u motion=%u "
-		    "win mapped=%d vis=%d %dx%d "
-		    "win LB=%u/%u MV=%u KEY=%u/%u ACT=%u FOC=%u CMD=%u",
-		    dt, evt.press, evt.release, evt.keypress, evt.keyrel,
-		    evt.expose, evt.configure, evt.map, evt.focus, evt.motion,
-		    wm, wv, ww, wh,
-		    winmsg.lbdown, winmsg.lbup, winmsg.mousemove,
-		    winmsg.keydown, winmsg.keyup, winmsg.activate,
-		    winmsg.setfocus, winmsg.command);
-		diag_dump_windows();
-		memset(&evt, 0, sizeof(evt));
-		memset(&winmsg, 0, sizeof(winmsg));
-	} else {
-		LOG(LOG_DEBUG, "MAINLOOP tick dt=%lu", dt);
-	}
-#else
-	LOG(LOG_DEBUG, "MAINLOOP tick dt=%lu", dt);
-#endif
-	return(TRUE);
-}
-
 int main( int   argc,
 	  char *argv[] )
 {
 #ifdef __WIN32__
 	hide_own_console();
-
-	/* Diagnostic log.  Set EBVIEW_DEBUG_LOG=1 (or a file path) before
-	 * launching to capture GTK/GLib warnings and the app's own LOG() trace
-	 * to a file -- the release build hides the console and would otherwise
-	 * swallow everything.  Opened unbuffered so a hang never loses the last
-	 * line.  g_log / GLib messages are caught by my_log_handler(); the app's
-	 * own LOG() lines are caught in log_func(). */
-	{
-		const char *dbg = getenv("EBVIEW_DEBUG_LOG");
-		if(dbg != NULL && *dbg != '\0'){
-			const char *path;
-			char tmp[1024];
-
-			if(strcmp(dbg, "1") == 0 || strcmp(dbg, "yes") == 0){
-				const char *t = getenv("TEMP");
-				if(t == NULL) t = getenv("TMP");
-				if(t != NULL){
-					snprintf(tmp, sizeof(tmp),
-						 "%s\\ebview-debug.log", t);
-					path = tmp;
-				} else {
-					path = "ebview-debug.log";
-				}
-			} else {
-				path = dbg;
-			}
-
-			ebview_debug_fp = fopen(path, "w");
-			if(ebview_debug_fp != NULL){
-				setvbuf(ebview_debug_fp, NULL, _IONBF, 0);
-				ebview_log_level = LOG_DEBUG;
-				fprintf(ebview_debug_fp,
-					"EBView debug log opened\n");
-				fflush(ebview_debug_fp);
-			}
-		}
-	}
 #endif
 #if 0
 	gint rc;
@@ -692,14 +504,6 @@ int main( int   argc,
 	signal(SIGPIPE, sig_handler);
 #endif
 
-	/* No IME intervention here.  Two earlier attempts (forcing
-	 * GTK_IM_MODULE=simple, §18, and ImmDisableIME(0) on pre-Win10, §19)
-	 * were both disproved by the Win7 logs: with the IME context disabled
-	 * the WH_GETMESSAGE probe still saw zero input messages, the window
-	 * still froze, and ImmDisableIME additionally introduced a new
-	 * "hang before the splash" failure.  Both were reverted -- see §20.
-	 * Never re-add IME tweaks without a controlled gtk_input_probe run. */
-
 	{
 		/* gtk_init_with_args() parses the GTK options, then ours, and
 		 * leaves the leftovers - the search words - in argv.  It also
@@ -723,16 +527,6 @@ int main( int   argc,
 			g_printerr("%s\n", error->message);
 			g_error_free(error);
 			return(1);
-		}
-
-		/* Win7 "frozen window" diagnosis: count every GDK event so we can
-		 * tell whether input / repaint reach GTK.  Only when the debug log
-		 * is enabled, so release builds are untouched. */
-		if(ebview_debug_fp != NULL){
-			gdk_event_handler_set(debug_event_handler, NULL, NULL);
-			g_msg_hook = SetWindowsHookEx(WH_GETMESSAGE, diag_msg_hook,
-			                             GetModuleHandle(NULL),
-			                             GetCurrentThreadId());
 		}
 
 		if(show_version){
@@ -830,10 +624,8 @@ int main( int   argc,
 
 	// Create main window
 	create_main_window();
-	LOG(LOG_DEBUG, "after create_main_window()");
 
 	calculate_font_size();
-	LOG(LOG_DEBUG, "after calculate_font_size()");
 
 	search_result = NULL;
 	current_result = NULL;
@@ -846,7 +638,6 @@ int main( int   argc,
 #endif
 
 	splash_destroy();
-	LOG(LOG_DEBUG, "after splash_destroy()");
 
 	// main loop
 #ifndef __WIN32__
@@ -864,19 +655,6 @@ int main( int   argc,
 	if(startup_search_word != NULL)
 		g_timeout_add(50, lookup_startup_word, NULL);
 
-	/* Diagnostic probe: a 250 ms timeout (not an idle, so it cannot spin
-	 * the loop).  Only registered when the debug log is enabled, so release
-	 * builds are untouched. */
-#ifdef __WIN32__
-	if(ebview_debug_fp != NULL)
-		g_timeout_add(250, mainloop_tick, NULL);
-#endif
-
-	LOG(LOG_DEBUG, "IN : gtk_main()");
-#ifdef __WIN32__
-	if(ebview_debug_fp != NULL)
-		diag_dump_windows();
-#endif
 	gtk_main ();
 #ifndef __WIN32__
 	gdk_threads_leave();
@@ -884,13 +662,6 @@ int main( int   argc,
 	ebook_end();
 
 	LOG(LOG_DEBUG, "OUT: main()");
-
-#ifdef __WIN32__
-	if(ebview_debug_fp != NULL){
-		fclose(ebview_debug_fp);
-		ebview_debug_fp = NULL;
-	}
-#endif
 
 	_exit(0);
 
