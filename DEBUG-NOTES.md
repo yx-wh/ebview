@@ -1795,17 +1795,22 @@ GTK 自己不碰 IME，**操作系统级 TSF 仍会挂上来**，所以没用。
 EBView 代码 / 无 IME 干预 / 无钩子）在 Win7 上也**同样冻结、计数恒为 0**。
 同一套二进制在 **Win10 虚拟机**上——探针和 EBView 本体都**完全可用**。
 
-=> 责任边界确定：问题既**不在 EBView 应用代码**，也**不在 UCRT64 的 C 运行时**
-选择上（否则不会出现"同一 exe 在 Win10 VM 正常、Win7 VM 必冻"）。是
-**Windows 7 那台虚拟机的环境**（GTK2 的 Win32 消息泵 × 该 VM 的输入注入 /
-显示 / TSF 栈）层面。Win7 x64 也没有 XP SP3 兼容模式可用（§20 建议作废）。
+=> 责任边界确定：**不在 EBView 应用代码**（探针也冻），也不在应用层的 IME
+设置。更准确的归因见 §22：这套 MSYS2 UCRT64 发行栈自 2022–2023 年起已
+不再以 Win7 为目标，GTK2 只是其中一环；再叠加该 VM 的输入注入 / 显示 / TSF
+栈。Win7 x64 也没有 XP SP3 兼容模式可用（§20 建议作废）。
 
 **未执行的方案：换 MINGW64（msvcrt）重编**。本机 MSYS2 只装了 UCRT64 一套：
 `mingw64/bin` 无 gcc / pkg-config / cmake / GTK2，`clang64` 同样为空，
 `mirrorlist.mingw64` 不存在；装齐工具链 + GTK2 需数 GB，而 C 盘仅剩
-~0.8 GiB 可用。且 MINGW64 与 UCRT64 的 GTK2 是**同一份 Win32 后端源码**
-（仅 CRT 不同），消息循环与 CRT 无关，理论上不会改变"输入不进队列"。
-按用户决定**放弃 Win7 适配**，不再投入。
+~0.8 GiB 可用。按用户决定**放弃 Win7 适配**，不再投入。
+
+> **更正（见 §22）**：本段原写"两种环境的 GTK2 是同一份 Win32 后端源码、
+> 仅 CRT 不同，换了也不会改变症状"——**该劝退理由不成立**。两者除 CRT 外
+> 还有 `_WIN32_WINNT` 目标版本差异（MINGW64=Win7 / UCRT64=Win8.1），会影响
+> 条件编译分支、结构体布局与消息泵路径；此前"导入表无 Win8+/Win10 专有 API"
+> 的筛查**不能排除**这类差异。换 MINGW64 是唯一有官方依据的方向，仅因成本
+> 与用户决定而未执行。
 
 **回滚范围（本轮）**：代码回到实验开始前 `250f248` 的状态。
 - 恢复：`src/ebview.c`、`src/log.c`、`src/log.h`、`src/mainwindow.c`
@@ -1821,3 +1826,44 @@ EBView 代码 / 无 IME 干预 / 无钩子）在 Win7 上也**同样冻结、计
 
 **最终状态**：Windows 构建 = 实验前的干净代码 + GUI 子系统。Win10 正常；
 Win7 冻结问题未解决，属该 VM 环境，不再追查。
+
+---
+
+## §22 官方佐证：MSYS2 已系统性淘汰 Windows 7（2026-11-07 补）
+
+用户收尾时判断"更像是 GTK2 抛弃了 Win7"——方向对，但精确说是
+**整套 MSYS2 UCRT64 发行栈**（GTK2 + glib2 + gdk-pixbuf2 + pango + cairo +
+fontconfig + 工具链 + CRT）在 2022–2024 年间系统性放弃 Win7，GTK2 只是其中一员。
+依据：MSYS2 官方 `docs/windows_support/` 与官网 news（2026-11-07 查询）。
+
+- **2020**：GTK2 上游 2.24.33 为最后版本，此后 EOL，`gdk/win32` 后端基本冻结。
+  本机 `mingw-w64-ucrt-x86_64-gtk2` 为 **2.24.33-8，构建于 2025-10-05**
+  （与本机 DLL mtime 吻合）——即 2025 年现代工具链重编的 2020 年老代码。
+- **2022-10-18**：预编译包最低硬件要求提到 Win8.1 水平，官方称"作为淘汰
+  Win7 支持的第一步"。
+- **2022-10-29**：默认环境由 MINGW64 切到 UCRT64。UCRT 在 Win7 上需
+  KB2999226 或 vc_redist 外挂——本次正是装了 vc_redist 才启动得起来（§14）。
+- **2022-12-16**：GUI installer 不再支持 Win7 / 8.0。
+- **2022-12-26**：**UCRT 环境（UCRT64 / CLANG64 / CLANG32）默认
+  `_WIN32_WINNT` 由 Windows 7 提升至 Windows 8.1**；官方原文：
+  "new builds will start depending on Windows 8.1"、"part of our goal to
+  phase out Windows 7 support"。而 **MINGW32 / MINGW64 仍默认 Windows 7**。
+- **2023-01-15**：全面停止对 Windows 7 / 8.0 的主动支持。
+- **2024-05-03**：msys2-runtime 升至 Cygwin 3.5，不再能在 Win7 / 8.0 上运行。
+- **当前策略**：Mingw 预编译包要求 64 位 Win10 / Server 2016；但官方明确
+  "**MINGW32 / MINGW64 environments allow targeting Windows 7+ still;
+  All others allow targeting Windows 10+**"。Win7 只能用 2022-10-28 的旧
+  installer，且"Many Mingw packages will no longer work though"。
+
+**对 §21 的更正**：§21 曾以"两种环境 GTK2 是同一份后端源码、仅 CRT 不同"
+为由判定换 MINGW64 无意义——**该判断错误**。除 CRT 外还有 `_WIN32_WINNT`
+目标版本差异（Win7 vs Win8.1），会影响条件编译分支、结构体布局与消息泵路径；
+本项目此前对 47 个二进制做的"无 Win8+/Win10 专有 API 静态导入"筛查
+（结果全 none）**不能排除**这类差异，因为条件编译不体现在导入表里。
+官方也明确 MINGW64 仍以 Win7 为 target。
+=> **换 MINGW64 重编是唯一有官方依据的 Win7 适配方向**，用户当初的提议是对的。
+
+**为何仍未执行**：本机 MINGW64 / CLANG64 环境为空、无 `mirrorlist.mingw64`，
+补齐工具链 + GTK2 需数 GB，C 盘仅剩 ~0.8 GiB；且用户已决定放弃 Win7 适配。
+若将来确需在 Win7 上跑 EBView，应优先试 MINGW64（或 2022-10-28 之前的旧
+MSYS2 快照），**而不是继续改应用代码**。
