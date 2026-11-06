@@ -1442,3 +1442,159 @@ Win7 稳定复现。
 - 若 §16 的选区死锁修复不对，日志里最后一条 `IN :` 会精确指出卡在哪一步。
 
 **状态**：代码已改、待用户在 Win10 重新编译打包，于 Win7 验证。
+# libeb 检索语义与 Keyword Search 实测（2026-11-06）
+
+> 起因：在《三省堂スーパー大辞林》里手动切到 Keyword Search 搜「国 家」，
+> 能命中词头里没有「国」「家」、释义里却含两字的词条（安鎮、表玄関…）。
+> 为判断这是 EBView 自建的正文检索还是 libeb 原生能力，做了静态探针、
+> gdb 动态跟踪、/tmp 副本编译三组实验。结论：**Keyword Search 就是
+> `eb_search_keyword()` 的一次调用，EBView 没有额外建索引或扫正文**。
+> 过程中踩到一个 EUC-JP 编码坑，导致前两轮结论完全反了，记在第 4 节。
+
+## 1. libeb 是「多套预编索引」，不是一套通用检索
+
+`/usr/include/eb/eb.h:60-145` 暴露 6 个独立 `eb_search_*`，没有
+`EB_SEARCH_*` 通用入口；`/usr/include/eb/defs.h:597-607` 里一个 subbook
+同时挂着 `word_alphabet/asis/kana`、`endword_alphabet/asis/kana`、
+`keyword`、`cross`、`menu`、`image_menu`、`copyright`、`text`、`sound`，
+另有 `multis[10]`。每套都是**词典出版时编好的静态倒排表**，libeb 只查表，
+`eb_have_*_search()` 负责能力探测。
+
+`keyword` 索引登记的可以是**释义/正文里的概念词**，不限于词头，
+所以 keyword 搜索能命中标题里没有该字的词条 —— 但这不是运行时扫正文。
+
+## 2. EBView 各模式到 libeb 的映射
+
+| 模式（`src/defs.h:93-108`） | 实现 |
+| --- | --- |
+| 前方一致 WORD | `eb_search_word()` |
+| 后方一致 ENDWORD | `eb_search_endword()`（libeb 原生，靠词典 endword 索引，不需要反向词表） |
+| 完全一致 EXACTWORD | `eb_search_exactword()` |
+| 条件検索 KEYWORD | `split_word()` + `eb_search_keyword()`（`src/eb.c:1797-1801`） |
+| 複合検索 MULTI | `eb_multi_*` 元数据 + `eb_search_multi()` |
+| 全文検索 FULL_TEXT | 自建：逐页 `eb_read_rawtext()` + BMH（`src/eb.c:1130-1310`） |
+| ファイル検索 GREP | 自建：逐行 BMH / POSIX 正则，多词 AND（`src/grep.c:374-401`） |
+
+注意全文検索是 `bmh_prepare(euc2jis(word), TRUE)` —— **整个查询串当一个
+模式**，不做多词 AND；多词 AND 只存在于 File Search 和 libeb 的 keyword 交集。
+
+EBView 在 libeb 之上的编排层（本次实验相关）：
+
+- `ebook_simple_search()` 平/片假名双查（`eb.c:1912-1927`）
+- `ebook_ending_search()` stemming 变体、结果累加（`eb.c:1934-2083`，
+  `bending_correction` 默认 1，见 `preference.c:241`）
+- AUTOMATIC 多方法遍历 + 并集（`eb.c:1354-1378`、`1423-1482`）
+- `sort_result()` 相关性分级
+
+手动 Keyword Search 时 `ebook_ending_search()` 先跑原始 AND，命中后
+`bending_only_nohit` 直接返回，这些扩大召回的逻辑不参与。
+
+## 3. 大辞林实测数据
+
+环境：libeb 4.4.3（`libeb16-dev 4.4.3-14.4+b1`），词典目录
+`.../日本語辞典/三省堂大辞林/`（`CATALOGS` 是 EPWING V1 的 2048 字节
+二进制 catalog，索引定义不在明文里，由 libeb 从 `DAIJIRIN/DATA/HONMON.ebz`
+的 catalog 页解析）。
+
+一次性 C 探针（`eb_bind` → `eb_load_all_subbooks` → `eb_set_subbook`）：
+
+```
+subbooks=1, title=三省堂　スーパー大辞林
+word=1 exact=1 endword=1 keyword=1 cross=0 multi=1 menu=1 text=1
+multi[0] 複合検索１ entries=4
+multi[1] 複合検索２ entries=3
+```
+
+后两组就是 `show_multi()` 动态生成字段表单的数据源。
+
+用正确 EUC-JP 字节查询：
+
+```
+eb_search_keyword({"国","家"})  ->   9 条
+    あん-ちん【安鎮】/ おもて-げんかん【表玄関】/ か-こく【家国】/
+    けい-ふく【傾覆】/ しかく-しきょう-の-まつり【四角四境の祭(り)】/
+    だん-ぜつ【断絶】/ で-かせぎ【出稼ぎ】/ ない-じ【内事】/ り-せいしょう【李清照】
+eb_search_keyword({"国家"})     -> 200（探针上限）
+eb_search_keyword({"国"})       -> 200（探针上限）
+eb_search_keyword({"家"})       -> 200（探针上限）
+eb_search_word("国")            ->  16 条
+eb_search_endword("家")         ->  10 条
+```
+
+9 条结果与 GUI 里「三省堂 スーパー大辞林」分组逐条一致；其中多数词头
+不含「国」「家」，命中的是释义里的概念词。keyword 的多词是取交集
+（200 → 9），不是并集。
+
+## 4. 坑：EUC-JP 字节写错会得出完全相反的结论
+
+「国」= `B9 F1`，「家」= `B2 C8`。第一版探针凭记忆写成 `B9 FA / B2 BE`，
+实际是「忽 / 仮」，于是得到 `keyword[国 家] = 0`、并误判
+「keyword 索引不覆盖正文」，直到 gdb 显示 EBView 实际传的字节才定位。
+
+校验方法：
+
+```
+printf '国 家' | iconv -f UTF-8 -t EUC-JP | od -An -tx1      # b9 f1 20 b2 c8
+printf '\xb9\xf1\x20\xb2\xc8' | iconv -c -f EUC-JP -t UTF-8 # 国 家
+printf '\xb9\xfa\x20\xb2\xbe' | iconv -c -f EUC-JP -t UTF-8 # 忽 仮
+```
+
+写探针时先用 `iconv` 生成字节、再解码回 UTF-8 复核，别硬编码汉字字节。
+
+## 5. gdb 动态验证：Keyword Search 就是一次 libeb 调用
+
+`./build/ebview -s "国 家"` 在默认 AUTOMATIC 下只得到
+`src/eb.c:1822 CRITICAL : Failed to search : too many words specified`
+—— AUTOMATIC 会把多词串喂给只收单个词的 `eb_search_word` 等方法。
+
+为固定到 KEYWORD，把源码复制到 /tmp 改默认值再编译（主仓库不动）：
+
+```
+cp -a /home/yx/git/ebview /tmp/ebview-probe
+rm -rf /tmp/ebview-probe/build /tmp/ebview-probe/build-*
+sed -i 's/static gint current_search_method = SEARCH_METHOD_AUTOMATIC;/static gint current_search_method = SEARCH_METHOD_KEYWORD;/' /tmp/ebview-probe/src/eb.c
+cmake -S /tmp/ebview-probe -B /tmp/ebview-probe/probe-build -DCMAKE_BUILD_TYPE=Debug
+cmake --build /tmp/ebview-probe/probe-build -j4
+timeout 30 gdb -q -batch ./probe-build/ebview \
+  -ex 'set breakpoint pending on' -ex 'break eb_search_keyword' \
+  -ex 'run -s "国 家"' -ex 'x/s *(char**)$rsi' \
+  -ex 'x/s *((char**)$rsi+1)' -ex 'bt 5' -ex 'quit'
+```
+
+断点结果：`method=3`、`word = "\271\361 \262\310"`（EUC-JP「国 家」）、
+`input_words = {"B9 F1", "B2 C8", NULL}`，调用栈：
+
+```
+ebook_search_thread (eb.c:1676) -> ebook_search2 (eb.c:1388)
+  -> ebook_ending_search (eb.c:1952) -> ebook_simple_search (eb.c:1917)
+  -> ebook_simple_search2 (eb.c:1799) -> eb_search_keyword
+```
+
+第一次命中的词典是「新明解国語辞典 第五版」，说明 DISK 组按词典逐个调用、
+结果按词典分组累加。即：`split_word()` 拆词后一次 `eb_search_keyword`，
+没有正文回退、没有自建索引。
+
+## 6. 与 GD-NG / Ciyue 的对照（搜索模式设计参考）
+
+- GD-NG 只用了 `eb_search_exactword` / `eb_search_word` / `eb_hit_list`，
+  endword / keyword / cross / multi、`eb_have_*_search` 全无；EPWING 被
+  统一建模成自建 B-tree 词头索引，libeb 降级为原文读取器，全文与布尔
+  检索走自己的 Xapian。
+- Ciyue 的 FTS5 同样是自建（headword + body 全索引），比 EPWING 的
+  keyword 静态表覆盖更全，但缺「前/后方一致、多词条件」等模式抽象。
+- 值得借鉴的是 EBView 的模式状态机（`defs.h:93-108` →
+  `check_search_method()` → `set_search_method()` 单一状态源），
+  不是它的索引实现（全文検索不建索引、逐页 BMH，O(全文字节)）。
+
+## 7. 复现清单与清理
+
+- libeb 探针 API 序列：`eb_initialize_library` → `eb_initialize_book` →
+  `eb_bind` → `eb_load_all_subbooks` → `eb_subbook_list` →
+  `eb_set_subbook` → `eb_search_*` → `eb_hit_list`
+- 打印命中标题：`eb_seek_text(&hit.heading)` →
+  `eb_read_heading(book, NULL, &empty_hookset, NULL, ...)`，
+  输出 `iconv -c -f EUC-JP -t UTF-8`
+- 打印 multi 定义：`eb_multi_search_list` / `eb_multi_title` /
+  `eb_multi_entry_count`
+- 探针（`gcc probe.c -o probe -leb -lz`）、gdb 会话、/tmp 副本用完即删；
+  实验本身未改动 EBView 源码与构建配置（本文件仅追加本节笔记）
