@@ -70,7 +70,12 @@ configure_file(data/ebview.metainfo.xml.in
 file(GLOB EBVIEW_SOURCES CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/src/*.c")
 list(REMOVE_ITEM EBVIEW_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/ebview-client.c")
 
-add_executable(ebview ${EBVIEW_SOURCES})
+# WIN32 => link as a GUI-subsystem executable (-mwindows on MinGW).  EBView is
+# a GUI app, not a console tool; the console-subsystem build allocated a console
+# window on launch (the "black box" flash) and, on Windows 7, the console stole
+# foreground focus from the main window so it appeared frozen.  A GUI-subsystem
+# binary has no console at all and focus goes straight to the main window.
+add_executable(ebview WIN32 ${EBVIEW_SOURCES})
 target_include_directories(ebview PRIVATE
     "${CMAKE_CURRENT_BINARY_DIR}"
     "${CMAKE_CURRENT_SOURCE_DIR}/src"

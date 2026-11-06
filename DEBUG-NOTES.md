@@ -1442,6 +1442,7 @@ Win7 稳定复现。
 - 若 §16 的选区死锁修复不对，日志里最后一条 `IN :` 会精确指出卡在哪一步。
 
 **状态**：代码已改、待用户在 Win10 重新编译打包，于 Win7 验证。
+
 # libeb 检索语义与 Keyword Search 实测（2026-11-06）
 
 > 起因：在《三省堂スーパー大辞林》里手动切到 Keyword Search 搜「国 家」，
@@ -1620,3 +1621,40 @@ https://paper.people.com.cn/rmrbhwb/pad/content/202604/14/content_30150842.html
   `eb_multi_entry_count`
 - 探针（`gcc probe.c -o probe -leb -lz`）、gdb 会话、/tmp 副本用完即删；
   实验本身未改动 EBView 源码与构建配置（本文件仅追加本节笔记）
+
+
+---
+
+## §17 Win7 "卡死" 真凶：控制台子系统抢焦点（2026-11-06）
+
+**结论（关键）**：`CMakeLists.txt` 的 `add_executable(ebview ${EBVIEW_SOURCES})`
+**没有 `WIN32` 关键字** → 链接成 **console 子系统**可执行文件。双击启动时
+系统先分配一个控制台窗口（"黑框框闪一下"），程序再用 `hide_own_console()`
+（`ShowWindow(SW_HIDE)`）把它藏掉。
+
+- **Win10**：焦点处理把主窗口置为前景 → 正常。
+- **Win7**：控制台窗口抢走前景焦点，藏掉控制台后**主窗口没拿到焦点 /
+  输入没投到主窗口** → 界面"卡死"（其实在跑，只是点不动、看起来冻住）。
+
+**debug(3) 400KB 日志的真相**：那条 `MAINLOOP tick` 是我上一轮加的诊断，
+`g_idle_add` + `return TRUE` 会**自己制造 100% CPU 空转**（GLib 一旦有
+"永远 ready" 的 idle 就不再阻塞等消息）。所以 400KB 洪流是诊断代码副作用，
+**不能证明 EBView 本身在忙循环**。实际上启动期（无词典、无参数）除这条 idle 外
+没有任何持续回调，EBView 本应空闲等消息、界面可响应——所谓"冻住"是 Win7 上
+控制台子系统导致的焦点/输入问题，而非代码死循环。
+
+**修复**：`add_executable(ebview WIN32 ${EBVIEW_SOURCES})` → MinGW 加
+`-mwindows`，编成 **GUI 子系统**，彻底没有控制台窗口、焦点直接给主窗口
+（objdump 验证 `Subsystem 00000002 (Windows GUI)`）。`hide_own_console()` 在
+无控制台时 `GetConsoleProcessList` 返回 0 → 跳过 `ShowWindow`，安全。
+
+**诊断改进**：把 `mainloop_tick` 从 `g_idle_add(return TRUE)` 改为
+`g_timeout_add(250, return TRUE)`，并记录每次心跳间隔 `dt`：
+- `dt ~250ms` → 循环空闲、阻塞等消息（程序可响应，确认是焦点问题已解决）；
+- `dt << 250ms` → 真·内部忙循环；
+- 心跳不出现 → 死锁 / 阻塞等待。
+
+**状态**：代码已改、本地重编并打包（`build/dist/EBView-0.4.0-win64.zip`）。
+待 Win7 验证：直接双击，应当焦点正常、可操作；若仍异常，用 `run-debug.bat`
+（`set EBVIEW_DEBUG_LOG=1` + `ebview.exe`）复现，看日志里 `MAINLOOP tick dt=`
+的数值与最后一条 `IN :`。

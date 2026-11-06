@@ -459,6 +459,23 @@ static gboolean lookup_startup_word(gpointer data)
 	return(FALSE);
 }
 
+/* Diagnostic: proves whether the GTK main loop is actually dispatching
+ * events, and how busy it is.  Registered as a 250 ms timeout (NOT an idle)
+ * so it can never itself spin the loop.  The dt between ticks is logged:
+ * - dt ~250 ms  -> loop is idle and blocking on messages (app responsive)
+ * - dt << 250 ms -> loop is busy (an internal busy loop / storm)
+ * If the ticks never appear the loop is stuck before dispatch (deadlock). */
+static gboolean mainloop_tick(gpointer data)
+{
+	static DWORD last = 0;
+	DWORD now = GetTickCount();
+	DWORD dt = last ? (now - last) : 0;
+	last = now;
+
+	LOG(LOG_DEBUG, "MAINLOOP tick dt=%lu", dt);
+	return(TRUE);
+}
+
 int main( int   argc,
 	  char *argv[] )
 {
@@ -705,6 +722,14 @@ int main( int   argc,
 	 * actually on screen; the dictionaries are already loaded by now. */
 	if(startup_search_word != NULL)
 		g_timeout_add(50, lookup_startup_word, NULL);
+
+	/* Diagnostic probe: a 250 ms timeout (not an idle, so it cannot spin
+	 * the loop).  Only registered when the debug log is enabled, so release
+	 * builds are untouched. */
+#ifdef __WIN32__
+	if(ebview_debug_fp != NULL)
+		g_timeout_add(250, mainloop_tick, NULL);
+#endif
 
 	LOG(LOG_DEBUG, "IN : gtk_main()");
 	gtk_main ();
