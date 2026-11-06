@@ -1867,3 +1867,67 @@ fontconfig + 工具链 + CRT）在 2022–2024 年间系统性放弃 Win7，GTK2
 补齐工具链 + GTK2 需数 GB，C 盘仅剩 ~0.8 GiB；且用户已决定放弃 Win7 适配。
 若将来确需在 Win7 上跑 EBView，应优先试 MINGW64（或 2022-10-28 之前的旧
 MSYS2 快照），**而不是继续改应用代码**。
+
+---
+
+## §23 第二套 MSYS2（MINGW64）落地 + `_WIN32_WINNT` 实测（2026-11-07）
+
+**动机**：用户提出"再搞个更大的 C 盘虚拟机 / 换 mingw 试一次"。实际不必重建 VM ——
+MSYS2 安装器可指定任意安装目录，E 盘尚有 361 GiB，直接装第二套并存即可。
+
+### 安装结果
+- 安装器 `msys2-x86_64-20260927.exe`（85 046 168 B），从**清华 TUNA 镜像**下载
+  （官方 `repo.msys2.org` 仅 ~11 KB/s，TUNA ~5 MB/s，阿里云 ~2.9 MB/s）；
+  GitHub release 上的官方 `.sha256` 直连取到，校验一致（`416d506c…f0e`）。
+- 目标 `E:/msys64-mingw64`。GUI 安装器 CLI
+  （`in --confirm-command --accept-messages --root ...`）在本无交互环境被中断，
+  但**文件已铺全**（86 个 base 包、pacman/bash/msys-2.0.dll 齐全），
+  只缺 `uninstall.exe`（不影响使用），可继续用。
+- `mirrorlist.mingw`（新版合并了所有 mingw 环境，带 `$repo`）与 `mirrorlist.msys`
+  顶部插入 `Server = https://mirrors.tuna.tsinghua.edu.cn/msys2/...`。
+
+### 决定性实测：`_WIN32_WINNT`
+用同一份 4 行小程序分别让两套 gcc 编译运行：
+
+| 环境 | gcc | `_WIN32_WINNT` | 含义 |
+|---|---|---|---|
+| **MINGW64**（新建） | 16.2.0 | **0x0601** | Windows 7 |
+| **UCRT64**（原有） | 16.2.0 | **0x0A00** | Windows 10 |
+
+=> **§22 的推断被实测坐实**，且 UCRT64 当前默认值已比官方 2022 年新闻
+所说的 Win8.1（0x0603）**又高一档到 Win10**。整条 GTK2 依赖链的条件编译
+目标平台确实不同，"换 MINGW64 试试"是有依据的。
+
+### 坑：MINGW64 仓库已移除 GTK2
+`pacman -S mingw-w64-x86_64-gtk2` 报"未找到目标"。仓库索引
+（`mingw64.db`，zstd 格式，3228 条）里只有 `gtk3` / `gtk-doc` /
+`gtk-update-icon-cache`；GTK2 2.24.33-8 仅存于 ucrt64 / clang64 / clangarm64。
+但**镜像目录里仍留有包文件**：
+`mingw-w64-x86_64-gtk2-2.24.33-6-any.pkg.tar.zst`（5.8 MB），
+用 `pacman -U` 直接装回成功，依赖（adwaita-icon-theme / shared-mime-info /
+hicolor-icon-theme / libxml2 / librsvg 等）由当前仓库自动补齐。
+=> 已装齐 MINGW64 的 gcc / pkgconf / cmake 4.4.5 / ninja 1.13.2 /
+gtk2 2.24.33-6 / glib2 2.90.1 / cairo / pango / atk / gdk-pixbuf2 /
+zlib / gettext-runtime / libsystre / libiconv。
+
+### 遗留：pacman 密钥环
+安装器中断导致 `/etc/pacman.d/gnupg` 为空，`pacman-key --init` /
+`--populate` / 手工 `gpg --import` 在此无交互环境均卡住（gpg 依赖 agent/熵）。
+**临时方案**：另写 `/etc/pacman-nosig.conf`（仅把 `SigLevel = Required`
+改成 `Never`），装包时用 `pacman --config /etc/pacman-nosig.conf -S ...`；
+**主配置 `pacman.conf` 保持 Required 不变**。以后在交互式 MSYS2 终端跑
+`pacman-key --init && pacman-key --populate msys2` 即可彻底修复。
+
+### 产出（仓库外）
+`E:/msys2-install/EBView-GTK2-Probe-MINGW64.zip`（12.41 MiB，84 项）：
+用 MINGW64 gcc 编译的 `tools/gtk_input_probe.c`（GUI 子系统）+ 43 个 MINGW64 DLL
++ `etc/fonts` + `lib/gdk-pixbuf-2.0`。本机启动验证：进程存活、写出
+`probe.log`（`clicks=0 keys=0 motions=0`）、无缺 DLL 崩溃。
+主 CRT 是 `msvcrt.dll`；`ucrtbase.dll` 仅是系统 DLL 的传递依赖。
+
+**用途**：拿去 Win7 VM 双击，点几下看标题栏计数是否增长。
+- 计数增长 → MINGW64 路线有效，再重编 `libeb`（源码 `C:/Users/yx/src/eb-4.4.3/`，
+  补丁与步骤见 §1）与 EBView 本体，打完整 MINGW64 包；
+- 仍然冻 → 与 CRT / 目标版本无关，确认是 Win7 VM 环境，彻底收工。
+
+本节全部为仓库外的环境搭建，**未改动 EBView 源码与构建配置**。
