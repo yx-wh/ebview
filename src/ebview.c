@@ -26,8 +26,6 @@
 #ifdef __WIN32__
 #include <windows.h>
 #include <winsock.h>
-#include <imm.h>
-#pragma comment(lib, "imm32.lib")
 #else
 #include <sys/socket.h>
 #include <sys/un.h>
@@ -694,45 +692,13 @@ int main( int   argc,
 	signal(SIGPIPE, sig_handler);
 #endif
 
-#ifdef __WIN32__
-	/* Win7 "frozen window" root cause (see DEBUG-NOTES.md §18): GTK2's
-	 * built-in Windows IME context (GtkIMContextIME, statically linked into
-	 * libgtk on Windows) initialises the Text Services Framework during
-	 * startup and deadlocks it.  The whole window freezes, no mouse/keyboard
-	 * input reaches GTK, and the system language bar vanishes until the
-	 * process is killed.  Fall back to GTK's built-in "simple" input context
-	 * (no Windows IME / TSF integration) unless the user explicitly chooses
-	 * another module.  Japanese IME input is traded for a working app; set
-	 * GTK_IM_MODULE=ime in a .bat to re-enable it if a given Win7 box copes.
-	 */
-	if(g_getenv("GTK_IM_MODULE") == NULL)
-		g_setenv("GTK_IM_MODULE", "gtk-im-context-simple", TRUE);
-
-	/* OS-level cure for the Win7 freeze (DEBUG-NOTES.md §18/§19).  Even with
-	 * GTK_IM_MODULE=simple, Windows still attaches its Text Services
-	 * Framework (TSF) to the foreground window's IME context, and GTK2's old
-	 * IME handling makes TSF deadlock -- it swallows every mouse/keyboard
-	 * message (the WH_GETMESSAGE probe saw zero input events) and kills the
-	 * language bar.  Disabling the IME context for the whole process stops TSF
-	 * from attaching, which is what actually restores input.  Win10/11 do not
-	 * exhibit this, so only do it on pre-Win10 (NT 6.x) systems.  The user can
-	 * set EBVIEW_NO_DISABLE_IME=1 to skip this if a given box needs the IME. */
-	if(g_getenv("EBVIEW_NO_DISABLE_IME") == NULL){
-		typedef LONG (WINAPI *PFN_RTLGETVERSION)(OSVERSIONINFOEXW *);
-		OSVERSIONINFOEXW osi;
-		HMODULE ntdll = GetModuleHandleA("ntdll.dll");
-		PFN_RTLGETVERSION pRtl = ntdll ?
-			(PFN_RTLGETVERSION)GetProcAddress(ntdll, "RtlGetVersion") : NULL;
-		memset(&osi, 0, sizeof(osi));
-		osi.dwOSVersionInfoSize = sizeof(osi);
-		if(pRtl && pRtl(&osi) == 0 && osi.dwMajorVersion < 10){
-			ImmDisableIME(0);   /* 0 = every thread in this process */
-			LOG(LOG_DEBUG,
-			    "Win%d.%d: disabled process IME context (TSF freeze fix)",
-			    (int)osi.dwMajorVersion, (int)osi.dwMinorVersion);
-		}
-	}
-#endif
+	/* No IME intervention here.  Two earlier attempts (forcing
+	 * GTK_IM_MODULE=simple, §18, and ImmDisableIME(0) on pre-Win10, §19)
+	 * were both disproved by the Win7 logs: with the IME context disabled
+	 * the WH_GETMESSAGE probe still saw zero input messages, the window
+	 * still froze, and ImmDisableIME additionally introduced a new
+	 * "hang before the splash" failure.  Both were reverted -- see §20.
+	 * Never re-add IME tweaks without a controlled gtk_input_probe run. */
 
 	{
 		/* gtk_init_with_args() parses the GTK options, then ours, and

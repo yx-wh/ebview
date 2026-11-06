@@ -1732,3 +1732,57 @@ GTK 自己不碰 IME，**操作系统级 TSF 仍会挂上来**，所以没用。
 复现，看日志是否出现 "disabled process IME context" 及 `HB` 行的 `win LB=` 是否起数。
 若仍 0，下一步是主窗口创建后对其 `ImmAssociateContext(hwnd, NULL)`（gdkwin32.h 的
 `gdk_win32_window_get_impl_hwnd` 可取 HWND）作双保险。
+
+---
+
+## §20 §18/§19 被证伪 + IME 干预全部回退 + 对照实验（2026-11-07）
+
+**新证据（`ebview-debug (5).log` 与 `(6).log`，均为带 ImmDisableIME 的构建）**：
+
+1. **§19 的 TSF 假设被证伪**。日志明确打印
+   `Win6.1: disabled process IME context (TSF freeze fix)`，且窗口枚举里
+   `MSCTFIME UI` 窗口已消失、只剩 `Default IME` —— 说明 `ImmDisableIME(0)`
+   **确实生效**，IME/TSF 上下文已被剥离；但 `HB` 行仍是
+   `win LB=0/0 MV=0 KEY=0/0 ACT=0 FOC=0`，界面照样冻结。禁用 IME 对输入
+   零改善，TSF 不是（唯一）根因。§18 的 `GTK_IM_MODULE=simple` 同理。
+
+2. **出现两种卡死，且"启动即卡"疑似由 ImmDisableIME 引入**：
+   - `debug (5)` 只有 3 行，末行正是 `disabled process IME context`（730 行），
+     下一条本该是 `initialize_preference()`（787 行）—— 即卡在两者之间的
+     `gtk_init_with_args()`（755 行），**窗口与 splash 都还没建**。这正是用户
+     描述的"一启动就卡死，splash 都没有"。此前从未出现过这种卡法。
+   - `debug (6)` 完整启动（`IN : gtk_main()` 909 行），之后冻结 —— 老症状。
+   同一 exe 间歇性卡在不同阶段，属竞态/环境层面，不是稳定代码死锁。
+
+3. **前台窗口不固定**：`debug (6)` 的 FOREGROUND 在 3 次采样中是 EBView 自己
+   （pid=2016）、其余几次是别的进程（pid=1836 / 1624 / 2108）。`debug (4)`
+   则全是 EBView 自己。启动瞬间曾收到 1 次 `MV=1 motion=1`，之后全零。
+
+**回退（本轮改动）**：删除 `src/ebview.c` 中两处无效且有代价的 IME 干预
+（`g_setenv("GTK_IM_MODULE","gtk-im-context-simple")` 与 `ImmDisableIME(0)`），
+以及 `<imm.h>` / `imm32.lib`。理由：均被日志证伪、剥夺日语输入、且后者很可能
+引入了新的"启动即卡"。Windows 构建回到零 IME 干预的干净状态，便于对照。
+调试探针（WH_GETMESSAGE / GDK 事件计数 / 窗口枚举 / 心跳）全部保留，仍由
+`EBVIEW_DEBUG_LOG` 门控，release 不受影响。
+
+**决定性对照实验：`tools/gtk_input_probe.c`**
+用同一套 UCRT64 GTK2 运行时编译的极小 GTK2 程序（一个窗口 + 一个按钮，
+无任何 IME 干预 / 钩子 / EBView 代码），点击与按键计数显示在窗口标题并写入
+`probe.log`。已随 `build/dist/EBView-0.4.0-win64.zip` 一起分发
+（`EBView/gtk_input_probe.exe`，GUI 子系统，依赖 DLL 全部在包内）。
+编译方式（UCRT64 环境）：
+`cc tools/gtk_input_probe.c -o gtk_input_probe.exe -mwindows $(pkg-config --cflags --libs gtk+-2.0)`
+
+判读：
+- **探针也冻（计数恒为 0）** → 问题在 GTK2 运行时 / Win7 VM 环境，EBView
+  代码无罪。方向改为：兼容模式（XP SP3 / 禁用视觉主题）、VM 集成工具与
+  输入注入、GTK2 版本、系统 TSF/ctfmon 服务状态；不要再改 EBView 代码。
+- **探针能点、计数增长** → 问题在 EBView 代码，再针对启动期差异查
+  （优先复查 `create_main_window()` 里 Windows 特有的窗口/样式设置）。
+
+**另需用户做的低成本 A/B**（都不需要重编译）：
+1. **直接双击 `ebview.exe`，不要用 `run-debug.bat`** —— 排除诊断探针自伤
+   （`gdk_event_handler_set` / `SetWindowsHookEx` / 每 2 秒 EnumWindows）。
+   迄今所有日志都是 bat 模式，这一点从未验证过。
+2. 若仍卡，右键 exe → 属性 → 兼容性 → 勾选"以兼容模式运行 Windows XP SP3"
+   与"禁用桌面元素"，重试。
