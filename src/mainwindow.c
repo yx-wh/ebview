@@ -689,6 +689,22 @@ static void unset_focus(GtkWidget *widget, gpointer data){
 
 }
 
+/* Claim the X11-style PRIMARY selection from inside the main loop, not
+ * before gtk_main().  On Windows GDK backs PRIMARY with the Win32 clipboard,
+ * and gtk_selection_owner_set() calls OpenClipboard(), which blocks until the
+ * previous clipboard owner answers WM_RENDERFORMAT.  That owner is GDK's own
+ * hidden clipboard window, which cannot process messages until the event loop
+ * is running -- so claiming the selection here (before gtk_main()) deadlocks
+ * the process.  Windows 7 hits this reliably; Windows 10 sometimes escapes it
+ * on timing.  Deferring to an idle runs it on the first main-loop iteration,
+ * after the loop can answer. */
+static gboolean claim_primary_selection_idle(gpointer data)
+{
+	gtk_selection_owner_set(main_window, GDK_SELECTION_PRIMARY,
+				GDK_CURRENT_TIME);
+	return(FALSE);
+}
+
 void create_main_window()
 {
 	GtkWidget *vbox;
@@ -748,7 +764,10 @@ void create_main_window()
 	gtk_widget_set_size_request(note_tree, tree_width, tree_height);
 	gtk_widget_show_all (main_window);
 
-	gtk_selection_owner_set(main_window, GDK_SELECTION_PRIMARY,GDK_CURRENT_TIME);
+	/* Claim PRIMARY from inside the main loop (see
+	 * claim_primary_selection_idle); claiming it here, before gtk_main(),
+	 * deadlocks the process on Windows 7. */
+	g_idle_add(claim_primary_selection_idle, NULL);
 
 	if(!bshow_menu_bar)
 		hide_menu_bar();

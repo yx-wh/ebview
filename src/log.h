@@ -29,7 +29,12 @@ typedef enum {
 
 extern gint ebview_log_level;
 
-#define LOG(...) { if (ebview_log_level) log_func (__FILE__, __LINE__, __VA_ARGS__); } 
+/* When EBVIEW_DEBUG_LOG is set on Windows, log_func() and the GLib/GTK log
+ * handler in ebview.c also write every line here (unbuffered) so a hang or
+ * crash on a machine without a visible console can still be diagnosed. */
+extern FILE *ebview_debug_fp;
+
+#define LOG(...) { if (ebview_log_level) log_func (__FILE__, __LINE__, __VA_ARGS__); }
 
 void set_log_level(gint level);
 void log_func(const gchar *file, gint line, LOG_LEVEL level, const gchar *message, ...);

@@ -1401,3 +1401,44 @@ cd build && ninja
 - 中文词的**输入检索**未处理：输入框的词按 EUC-JP 转码，中文输入会被
   `replace_char()` 吃掉。要支持「输中文查中日辞典」需把输入词转成
   书内索引使用的 `(hi&0x7f, lo)` 变体再调 eb_search_*，另行处理
+
+---
+
+## §16 Windows 7 启动后界面冻结（2026-11-06）
+
+**现象**：全新 Win7 x64 虚拟机，装了 `vc_redist.x64.exe`（顺带补齐 UCRT）
+后主窗口能显示，但随后整个 UI 冻结（不响应，任务管理器显示“未响应”）。
+Win10 上同一份代码正常。全新设置、没有词典组、没有网络路径（排除 §7/§10
+的 Samba 网络词典卡死）。
+
+**启动时序回顾**（`src/ebview.c:main`）：
+`load_dictgroup/weblist/.../dirgroup`（同步、全部文件不存在则秒退）
+→ `create_main_window()`（`gtk_widget_show_all` 把窗口画出来）
+→ `calculate_font_size()` → `splash_destroy()` → `gtk_main()`。
+窗口先显示、后冻，说明卡点在 `create_main_window()` 内部末尾，或
+`calculate_font_size()`，或进了 `gtk_main()` 后事件循环不转——都不在那些
+`load_*` 里（它们跑在窗口可见之前）。
+
+**首要嫌疑**：`create_main_window()` 末尾的
+`gtk_selection_owner_set(main_window, GDK_SELECTION_PRIMARY, ...)` 在
+`gtk_main()` 之前调用。Windows 上 GDK 用 Win32 剪贴板实现 X11 风格的
+PRIMARY 选区，`OpenClipboard()` 会阻塞等旧剪贴板所有者回 `WM_RENDERFORMAT`；
+而那个所有者正是 GDK 自己的隐藏剪贴板窗口，它要等事件循环转起来才能应答。
+于是在 `gtk_main()` 之前认领选区就会**死锁进程**。Win10 靠时序侥幸躲过，
+Win7 稳定复现。
+
+**修复**（`src/mainwindow.c`）：把选区认领改成一个 `g_idle_add` 回调
+`claim_primary_selection_idle()`，在事件循环第一批迭代里（`gtk_main()`
+之后）才执行，死锁消除。
+
+**诊断手段**（`src/ebview.c` + `src/log.c` + `src/log.h`）：release 构建
+原本把 GLib/GTK/Gdk 日志用空 `my_log_handler` 吞掉、app 自己的 `LOG()` 写进
+被隐藏的控制台（即全丢）。新增环境变量 `EBVIEW_DEBUG_LOG`：
+- 设 `EBVIEW_DEBUG_LOG=1`（或显式路径）启动时，把 `LOG()` 全量（含 DEBUG）
+  和 GLib/GTK 的 `g_log` 告警写入 `%TEMP%\ebview-debug.log`（无缓冲，死锁/
+  崩溃也不丢最后一行）。
+- 用法（VM 里建个 `run-debug.bat`）：
+  `set EBVIEW_DEBUG_LOG=1` 换行 `ebview.exe`，双击该 bat。
+- 若 §16 的选区死锁修复不对，日志里最后一条 `IN :` 会精确指出卡在哪一步。
+
+**状态**：代码已改、待用户在 Win10 重新编译打包，于 Win7 验证。

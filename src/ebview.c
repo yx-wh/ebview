@@ -53,6 +53,7 @@
 #include "shortcut.h"
 #include "pref_io.h"
 #include "splash.h"
+#include "log.h"
 
 static pthread_t server_tid=(pthread_t)-1;
 
@@ -292,6 +293,16 @@ void execute_remote_command(gint argc, gchar **argv){
 #ifdef __WIN32
 void  my_log_handler(const gchar *log_domain, GLogLevelFlags log_level, const gchar *message, gpointer user_data)
 {
+	/* The release build installs this handler to swallow GLib/GTK/Gdk
+	 * warnings (lines 482-494).  When the diagnostic log is open we mirror
+	 * those messages to it, because on a headless/console-hidden launch a
+	 * GTK CRITICAL on Windows 7 would otherwise be invisible. */
+	if(ebview_debug_fp != NULL){
+		fprintf(ebview_debug_fp, "[%s] %s\n",
+			log_domain ? log_domain : "ebview",
+			message ? message : "(null)");
+		fflush(ebview_debug_fp);
+	}
 }
 
 #endif
@@ -453,6 +464,43 @@ int main( int   argc,
 {
 #ifdef __WIN32__
 	hide_own_console();
+
+	/* Diagnostic log.  Set EBVIEW_DEBUG_LOG=1 (or a file path) before
+	 * launching to capture GTK/GLib warnings and the app's own LOG() trace
+	 * to a file -- the release build hides the console and would otherwise
+	 * swallow everything.  Opened unbuffered so a hang never loses the last
+	 * line.  g_log / GLib messages are caught by my_log_handler(); the app's
+	 * own LOG() lines are caught in log_func(). */
+	{
+		const char *dbg = getenv("EBVIEW_DEBUG_LOG");
+		if(dbg != NULL && *dbg != '\0'){
+			const char *path;
+			char tmp[1024];
+
+			if(strcmp(dbg, "1") == 0 || strcmp(dbg, "yes") == 0){
+				const char *t = getenv("TEMP");
+				if(t == NULL) t = getenv("TMP");
+				if(t != NULL){
+					snprintf(tmp, sizeof(tmp),
+						 "%s\\ebview-debug.log", t);
+					path = tmp;
+				} else {
+					path = "ebview-debug.log";
+				}
+			} else {
+				path = dbg;
+			}
+
+			ebview_debug_fp = fopen(path, "w");
+			if(ebview_debug_fp != NULL){
+				setvbuf(ebview_debug_fp, NULL, _IONBF, 0);
+				ebview_log_level = LOG_DEBUG;
+				fprintf(ebview_debug_fp,
+					"EBView debug log opened\n");
+				fflush(ebview_debug_fp);
+			}
+		}
+	}
 #endif
 #if 0
 	gint rc;
@@ -662,6 +710,13 @@ int main( int   argc,
 	ebook_end();
 
 	LOG(LOG_DEBUG, "OUT: main()");
+
+#ifdef __WIN32__
+	if(ebview_debug_fp != NULL){
+		fclose(ebview_debug_fp);
+		ebview_debug_fp = NULL;
+	}
+#endif
 
 	_exit(0);
 

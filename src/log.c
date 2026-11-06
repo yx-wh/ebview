@@ -33,44 +33,69 @@ extern gint thread_running;
 gint ebview_log_level = LOG_MESSAGE;
 //gint ebview_log_level = LOG_DEBUG;
 
+/* See log.h.  NULL unless main.c opened it in response to EBVIEW_DEBUG_LOG. */
+FILE *ebview_debug_fp = NULL;
+
 void set_log_level(gint level){
 	ebview_log_level = level;
 }
 
 void log_func(const gchar *file, gint line, LOG_LEVEL level, const gchar *message, ...){
 	va_list ap;
-	gchar format[1024];
 	gchar str[1024];
 
 	if(level <= ebview_log_level) {
+		const gchar *prefix;
+
 		switch(level){
 		case LOG_ERROR:
-			sprintf(format, "%s:%d ERROR : ", file, line);
+			prefix = " ERROR : ";
 			break;
 		case LOG_CRITICAL:
-			sprintf(format, "%s:%d CRITICAL : ", file, line);
+			prefix = " CRITICAL : ";
 			break;
 		case LOG_WARNING:
-			sprintf(format, "%s:%d WARNING : ", file, line);
+			prefix = " WARNING : ";
 			break;
 		case LOG_MESSAGE:
-			sprintf(format, "%s:%d MESSAGE : ", file, line);
+			prefix = " MESSAGE : ";
 			break;
 		case LOG_INFO:
-			sprintf(format, "%s:%d INFO : ", file, line);
+			prefix = " INFO : ";
 			break;
 		case LOG_DEBUG:
-			sprintf(format, "%s:%d DEBUG : ", file, line);
+			prefix = " DEBUG : ";
+			break;
+		default:
+			prefix = " : ";
 			break;
 		}
 
-		strcat(format, message);
+		/* Build "<file>:<line><level> : <formatted message>" once, then
+		 * send it to the (hidden) console and, when enabled, the debug
+		 * file.  The file is opened unbuffered so a deadlock or hard
+		 * crash that never reaches _exit still leaves every line on disk. */
+		{
+			gchar hdr[1024];
+			gchar body[4096];
+			gchar out[6144];
 
-		va_start(ap, message);
-		g_vprintf(format, ap);
-		va_end(ap);
-		g_printf("\n");
-		fflush(stdout);
+			snprintf(hdr, sizeof(hdr), "%s:%d%s", file, line, prefix);
+
+			va_start(ap, message);
+			vsnprintf(body, sizeof(body), message, ap);
+			va_end(ap);
+
+			snprintf(out, sizeof(out), "%s%s", hdr, body);
+
+			g_printf("%s\n", out);
+			fflush(stdout);
+
+			if(ebview_debug_fp != NULL){
+				fprintf(ebview_debug_fp, "%s\n", out);
+				fflush(ebview_debug_fp);
+			}
+		}
 		//g_logv(G_LOG_DOMAIN, level, format, ap);
 	}
 
