@@ -1,4 +1,5 @@
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"><html><head><title>EBView Manual</title>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
   <meta name="author" content="Kenichi SUTO">
 </head>
 
@@ -6,7 +7,7 @@
 <br>
 <br>
 <h1 align="center">How to use EBView 0.2.0</h1>
-<div align="center"><a href="../ja/index.html">∆¸À‹∏Ï</a><br>
+<div align="center"><a href="../ja/index.html">Êó•Êú¨Ë™û</a><br>
 <br>
 Kenichi SUTO<br>
 <br>
@@ -106,6 +107,13 @@ appear on the buttons using the Settings/Misc/Bytes in Dictionary Bar. <br>
 <br>
 You can choose the search method either from the search menu or the toolbar.
 Bellow is the meaning of each methods.<br>
+<br>
+EBView remembers the search method that was in effect when it last exited and
+restores it on the next launch, instead of always starting in Automatic
+Search. You can also force a method for a single launch with
+<b>--method METHOD</b> (e.g. <b>--method word</b>), and look a word up
+immediately with <b>--search WORD</b>. When <b>--method</b> is omitted, the
+last-used method applies.<br>
 <br>
 <blockquote>        
   <table cellpadding="2" cellspacing="2" border="1" width="80%" align="center">
@@ -221,9 +229,9 @@ and then forward again using the forward button.<br>
   You can choose the index word using the mouse to mark a region (such as
 by dragging the mouse accross a word or double clicking on it). Double clicking
 will choose all characters of the same type around the cursor (where type
-is hiragana/katakana or kanji). For example, in the text "§≥§Œ•Ω•’•»•¶•ß•¢§œ..." (This
-software-TOPIC) if you click on the "•¶" it will select "•Ω•’•»•¶•ß•¢" (software).
-In the same way, for the text "º≠ΩÒ§Œƒ…≤√§»∫ÔΩ¸", clicking on "ƒ…" will select "ƒ…≤√".
+is hiragana/katakana or kanji). For example, in the text "„Åì„ÅÆ„ÇΩ„Éï„Éà„Ç¶„Çß„Ç¢„ÅØ..." (This
+software-TOPIC) if you click on the "„Ç¶" it will select "„ÇΩ„Éï„Éà„Ç¶„Çß„Ç¢" (software).
+In the same way, for the text "Ëæë‰ªä„ÅÆÁ∫≥Ë£Å„Å®Áå¥Ëøë", clicking on "Á∫≥" will select "Á∫≥Ë£Å".
 <br>
   The selected text will be placed in the X-selection, so you can paste it
 into other applications by clicking the middle button (assuming that "Selection
@@ -296,7 +304,7 @@ the Settings menu, Stemming sub-menu. Adding many patterns makes the lookup
 very slow, so be careful. You can also change the order in which patterns
 match by dragging and dropping patterns in the Stemming Setting box.<br>
 Starting from version 0.1.6, EBView performs stemming for Japanese words.
-For example, when you specify °÷Ω–§È§Ï§ §§°◊ as search word,°÷Ω–§Î°◊ will hit. Algorithm
+For example, when you specify ‚âàÂè´„Çâ„Çå„Å™„ÅÑ‚àΩ as search word,‚âàÂè´„Çã‚àΩ will hit. Algorithm
 used in Japanese stemming is almost the same as that of English, there is
 a slight difference. When normal stemming resulted in no hit, then EBView
 will try searching with kanji characters in keyword. Yor cannot customize
@@ -310,7 +318,7 @@ them,  and if you click the left mouse button, you can play sound or movie.<br>
 <br>
 EBView uses external program to play multimedia, so you need to specify programs
 which are capable to play actual data. Open [Settings]-&gt;[External Program]
-and enter the name of external program. For example, "playwave %f" for sound.
+and enter the name of external program. For example, "xdg-open %f".
 %f is mandatory.  Prior to lanuch external program, EBView will store multimedia
 data to temporally file. %f will be replaced by temporally file internally.
 <br>
@@ -329,7 +337,7 @@ on search engine name will popup menus.  You can jump to Homepage from here.
 You may need this when you want to specify detailed optional parameter.<br>
 <br>
 If nothing happens, please check command to launch browser.  [Settings]-&gt;[External
-Program] has an entry. Example is "gnome-moz-remote %f". %f is mandatory and
+Program] has an entry. Example is "xdg-open %f". %f is mandatory and
 will be replaced by URL.<br>
 <br>
 You can customize the list of search engine in [Settings]-&gt;[Search Engines].
@@ -340,7 +348,7 @@ some search engine requires specific character code. Please note that you
 can only use search engine which uses "get" method rather than "post" method.
 <br>
 <br>
-Some search engines such as "<a href="http://www.alc.co.jp/">±—º≠œ∫ on the Web</a>"
+Some search engines such as "<a href="http://www.alc.co.jp/">ÊØñËæëËôæ on the Web</a>"
 prohibits these kind of searching. They only permits access from its Homepage.
 <br>
 <br>
