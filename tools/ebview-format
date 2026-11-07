@@ -1,0 +1,271 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""ebview-format — 把 ebview --exact-terminal 的原始 EB 流式输出排版成
+美观的终端文本。
+
+ebview --exact-terminal 输出的是 EB 库的原始流式标记（<gaiji>、<indent>、
+<keyword>、<sup>、<em>、<reference> 等），本脚本把它们转成：
+  * 语义化 ANSI 颜色 / 加粗（而不是简单删掉标签）
+  * 外字 <gaiji code=...> 显示为 [code] 占位
+  * 按显示宽度（中日韩全角算 2 格）的软折行 + 缩进续行
+
+用法:
+    ebview --exact-terminal WORD | ebview-format [选项]
+    ebview-format [选项] WORD            # 直接查词，内部调用 ebview
+
+选项:
+    -w, --width N     折行宽度（默认：终端宽度，或 80）
+    -c, --color       强制开启颜色
+        --no-color    关闭颜色
+    -b, --bin PATH    ebview 可执行文件路径（默认: $EBVIEW_BIN 或 "ebview"）
+    -h, --help        显示帮助
+
+颜色在输出到终端时自动开启；管道到 less -R / 文件时可用 -c / --no-color 控制。
+"""
+
+import sys
+import re
+import os
+import argparse
+import subprocess
+import unicodedata
+import shutil
+
+# ANSI 样式码
+RESET = "\033[0m"
+STYLE_CODES = {
+    "em": "4",          # 下划线
+    "keyword": "1;33",  # 加粗 + 黄（词头/关键词）
+    "reference": "34",  # 蓝（交叉引用）
+    "sup": "36",        # 青（上标）
+    "sub": "2",         # 暗（下标）
+    "gaiji": "35",      # 品红（外字占位）
+}
+# 固定顺序，保证多重样式组合时序列一致
+STYLE_ORDER = ["em", "sub", "reference", "sup", "keyword", "gaiji"]
+
+# 常用上标字符映射（仅数字与少数符号，其余仍按青色普通字符显示）
+SUPERSCRIPT = {
+    "0": "⁰", "1": "¹", "2": "²", "3": "³", "4": "⁴",
+    "5": "⁵", "6": "⁶", "7": "⁷", "8": "⁸", "9": "⁹",
+    "+": "⁺", "-": "⁻", "=": "⁼", "(": "⁽", ")": "⁾",
+}
+SUBSCRIPT = {
+    "0": "₀", "1": "₁", "2": "₂", "3": "₃", "4": "₄",
+    "5": "₅", "6": "₆", "7": "₇", "8": "₈", "9": "₉",
+}
+
+TAG_RE = re.compile(r"<(/?)([A-Za-z0-9]+)([^>]*)>")
+ATTR_RE = re.compile(r"(\w+)\s*=\s*\"?([^\"\s>]*)")
+
+# ---------------------------------------------------------------------------
+# 字符显示宽度（全角/宽字符算 2 格）
+# ---------------------------------------------------------------------------
+def disp_width(ch):
+    if unicodedata.east_asian_width(ch) in ("W", "F"):
+        return 2
+    return 1
+
+
+# ---------------------------------------------------------------------------
+# 解析一行 EB 文本 → 片段列表 [(text, styles_set, indent), ...]
+#   styles_set: 当前激活的语义样式名集合
+#   indent:     该行缩进层级（来自 <indent position=N>）
+# ---------------------------------------------------------------------------
+def _apply_inline(text, styles):
+    """sup/sub 段落里的字符尽量替换成上标/下标 Unicode（其余保持原样）。"""
+    if "sup" in styles:
+        return "".join(SUPERSCRIPT.get(c, c) for c in text)
+    if "sub" in styles:
+        return "".join(SUBSCRIPT.get(c, c) for c in text)
+    return text
+
+
+def parse_line(line):
+    segs = []
+    styles = set()
+    indent = 0
+    pos = 0
+    for m in TAG_RE.finditer(line):
+        if m.start() > pos:
+            segs.append((_apply_inline(line[pos:m.start()], styles),
+                         set(styles), indent))
+        closing, name, attrs = m.group(1), m.group(2).lower(), m.group(3)
+        if closing:
+            styles.discard(name)
+        else:
+            if name == "indent":
+                mm = re.search(r"position\s*=\s*(\d+)", attrs)
+                if mm:
+                    indent = int(mm.group(1))
+            elif name.startswith("gaiji"):
+                # 自包含外字标签：转成 [code] 占位文本（不可断整体）
+                code = ""
+                for k, v in ATTR_RE.findall(attrs):
+                    if k.lower() == "code":
+                        code = v
+                placeholder = "[%s]" % (code if code else "?")
+                segs.append((placeholder, set(styles) | {"gaiji"}, indent))
+            else:
+                styles.add(name)
+        pos = m.end()
+    if pos < len(line):
+        segs.append((_apply_inline(line[pos:], styles), set(styles), indent))
+    return segs
+
+
+# ---------------------------------------------------------------------------
+# 把片段列表按显示宽度折行 → 逻辑行列表，每行是 [(char, styles), ...]
+# ---------------------------------------------------------------------------
+def wrap(segs, width):
+    """按显示宽度折行。把每个片段拆成 token：
+         * 普通文本 → 可断 token（字符级软折行）
+         * 外字占位 [code] → 不可断 token（整体移动，不在中括号中断开）
+    返回逻辑行列表，每行是 [(char, styles), ...] 与缩进层级。
+    """
+    indent = 0
+    tokens = []  # (text, styles, breakable)
+    for text, styles, ind in segs:
+        if ind:
+            indent = ind * 2
+        if "gaiji" in styles:
+            tokens.append((text, styles, False))
+        else:
+            tokens.append((text, styles, True))
+
+    avail = max(1, width - indent)
+    lines = []
+    cur = []   # [(char, styles), ...]
+    w = 0
+
+    def flush():
+        nonlocal cur, w
+        if cur:
+            lines.append(cur)
+        cur = []
+        w = 0
+
+    for text, styles, breakable in tokens:
+        cw_total = sum(disp_width(c) for c in text)
+        # 当前行放不下该 token：若可断则先收尾上一行；不可断 token 也先收尾，
+        # 让它整体落到下一行（避免 [code] 被从中间切断）。
+        if w > 0 and w + cw_total > avail:
+            flush()
+        if breakable:
+            for ch in text:
+                cw = disp_width(ch)
+                if cur and w + cw > avail:
+                    flush()
+                    if ch == " ":
+                        continue
+                cur.append((ch, styles))
+                w += cw
+        else:
+            # 不可断：整段放入（若自身超宽则退化为单行超宽，极少见）
+            for ch in text:
+                cur.append((ch, styles))
+                w += disp_width(ch)
+    flush()
+    return lines, indent
+
+
+def style_codes(styles):
+    codes = []
+    for s in STYLE_ORDER:
+        if s in styles:
+            codes.append(STYLE_CODES[s])
+    if not codes:
+        return ""
+    return "\033[" + ";".join(codes) + "m"
+
+
+def render_line(chars, indent, color):
+    indent_str = " " * indent
+    if not color:
+        return indent_str + "".join(c for c, _ in chars)
+    out = [indent_str]
+    prev = None
+    for ch, st in chars:
+        if st != prev:
+            out.append(RESET + style_codes(st))
+            prev = st
+        out.append(ch)
+    out.append(RESET)
+    return "".join(out)
+
+
+def format_stream(text, width, color):
+    out = []
+    for raw in text.split("\n"):
+        stripped = raw.strip()
+        # 字典标题行 === ... === 单独加粗上色
+        if stripped.startswith("===") and stripped.endswith("==="):
+            if color:
+                out.append(RESET + "\033[1;36m" + raw + RESET)
+            else:
+                out.append(raw)
+            out.append("")
+            continue
+        if stripped == "":
+            out.append("")
+            continue
+        segs = parse_line(raw)
+        lines, indent = wrap(segs, width)
+        for ln in lines:
+            out.append(render_line(ln, indent, color))
+    return "\n".join(out)
+
+
+def main():
+    ap = argparse.ArgumentParser(
+        description="格式化 ebview --exact-terminal 的 EB 流式输出")
+    ap.add_argument("-w", "--width", type=int, default=0,
+                    help="折行宽度（默认终端宽度或 80）")
+    ap.add_argument("-c", "--color", action="store_true", help="强制颜色")
+    ap.add_argument("--no-color", action="store_true", help="关闭颜色")
+    ap.add_argument("-b", "--bin", dest="binpath", default=None,
+                    help="ebview 路径（默认 $EBVIEW_BIN 或 ebview）")
+    ap.add_argument("word", nargs="?", help="要查询的词（省略则从 stdin 读）")
+    args = ap.parse_args()
+
+    # 颜色默认：输出到终端时开启
+    if args.color:
+        color = True
+    elif args.no_color:
+        color = False
+    else:
+        color = sys.stdout.isatty() or os.environ.get("EBVIEW_FORMAT_COLOR") == "1"
+
+    # 折行宽度
+    if args.width and args.width > 0:
+        width = args.width
+    else:
+        size = shutil.get_terminal_size((80, 24))
+        width = size.columns
+
+    if args.word:
+        binpath = args.binpath or os.environ.get("EBVIEW_BIN") or "ebview"
+        try:
+            proc = subprocess.run(
+                [binpath, "--exact-terminal", args.word],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE)
+        except FileNotFoundError:
+            sys.stderr.write("ebview-format: 找不到 ebview (%s)\n" % binpath)
+            sys.exit(1)
+        if proc.returncode != 0 and not proc.stdout:
+            sys.stderr.write(proc.stderr.decode("utf-8", "replace"))
+            sys.exit(proc.returncode)
+        text = proc.stdout.decode("utf-8", "replace")
+    else:
+        if sys.stdin.isatty():
+            sys.stderr.write("ebview-format: 从 stdin 读取；"
+                             "直接查词请用 ebview-format WORD\n")
+        text = sys.stdin.read()
+
+    sys.stdout.write(format_stream(text, width, color))
+    sys.stdout.write("\n")
+
+
+if __name__ == "__main__":
+    main()

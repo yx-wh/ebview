@@ -82,6 +82,8 @@ global gint bemphasize_keyword;
 global gint bshow_image;
 global gint bshow_splash;
 global gint bword_search_automatic;
+global gint last_search_method;
+global gint startup_search_method;
 global gint additional_lines;
 global gint additional_chars;
 global gint cache_size;

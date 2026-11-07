@@ -262,6 +262,8 @@ void initialize_preference(){
 	bshow_image = 1;
 	bshow_splash = 1;
 	bword_search_automatic = 1;
+	last_search_method = SEARCH_METHOD_AUTOMATIC;
+	startup_search_method = -1;
 	bshow_filename = 1;
 	bheading_auto_calc = 1;
 	benable_button_color = 1;

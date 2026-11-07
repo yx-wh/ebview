@@ -24,6 +24,7 @@
 #include "history.h"
 #include "hook.h"
 #include "jcode.h"
+#include "misc.h"
 #include "headword.h"
 #include "dialog.h"
 #include "xmlinternal.h"
@@ -1929,6 +1930,154 @@ gint ebook_simple_search(BOOK_INFO *binfo, char *word, gint method, gchar *title
 	g_free(l_word);
 	LOG(LOG_DEBUG, "OUT : ebook_simple_search()");
 	return(error_code);
+}
+
+/* Search WORD (EUC-JP) with exact match across every dictionary of the
+ * currently active group.  Hits are appended to the global search_result,
+ * exactly like the GUI path, but this never touches the GUI or the saved
+ * search method.  Only the first active group is used, matching
+ * ebook_search_auto()'s notion of the "current" group. */
+gint ebook_search_exact_all(const char *word)
+{
+	GtkTreeIter parent;
+	GtkTreeIter iter;
+
+	LOG(LOG_DEBUG, "IN : ebook_search_exact_all()");
+
+	clear_search_result();
+
+	if(gtk_tree_model_get_iter_first(GTK_TREE_MODEL(dict_store), &parent) == TRUE){
+		do {
+			gboolean group_active;
+
+			gtk_tree_model_get(GTK_TREE_MODEL(dict_store),
+					   &parent,
+					   DICT_ACTIVE_COLUMN, &group_active,
+					   -1);
+
+			if(group_active != TRUE)
+				continue;
+
+			if(gtk_tree_model_iter_children(GTK_TREE_MODEL(dict_store),
+							&iter, &parent) == TRUE){
+				do {
+					gchar *title;
+					gboolean active;
+					BOOK_INFO *binfo;
+
+					gtk_tree_model_get(GTK_TREE_MODEL(dict_store),
+							   &iter,
+							   DICT_TITLE_COLUMN, &title,
+							   DICT_ACTIVE_COLUMN, &active,
+							   DICT_MEMBER_COLUMN, &binfo,
+							   -1);
+
+					if(active != TRUE){
+						g_free(title);
+						continue;
+					}
+					if(binfo == NULL){
+						g_free(title);
+						continue;
+					}
+					if(binfo->available == FALSE){
+						g_free(title);
+						continue;
+					}
+
+					ebook_simple_search(binfo, (char *)word,
+							    SEARCH_METHOD_EXACTWORD,
+							    title);
+					g_free(title);
+				} while(gtk_tree_model_iter_next(GTK_TREE_MODEL(dict_store), &iter) == TRUE);
+			}
+
+			/* Only the first active group is the "current" group. */
+			break;
+		} while(gtk_tree_model_iter_next(GTK_TREE_MODEL(dict_store), &parent) == TRUE);
+	}
+
+	LOG(LOG_DEBUG, "OUT : ebook_search_exact_all()");
+	return(0);
+}
+
+/* Print every hit currently in search_result to stdout, one block per hit.
+ * The body text is stored in EUC-JP by the EB library, so it is converted
+ * to UTF-8 before printing; the heading and dictionary title are already
+ * UTF-8.  The raw EB streaming tags (<gaiji ...>, <indent ...>, <keyword
+ * ...>, ...) are left intact on purpose, like sdcv, so the output can be
+ * piped through other tools for further processing.  Returns the number of
+ * hits printed. */
+static gint ebook_exact_terminal_print(void)
+{
+	GList *l;
+	RESULT *rp;
+	gint count = 0;
+
+	for(l = search_result; l != NULL; l = g_list_next(l)){
+		gchar *text, *utf_text;
+
+		rp = (RESULT *)(l->data);
+		if(rp->type != RESULT_TYPE_EB)
+			continue;
+
+		g_print("=== %s ===\n",
+			rp->data.eb.dict_title ? rp->data.eb.dict_title : "");
+		g_print("%s\n", rp->heading ? rp->heading : "");
+
+		text = ebook_get_text(rp->data.eb.book_info,
+				      rp->data.eb.pos_text.page,
+				      rp->data.eb.pos_text.offset);
+		if(text != NULL){
+			utf_text = iconv_convert("euc-jp", "utf-8", text);
+			g_print("%s\n", utf_text ? utf_text : text);
+			g_free(utf_text);
+			g_free(text);
+		}
+		g_print("\n");
+		count++;
+	}
+
+	if(count == 0)
+		g_print("No hit.\n");
+
+	return(count);
+}
+
+/* Command-line entry point: exact-match WORD (UTF-8) across the active
+ * group and print the results to the terminal.  Does not open the GUI and
+ * does not modify the saved search method.  Returns the hit count, or -1
+ * if WORD is empty. */
+gint ebook_exact_terminal_utf8(const char *word_utf8)
+{
+	gchar *euc_word;
+	gint ret;
+
+	LOG(LOG_DEBUG, "IN : ebook_exact_terminal_utf8()");
+
+	euc_word = iconv_convert("utf-8", "euc-jp", word_utf8);
+	if(euc_word == NULL || strlen(euc_word) == 0){
+		g_free(euc_word);
+		g_print("Please enter a search word.\n");
+		LOG(LOG_DEBUG, "OUT : ebook_exact_terminal_utf8() = -1");
+		return(-1);
+	}
+
+	remove_space(euc_word);
+	if(strlen(euc_word) == 0){
+		g_free(euc_word);
+		g_print("Please enter a search word.\n");
+		LOG(LOG_DEBUG, "OUT : ebook_exact_terminal_utf8() = -1");
+		return(-1);
+	}
+
+	ebook_search_exact_all(euc_word);
+	ret = ebook_exact_terminal_print();
+
+	g_free(euc_word);
+
+	LOG(LOG_DEBUG, "OUT : ebook_exact_terminal_utf8() = %d", ret);
+	return(ret);
 }
 
 static gint ebook_ending_search(BOOK_INFO *binfo, char *word, gint method, gchar *title)

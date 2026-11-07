@@ -287,6 +287,9 @@ void set_search_method(gint method)
 
 	ebook_set_search_method(method);
 
+	/* Remember the active method so the next launch can restore it. */
+	last_search_method = method;
+
 	switch(method){
 	case SEARCH_METHOD_MULTI:    tree_page = 1; break;
 	case SEARCH_METHOD_INTERNET: tree_page = 2; break;
@@ -765,9 +768,11 @@ void create_main_window()
 
 	install_shortcut();
 
-	/* The drop-down shows its first entry on start-up; make the stored
-	 * method agree with it instead of leaving the state implicit. */
-	set_search_method(SEARCH_METHOD_AUTOMATIC);
+	/* The drop-down shows its first entry on start-up; use the method
+	 * given on the command line if any, otherwise restore the method
+	 * that was in effect when EBView last exited. */
+	set_search_method(startup_search_method >= 0 ?
+			  startup_search_method : last_search_method);
 
 	// Prevents the cursor from going to widgets except the keyword entry box.
 	gtk_container_foreach(GTK_CONTAINER(main_window), unset_focus, NULL);

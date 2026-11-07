@@ -127,6 +127,7 @@ struct _preferences preferences[] = {
 	{"heading_auto_calc", PREF_TYPE_INTEGER, &bheading_auto_calc},
 	{"enable_button_color", PREF_TYPE_INTEGER, &benable_button_color},
 	{"word_search_automatic", PREF_TYPE_INTEGER, &bword_search_automatic},
+	{"last_search_method", PREF_TYPE_INTEGER, &last_search_method},
 	{"additional_lines", PREF_TYPE_INTEGER, &additional_lines},
 	{"additional_chars", PREF_TYPE_INTEGER, &additional_chars},
 	{"cache_size", PREF_TYPE_INTEGER, &cache_size},

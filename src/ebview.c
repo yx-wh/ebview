@@ -511,12 +511,20 @@ int main( int   argc,
 		 * display, which is what makes `ebview --help` work over ssh. */
 		gboolean show_version = FALSE;
 		gchar *option_word = NULL;
+		gchar *option_method = NULL;
+		gchar *option_exact_terminal = NULL;
 		GOptionEntry entries[] = {
 			{ "search", 's', 0, G_OPTION_ARG_STRING, &option_word,
 			  N_("look WORD up as soon as the window appears"),
 			  N_("WORD") },
 			{ "version", 'V', 0, G_OPTION_ARG_NONE, &show_version,
 			  N_("show the version and exit"), NULL },
+			{ "method", 'm', 0, G_OPTION_ARG_STRING, &option_method,
+			  N_("start in SEARCH METHOD (automatic, word, endword, exactword, keyword, multi, internet, grep)"),
+			  N_("METHOD") },
+			{ "exact-terminal", 0, 0, G_OPTION_ARG_STRING, &option_exact_terminal,
+			  N_("search WORD across the active group with exact match and print results to the terminal"),
+			  N_("WORD") },
 			{ NULL, 0, 0, 0, NULL, NULL, NULL }
 		};
 		GError *error = NULL;
@@ -532,7 +540,63 @@ int main( int   argc,
 		if(show_version){
 			g_print("%s\n", PACKAGE_STRING);
 			g_free(option_word);
+			g_free(option_method);
+			g_free(option_exact_terminal);
 			return(0);
+		}
+
+		if(option_exact_terminal != NULL){
+			/* Terminal exact-match mode: search the active group and
+			 * print the results to stdout.  It never opens the GUI
+			 * and never writes the saved search method. */
+			ebook_start();
+			initialize_preference();
+			load_preference();
+			load_dictgroup();
+
+			ebook_exact_terminal_utf8(option_exact_terminal);
+
+			g_free(option_exact_terminal);
+			g_free(option_word);
+			g_free(option_method);
+			ebook_end();
+			return(0);
+		}
+
+		/* Resolve --method into a SEARCH_METHOD_* code.  When omitted,
+		 * startup_search_method stays at -1 and mainwindow.c falls back
+		 * to the method saved on the previous exit. */
+		if(option_method != NULL){
+			struct { const char *name; gint method; } method_map[] = {
+				{ "automatic", SEARCH_METHOD_AUTOMATIC },
+				{ "word",      SEARCH_METHOD_WORD },
+				{ "endword",   SEARCH_METHOD_ENDWORD },
+				{ "exactword", SEARCH_METHOD_EXACTWORD },
+				{ "keyword",   SEARCH_METHOD_KEYWORD },
+				{ "multi",     SEARCH_METHOD_MULTI },
+				{ "internet",  SEARCH_METHOD_INTERNET },
+				{ "grep",      SEARCH_METHOD_GREP },
+				{ NULL, 0 }
+			};
+			gint k;
+
+			startup_search_method = -1;
+			for(k = 0; method_map[k].name != NULL; k++){
+				if(g_ascii_strcasecmp(option_method,
+						     method_map[k].name) == 0){
+					startup_search_method =
+						method_map[k].method;
+					break;
+				}
+			}
+			if(startup_search_method < 0){
+				g_printerr(_("Unknown search method '%s' "
+					     "(expected one of: automatic, "
+					     "word, endword, exactword, "
+					     "keyword, multi, internet, "
+					     "grep)\n"), option_method);
+			}
+			g_free(option_method);
 		}
 
 		add_startup_word(option_word);

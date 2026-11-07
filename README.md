@@ -148,6 +148,53 @@ Debian 仓库中的 `edict-fpw` 等包提供可用的 EPWING 数据。
   `<show_menu_bar>0</show_menu_bar>` 改成 `1`。必须先退出，否则程序退出时
   `save_preference()` 会把当前状态写回去，覆盖你的修改。
 
+## 命令行用法
+
+除了 GUI，本版还提供两个命令行工具，便于在终端或管道里使用。
+
+### `ebview --exact-terminal WORD`
+
+对**当前激活辞典组里的所有辞典**做「完全一致」搜索，把每个命中词条的
+EB 流式标记原文（`<gaiji>`、`<indent>`、`<keyword>`、`<sup>` 等）打到
+标准输出，然后直接退出、不启动 GUI，也**不会**改动「上次使用的搜索模式」
+（`last_search_method`）。设计上刻意保留原始 EB 标记（类似 `sdcv`），
+方便用户再用管道（`sed` / `grep` / `awk` / `html2text` 之类）进一步处理。
+
+```sh
+ebview --exact-terminal 日本 | less -R
+```
+
+### `ebview-format`（包装脚本）
+
+`tools/ebview-format` 把上面 `--exact-terminal` 的原始输出排版成美观的
+终端文本：把 EB 标记转成**语义化颜色 / 加粗**而非简单删掉，外字
+`<gaiji code=...>` 显示为 `[code]` 占位（整体不被折行切断），并按显示宽度
+（中日韩全角算 2 格）软折行。
+
+| EB 标记 | 终端渲染 |
+| --- | --- |
+| `<keyword>` | 加粗 + 黄（词头 / 关键词） |
+| `<gaiji code=...>` | 品红 `[code]` 占位 |
+| `<sup>` / `<sub>` | 青色 + 上标 / 下标字符 |
+| `<em>` | 下划线 |
+| `<reference>` | 蓝色（交叉引用） |
+| `<indent position=N>` | 前导缩进 + 续行对齐 |
+| `=== 标题 ===` | 加粗青色 |
+
+用法：
+
+```sh
+ebview --exact-terminal 日本 | ebview-format          # 作为过滤器
+ebview-format 日本                                      # 直接查词（内部调用 ebview）
+ebview-format -w 60 日本                                # 指定折行宽度
+ebview-format --no-color 日本 | sed ...                 # 关颜色便于再管道
+EBVIEW_BIN=/path/to/ebview ebview-format 日本           # 指定 ebview 路径
+```
+
+配套还有 `ebdump`：一个从上游搬来的纯命令行 EB 文本区块底层 dump 工具
+（`ebdump <book-path> <subbook-index> <block-number(hex)>`），用于查 EB 光盘
+原始字节，不做任何词条解析。
+
 ## 目录结构
 
 ```

@@ -31,6 +31,7 @@ void free_words(char **words);
 gint ebook_search(const char *g_word, gint method);
 gint ebook_search_auto(char *g_word, gint method);
 gint ebook_simple_search(BOOK_INFO *binfo, char *word, gint method, gchar *title);
+gint ebook_exact_terminal_utf8(const char *word_utf8);
 gint ebook_search_method();
 void ebook_set_search_method(gint method);
 

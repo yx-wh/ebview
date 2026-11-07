@@ -32,6 +32,8 @@ find_package(PkgConfig REQUIRED)
 pkg_check_modules(GTK2 REQUIRED IMPORTED_TARGET gtk+-2.0>=2.10 gthread-2.0)
 find_package(Threads REQUIRED)
 find_package(ZLIB REQUIRED)
+# glib is needed by the ebdump helper (it uses g_assert / gchar).
+pkg_check_modules(GLIB REQUIRED IMPORTED_TARGET glib-2.0)
 
 # libeb (EB Library / "eb") has never shipped a .pc file.
 find_path(EB_INCLUDE_DIR NAMES eb/eb.h)
@@ -216,6 +218,31 @@ install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/pixmaps/ebview.xpm"
     DESTINATION "${CMAKE_INSTALL_DATADIR}/pixmaps")
 install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/README.md"
     DESTINATION "${CMAKE_INSTALL_DOCDIR}" OPTIONAL)
+
+# ebdump — a small standalone EB text-block dumper.  It is ported from
+# upstream's util/ebdump.c (originally an EB Library sample tool) and only
+# depends on glib and libeb, not on GTK, so it builds as a pure command-line
+# utility.  It must use the same _FILE_OFFSET_BITS=64 ABI as libeb (see the
+# ebview target above), otherwise eb_initialize_book() corrupts the heap.
+add_executable(ebdump "${CMAKE_CURRENT_SOURCE_DIR}/util/ebdump.c")
+target_include_directories(ebdump PRIVATE
+    "${CMAKE_CURRENT_BINARY_DIR}"
+    "${EB_INCLUDE_DIR}")
+target_compile_definitions(ebdump PRIVATE _FILE_OFFSET_BITS=64)
+target_link_libraries(ebdump PRIVATE
+    PkgConfig::GLIB
+    ${EB_LIBRARY}
+    m)
+install(TARGETS ebdump RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+
+# ebview-format — a Python wrapper that pretty-prints the raw EB streaming
+# output of `ebview --exact-terminal` (ANSI colors / bold, gaiji placeholders,
+# wrap by display width).  It is interpreted, so we just install it executable.
+install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/tools/ebview-format"
+    DESTINATION "${CMAKE_INSTALL_BINDIR}"
+    PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE
+                GROUP_READ GROUP_EXECUTE
+                WORLD_READ WORLD_EXECUTE)
 
 message(STATUS "EBView ${PROJECT_VERSION}")
 message(STATUS "  GTK         : ${GTK2_VERSION}")
