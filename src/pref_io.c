@@ -27,6 +27,8 @@
 #include "dirtree.h"
 #include "misc.h"
 
+#include <glib/gstdio.h>
+
 
 extern GList *word_history;
 extern GList *directory_history;
@@ -1366,6 +1368,17 @@ gboolean load_history()
 
 	if(find_file(filename) == FALSE) {
 		return(FALSE);
+	}
+
+	/* A crash or a killed process can leave a zero-length file behind.
+	 * That is not corruption worth an error popup: treat it as "no
+	 * history yet". */
+	{
+		GStatBuf st;
+		if((g_stat(filename, &st) == 0) && (st.st_size == 0)){
+			LOG(LOG_INFO, "%s is empty. Starting with no history.", filename);
+			return(TRUE);
+		}
 	}
 
 	doc = xml_parse_file(filename);
