@@ -23,6 +23,7 @@
 #include "mainwindow.h"
 #include "mainmenu.h"
 #include "dictbar.h"
+#include "disksearch.h"
 #include "dump.h"
 #include "multi.h"
 #include "menu.h"
@@ -84,6 +85,11 @@ gint menuitem_handler (GtkWidget *widget, gchar *string)
 	if(bstarting_up)
 		return(0);
 	
+
+	if(strcmp(string, "file.disksearch") == 0){
+		show_disk_search_dialog();
+		return(0);
+	}
 
 	if(strcmp(string, "file.exit") == 0){
 		exit_program(NULL, NULL);
@@ -638,6 +644,15 @@ GtkWidget *create_main_menu()
 
 	// Program menu
 	menu = gtk_menu_new();
+
+	item = gtk_menu_item_new_with_label(_("Search Disk for Dictionaries..."));
+	gtk_menu_shell_append(GTK_MENU_SHELL(menu), item);
+	g_signal_connect(G_OBJECT(item), "activate",
+			 G_CALLBACK(menuitem_handler),
+			 (gpointer)"file.disksearch");
+
+	item = gtk_separator_menu_item_new();
+	gtk_menu_shell_append(GTK_MENU_SHELL(menu), item);
 
 	menuitem_exit = gtk_menu_item_new_with_label(_("Exit"));
 	gtk_menu_shell_append(GTK_MENU_SHELL(menu), menuitem_exit);

@@ -589,14 +589,36 @@ msgid "Depth"
 msgstr "深さ"
 
 #: src/pref_dictgroup.c:1453
-msgid "Specify search depth. 0 means to search only specified directory."
-msgstr ""
-"検索の深さを指定してください。 0はそのディレクトリの直下だけを探すことを意味"
-"します。"
+msgid "Specify search depth. 0 = recurse into all subfolders, 1 = only the specified folder, 2 = include its subfolders."
+msgstr "検索の深さを指定します。0 = すべてのサブフォルダを再帰的に検索、1 = 指定フォルダのみ、2 = そのサブフォルダも検索。"
 
 #: src/pref_dictgroup.c:1457
 msgid "Search Disk"
 msgstr "ディスクを検索"
+
+#: src/mainmenu.c
+msgid "Search Disk for Dictionaries..."
+msgstr "辞書をディスクから検索..."
+
+#: src/disksearch.c
+msgid "Select Folder Containing Dictionaries"
+msgstr "辞書があるフォルダを選択"
+
+#: src/pref_dictgroup.c src/disksearch.c
+msgid "Directory does not exist. Check the path."
+msgstr "ディレクトリが存在しません。パスを確認してください。"
+
+#: src/pref_dictgroup.c src/disksearch.c
+msgid "No dictionary was found. Check the path and the search depth."
+msgstr "辞書が見つかりませんでした。パスと検索の深さを確認してください。"
+
+#: src/disksearch.c
+msgid "Added %d dictionaries."
+msgstr "%d 件の辞書を追加しました。"
+
+#: src/pref_dictgroup.c src/disksearch.c
+msgid "Added %d dictionaries. %d could not be used (no search method, or the book could not be read) and were skipped."
+msgstr "%d 件の辞書を追加しました。%d 件は使用できないためスキップしました（検索方式がない、または辞書を読み込めません）。"
 
 #: src/pref_dictgroup.c:1504
 msgid "Subbook Number"

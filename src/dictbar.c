@@ -512,6 +512,14 @@ void update_dict_bar()
 	create_dict_bar();
 	gtk_widget_show_all(dict_bar);
 
+	/* The dictionary bar is note_bar page 0; File Search has its own bar
+	 * on page 1.  After adding dictionaries the new group and its buttons
+	 * must be visible, so bring page 0 to the front.  set_search_method()
+	 * normally does this, but it runs during start-up before note_bar is
+	 * created, and a refresh from the preferences dialog does not call it. */
+	if(note_bar != NULL && GTK_IS_NOTEBOOK(note_bar))
+		gtk_notebook_set_current_page(GTK_NOTEBOOK(note_bar), 0);
+
 	LOG(LOG_DEBUG, "OUT : update_dict_bar()");
 
 }

@@ -133,10 +133,20 @@ bash tools/pack_win.sh                  # -> build/dist/EBView-win64.zip
 
 ## 加载 EPWING 词典
 
-在程序的偏好设置 → 词典组（Dictionary Group）中添加包含 `CATALOGS`
-文件的词典目录即可；也可直接编辑 `~/.ebview/dictgroup.xml`。
-Debian 仓库中的 `edict-fpw` 等包提供可用的 EPWING 数据。
-支持同时挂载多本词典进行串刺搜索。
+最方便的方式是 **`File → Search Disk for Dictionaries...`**：直接挑一个文件夹，
+程序就递归扫描整棵目录树找 EPWING/EB 辞典（2002 年原版让人手填路径 + 小深度，是因为
+当年硬盘慢；现在 SSD 全盘递归反而更快也更省心）。找到的辞典会加入
+`Disk Search Result` 组，并**立即写入** `dictgroup.xml`、刷新词典工具条。
+
+原来的路径也保留：`Tools → Options → Dictionary Group` 底部的 `Path` / `Depth` /
+`Search Disk`，两处共用同一套扫描逻辑；这一处的结果在点 `Ok` 关闭设置时保存。
+
+`Depth` 语义（两处一致）：`0` = 递归搜索所有子目录（默认）、
+`1` = 只搜所选文件夹、`2` = 所选文件夹及其子文件夹，依此类推。
+递归有 64 层硬上限，防止符号链接成环导致死循环。
+
+也可直接编辑 `~/.ebview/dictgroup.xml`。Debian 仓库中的 `edict-fpw` 等包提供可用的
+EPWING 数据。支持同时挂载多本词典进行串刺搜索。
 
 ## 菜单栏隐藏后怎么恢复
 

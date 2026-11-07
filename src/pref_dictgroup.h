@@ -23,4 +23,12 @@
 GtkWidget *pref_start_dictgroup();
 gboolean pref_end_dictgroup();
 
+/* Scan dirname (recursing up to depth levels) for EPWING/EB books and add
+ * every usable one to dict_store.  Returns the number added; *skipped (may
+ * be NULL) receives how many books had to be skipped.  busy_window is used
+ * for the wait cursor and may be NULL.  The caller is responsible for
+ * reporting the result and for saving/refreshing the dictionary group. */
+gint scan_dictionaries(const gchar *dirname, gint depth,
+		       GtkWidget *busy_window, gint *skipped);
+
 #endif /* __PREF_DICTGROUP_H__ */

@@ -565,12 +565,36 @@ msgid "Depth"
 msgstr "深度"
 
 #: src/pref_dictgroup.c:1453
-msgid "Specify search depth. 0 means to search only specified directory."
-msgstr "指定检索深度。0 表示只检索指定目录。"
+msgid "Specify search depth. 0 = recurse into all subfolders, 1 = only the specified folder, 2 = include its subfolders."
+msgstr "指定检索深度。0 = 递归搜索所有子文件夹，1 = 只搜索指定文件夹，2 = 包含其子文件夹。"
 
 #: src/pref_dictgroup.c:1457
 msgid "Search Disk"
 msgstr "检索磁盘"
+
+#: src/mainmenu.c
+msgid "Search Disk for Dictionaries..."
+msgstr "从硬盘搜索辞典..."
+
+#: src/disksearch.c
+msgid "Select Folder Containing Dictionaries"
+msgstr "选择包含辞典的文件夹"
+
+#: src/pref_dictgroup.c src/disksearch.c
+msgid "Directory does not exist. Check the path."
+msgstr "目录不存在，请检查路径。"
+
+#: src/pref_dictgroup.c src/disksearch.c
+msgid "No dictionary was found. Check the path and the search depth."
+msgstr "没有找到辞典，请检查路径和搜索深度。"
+
+#: src/disksearch.c
+msgid "Added %d dictionaries."
+msgstr "已添加 %d 本辞典。"
+
+#: src/pref_dictgroup.c src/disksearch.c
+msgid "Added %d dictionaries. %d could not be used (no search method, or the book could not be read) and were skipped."
+msgstr "已添加 %d 本辞典，另有 %d 本无法使用（没有可用检索方式或无法读取），已跳过。"
 
 #: src/pref_dictgroup.c:1504
 msgid "Subbook Number"

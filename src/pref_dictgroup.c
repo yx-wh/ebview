@@ -68,6 +68,8 @@ GList *book_list=NULL;
 void print_dict_group();
 void my_gtk_tree_store_swap (GtkTreeStore *tree_store, GtkTreeIter  *a, GtkTreeIter  *b);
 static gboolean update_last_dictionary();
+static void activate_disk_search_group(void);
+static void expand_disk_search_group(void);
 
 extern GtkWidget *combo_method;
 
@@ -689,7 +691,6 @@ static int enumerate_subbook(char *path)
 	gchar *utf_str;
 	gboolean group_exist;
 	gchar *title;
-	GtkTreePath *tree_path;
 	gchar *utf_path;
 
 	LOG(LOG_DEBUG, "IN : enumerate_subbook(%s)", path);
@@ -817,10 +818,10 @@ static int enumerate_subbook(char *path)
 					    DICT_AVAILABLE_COLUMN, TRUE,
 					    -1);
 
-			tree_path = gtk_tree_model_get_path(GTK_TREE_MODEL(dict_store), &parent_iter);
-			gtk_tree_view_expand_row(GTK_TREE_VIEW(dict_view), tree_path, TRUE);
-			gtk_tree_path_free (tree_path);
-
+			/* Expanding the group in the settings tree is a purely visual
+			 * concern and is done by the caller (which owns dict_view).
+			 * Keeping it out of the scan makes scan_dictionaries() usable
+			 * from outside the preferences dialog. */
 			free(utf_str);
 			books_found++;
 		} else {
@@ -844,7 +845,15 @@ static int enumerate_subbook(char *path)
 	return(1);
 }
 
-gint max_depth = 0;
+/* Depth semantics (as seen by the user):
+ *   0 = recurse without limit, 1 = only the selected folder,
+ *   2 = the folder and its immediate subfolders, and so on.
+ * A hard cap keeps "0" from looping forever on symlink cycles or an
+ * unexpectedly deep tree. */
+#define DEPTH_UNLIMITED 0
+#define DEPTH_HARD_LIMIT 64
+
+static gint max_depth = DEPTH_UNLIMITED;
 
 static void search_dictionary_recursive(gchar *dirname, gint depth)
 {
@@ -886,7 +895,8 @@ static void search_dictionary_recursive(gchar *dirname, gint depth)
 				enumerate_subbook(dirname);
 			}
 		} else if(S_ISDIR(st.st_mode)){
-			if(depth < max_depth)
+			if(depth < DEPTH_HARD_LIMIT &&
+			   (max_depth == DEPTH_UNLIMITED || depth < max_depth))
 				search_dictionary_recursive(fullpath, depth+1);
 		}
 		g_free(fullpath);
@@ -899,23 +909,128 @@ static void search_dictionary_recursive(gchar *dirname, gint depth)
 /* Walk a network share and every stat() is a round trip, so the scan runs for
  * a long time with the main loop completely blocked.  A wait cursor at least
  * tells the user the window is busy rather than hung. */
-static void set_scan_cursor(gboolean busy)
+static void set_scan_cursor(GtkWidget *window, gboolean busy)
 {
 	GdkCursor *cursor;
 
-	if(pref_dlg == NULL || GTK_WIDGET(pref_dlg)->window == NULL)
+	if(window == NULL || GTK_IS_WIDGET(window) == FALSE ||
+	   GTK_WIDGET(window)->window == NULL)
 		return;
 
 	cursor = busy ? gdk_cursor_new(GDK_WATCH) : NULL;
-	gdk_window_set_cursor(GTK_WIDGET(pref_dlg)->window, cursor);
+	gdk_window_set_cursor(GTK_WIDGET(window)->window, cursor);
 	if(cursor != NULL)
 		gdk_cursor_unref(cursor);
 	gdk_flush();
 }
 
+/* Scan a directory tree for EPWING/EB books and append every usable one to
+ * dict_store (into the "Disk Search Result" group).  This is deliberately
+ * independent of the preferences dialog so it can also be driven from the
+ * File menu.  Returns the number of dictionaries added; *skipped receives
+ * the count of unusable books.  The caller owns reporting and persistence. */
+gint scan_dictionaries(const gchar *dirname, gint depth,
+		       GtkWidget *busy_window, gint *skipped)
+{
+	LOG(LOG_DEBUG, "IN : scan_dictionaries(%s, %d)", dirname, depth);
+
+	max_depth = depth;
+	books_found = 0;
+	books_skipped = 0;
+
+	set_scan_cursor(busy_window, TRUE);
+	/* depth starts at 1: the selected folder itself is level 1. */
+	search_dictionary_recursive((gchar *)dirname, 1);
+	set_scan_cursor(busy_window, FALSE);
+
+	/* The newly created "Disk Search Result" group has no DICT_ACTIVE_COLUMN
+	 * set, so the dictionary bar would keep showing the previously active
+	 * group and none of the new dictionaries.  Make the new group the one
+	 * and only active group, exactly like group_changed() does when the
+	 * user picks a group from the combo. */
+	if(books_found > 0)
+		activate_disk_search_group();
+
+	if(skipped != NULL)
+		*skipped = books_skipped;
+
+	LOG(LOG_DEBUG, "OUT : scan_dictionaries() = %d", books_found);
+	return(books_found);
+}
+
+/* Make "Disk Search Result" the active group.  add_dict_buttons() only shows
+ * the dictionaries of the active group, and the combo box shows the active
+ * group's name, so without this a successful scan looks like it did nothing. */
+static void activate_disk_search_group(void)
+{
+	GtkTreeIter iter;
+	gchar *title;
+	gboolean found = FALSE;
+
+	if(gtk_tree_model_get_iter_first(GTK_TREE_MODEL(dict_store), &iter) == FALSE)
+		return;
+
+	/* First clear every group, then activate the one we just filled.  This
+	 * also matches the "exactly one active group" invariant that
+	 * add_dict_buttons() relies on. */
+	do {
+		gtk_tree_store_set(GTK_TREE_STORE(dict_store), &iter,
+				   DICT_ACTIVE_COLUMN, FALSE, -1);
+	} while(gtk_tree_model_iter_next(GTK_TREE_MODEL(dict_store), &iter) == TRUE);
+
+	if(gtk_tree_model_get_iter_first(GTK_TREE_MODEL(dict_store), &iter) == FALSE)
+		return;
+
+	do {
+		gtk_tree_model_get(GTK_TREE_MODEL(dict_store), &iter,
+				   DICT_TITLE_COLUMN, &title, -1);
+		if(title != NULL && strcmp(title, "Disk Search Result") == 0){
+			g_free(title);
+			gtk_tree_store_set(GTK_TREE_STORE(dict_store), &iter,
+					   DICT_ACTIVE_COLUMN, TRUE, -1);
+			found = TRUE;
+			break;
+		}
+		g_free(title);
+	} while(gtk_tree_model_iter_next(GTK_TREE_MODEL(dict_store), &iter) == TRUE);
+
+	LOG(LOG_DEBUG, "activate_disk_search_group(): found=%d", found);
+}
+
+/* Expand the "Disk Search Result" group after a scan, if the settings tree
+ * is currently alive.  Purely visual; harmless when called from elsewhere. */
+static void expand_disk_search_group(void)
+{
+	GtkTreeIter iter;
+	gchar *title;
+	GtkTreePath *tree_path;
+
+	if(dict_view == NULL || GTK_IS_WIDGET(dict_view) == FALSE)
+		return;
+	if(gtk_tree_model_get_iter_first(GTK_TREE_MODEL(dict_store), &iter) == FALSE)
+		return;
+
+	do {
+		gtk_tree_model_get(GTK_TREE_MODEL(dict_store), &iter,
+				   DICT_TITLE_COLUMN, &title, -1);
+		if(title != NULL && strcmp(title, "Disk Search Result") == 0){
+			g_free(title);
+			tree_path = gtk_tree_model_get_path(GTK_TREE_MODEL(dict_store),
+							   &iter);
+			gtk_tree_view_expand_row(GTK_TREE_VIEW(dict_view),
+						 tree_path, TRUE);
+			gtk_tree_path_free(tree_path);
+			return;
+		}
+		g_free(title);
+	} while(gtk_tree_model_iter_next(GTK_TREE_MODEL(dict_store), &iter) == TRUE);
+}
+
 static void search_disk(GtkWidget *widget, gpointer *data)
 {
 	gchar *dirname;
+	gint found;
+	gint skipped;
 
 	LOG(LOG_DEBUG, "IN : search_disk()");
 
@@ -943,21 +1058,19 @@ static void search_disk(GtkWidget *widget, gpointer *data)
 		return;
 	}
 
-	max_depth = gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(spin_search_depth));
+	found = scan_dictionaries(
+		dirname,
+		gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(spin_search_depth)),
+		pref_dlg, &skipped);
 
-	books_found = 0;
-	books_skipped = 0;
+	expand_disk_search_group();
 
-	set_scan_cursor(TRUE);
-	search_dictionary_recursive(dirname, 0);
-	set_scan_cursor(FALSE);
-
-	if(books_found == 0){
+	if(found == 0){
 		LOG(LOG_WARNING, "No dictionary was found under %s (depth=%d)",
 		    dirname, max_depth);
 		popup_warning(_("No dictionary was found. Check the path and "
 				"the search depth."));
-	} else if(books_skipped > 0){
+	} else if(skipped > 0){
 		/* One dialog for the whole run.  Reporting every rejected book
 		 * separately turned a scan of a Samba share into a wall of modal
 		 * warnings that had to be dismissed one by one. */
@@ -965,7 +1078,7 @@ static void search_disk(GtkWidget *widget, gpointer *data)
 			_("Added %d dictionaries. %d could not be used "
 			  "(no search method, or the book could not be read) "
 			  "and were skipped."),
-			books_found, books_skipped);
+			found, skipped);
 		LOG(LOG_DEBUG, "%s", msg);
 		popup_warning(msg);
 		g_free(msg);
@@ -1576,7 +1689,7 @@ GtkWidget *pref_start_dictgroup()
 	gtk_box_pack_start(GTK_BOX(hbox2),
 			   label,FALSE, FALSE, 2);
 
-	adj = gtk_adjustment_new( 1, //value
+	adj = gtk_adjustment_new( DEPTH_UNLIMITED, // value: recurse fully
 				  0, // lower
 				  20, //upper
                                   1, // step increment
@@ -1585,8 +1698,9 @@ GtkWidget *pref_start_dictgroup()
 	spin_search_depth = gtk_spin_button_new(GTK_ADJUSTMENT(adj), 1.0, 0);
 	gtk_box_pack_start(GTK_BOX(hbox2),
 			   spin_search_depth,FALSE, FALSE, 2);
-	gtk_widget_set_tooltip_text(spin_search_depth, 
-			     _("Specify search depth. 0 means to search only specified directory."));
+	gtk_widget_set_tooltip_text(spin_search_depth,
+			     _("Specify search depth. 0 = recurse into all subfolders, "
+			       "1 = only the specified folder, 2 = include its subfolders."));
 
 
 

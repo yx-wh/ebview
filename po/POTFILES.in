@@ -3,6 +3,7 @@ src/cellrendererebook.c
 src/dialog.c
 src/dictbar.c
 src/dirtree.c
+src/disksearch.c
 src/dump.c
 src/eb.c
 src/ebview-client.c
