@@ -92,7 +92,20 @@ void install_shortcut(){
 
 //			g_snprintf(string, 64, "sc_%s", command->name);
 			//str = g_strdup_printf("sc_%s", command->name);
+			/* A bare Return must never become a global accelerator: GtkEntry
+			 * consumes it via its "activate" signal, and registering it here
+			 * would steal Enter from the word entry (and from dialogs).
+			 * "Start Search" is bound to bare Return by default; that entry
+			 * is honoured in entry_activate_event() instead. */
 			if((state == 0) && (keyval == GDK_Return))
+				continue;
+
+			/* "Search Selected Text" is context-sensitive: the toplevel
+			 * key_press_event only fires it while the result view has the
+			 * focus and holds a selection.  Registering it globally here
+			 * would double-fire it (or search from the word entry). */
+			if(command != NULL && command->name != NULL &&
+			   strcmp(command->name, "Search Selected Text") == 0)
 				continue;
 
 			closure = g_cclosure_new(G_CALLBACK(accel_handler), GINT_TO_POINTER(keyval), NULL);
@@ -249,6 +262,59 @@ void uninstall_shortcut(){
 #endif
 
 	LOG(LOG_DEBUG, "OUT : uninstall_shortcut()");
+}
+
+/* Does this key event match whatever the user configured for `name`?
+ * Used by context-sensitive commands (e.g. "Search Selected Text") that are
+ * handled in the toplevel key_press_event instead of by the accel group --
+ * a bare Return cannot be a global accelerator without stealing Enter from
+ * the word entry. */
+gboolean shortcut_command_matches(const gchar *name, GdkEventKey *event)
+{
+	GtkTreeIter iter;
+	guint state;
+	guint keyval;
+	struct _shortcut_command *command;
+
+	if(name == NULL || event == NULL || shortcut_store == NULL)
+		return(FALSE);
+
+	if(gtk_tree_model_get_iter_first(GTK_TREE_MODEL(shortcut_store), &iter) == FALSE)
+		return(FALSE);
+
+	do {
+		command = NULL;
+		gtk_tree_model_get(GTK_TREE_MODEL(shortcut_store), &iter,
+				   SHORTCUT_STATE_COLUMN, &state,
+				   SHORTCUT_KEYVAL_COLUMN, &keyval,
+				   SHORTCUT_COMMAND_COLUMN, &command,
+				   -1);
+
+		if(command == NULL || command->name == NULL ||
+		   strcmp(command->name, name) != 0)
+			continue;
+
+		/* The three Enter keysyms are one logical key, exactly as in the
+		 * old hard-wired handler. */
+		if(keyval == GDK_Return){
+			if(event->keyval != GDK_Return &&
+			   event->keyval != GDK_KP_Enter &&
+			   event->keyval != GDK_ISO_Enter)
+				continue;
+		} else if(keyval != event->keyval){
+			continue;
+		}
+
+		if(event->state == state)
+			return(TRUE);
+		if(bignore_locks &&
+		   ((event->state | GDK_MOD2_MASK | GDK_LOCK_MASK) ==
+		    (state | GDK_MOD2_MASK | GDK_LOCK_MASK)))
+			return(TRUE);
+
+	} while(gtk_tree_model_iter_next(GTK_TREE_MODEL(shortcut_store), &iter));
+
+	return(FALSE);
 }
 
 gboolean perform_shortcut_by_event(GdkEventKey *event){

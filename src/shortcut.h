@@ -26,5 +26,6 @@ void apply_shortcut_to_menuitem(GtkWidget *item, void (*func)(void));
 //gboolean perform_shortcut(GdkEventKey *event);
 gboolean perform_shortcut(gchar *name);
 gboolean perform_shortcut_by_event(GdkEventKey *event);
+gboolean shortcut_command_matches(const gchar *name, GdkEventKey *event);
 
 #endif /* __SHORTCUT_H__ */

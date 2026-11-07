@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="euc-jp"?>
+<?xml version="1.0" encoding="utf-8"?>
 <shortcutdef>
   <shortcut>
     <modifier>0x0004</modifier>
@@ -10,15 +10,16 @@
     <value>0x0070</value>
     <command>Previous Hit</command>
   </shortcut>
-  <shortcut>
-    <modifier>0x0004</modifier>
-    <value>0x0063</value>
-    <command>Copy To Clipboard</command>
-  </shortcut>
+
   <shortcut>
     <modifier>0x0000</modifier>
     <value>0xff0d</value>
     <command>Start Search</command>
+  </shortcut>
+  <shortcut>
+    <modifier>0x0000</modifier>
+    <value>0xff0d</value>
+    <command>Search Selected Text</command>
   </shortcut>
   <shortcut>
     <modifier>0x0004</modifier>
@@ -174,5 +175,20 @@
     <modifier>0x0004</modifier>
     <value>0x0062</value>
     <command>Prev. Hits</command>
+  </shortcut>
+  <shortcut>
+    <modifier>0x0004</modifier>
+    <value>0x006d</value>
+    <command>Toggle Menu Bar</command>
+  </shortcut>
+  <shortcut>
+    <modifier>0x0004</modifier>
+    <value>0x003d</value>
+    <command>Increase Font Size</command>
+  </shortcut>
+  <shortcut>
+    <modifier>0x0004</modifier>
+    <value>0x002d</value>
+    <command>Decrease Font Size</command>
   </shortcut>
 </shortcutdef>

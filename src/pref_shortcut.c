@@ -91,6 +91,7 @@ struct _shortcut_command commands[] = {
 	{ N_("Copy To Clipboard"), copy_to_clipboard},
 	{ N_("Paste From Clipboard"), paste_from_clipboard},
 	{ N_("Start Search"), start_search},
+	{ N_("Search Selected Text"), search_selected_text},
 	{ N_("Go Back In History"), go_back},
 	{ N_("Go Forward In History"), go_forward},
 	{ N_("Show Previous Text"), go_up},

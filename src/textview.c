@@ -34,6 +34,7 @@
 #include "jcode.h"
 #include "misc.h"
 #include "pref_io.h"
+#include "shortcut.h"
 #include "textview.h"
 #include "websearch.h"
 
@@ -96,28 +97,37 @@ static void search_selection()
 	LOG(LOG_DEBUG, "OUT : search_selection()");
 }
 
-// Called from the toplevel key_press_event handler before it steals the
-// focus: if Enter is pressed while the text view holds a selection,
-// search the selected text.
-gboolean main_view_enter_searches(GdkEventKey *event)
+/* Shortcut command "Search Selected Text": search the current selection in
+ * the text view.  Safe to call from the global accel group as well, where
+ * there may be no selection at all. */
+void search_selected_text(void)
 {
 	GtkTextIter start;
 	GtkTextIter end;
 
-	if(event->keyval == GDK_Return ||
-	   event->keyval == GDK_KP_Enter ||
-	   event->keyval == GDK_ISO_Enter){
-		if(!(event->state & (GDK_SHIFT_MASK |
-				     GDK_CONTROL_MASK |
-				     GDK_MOD1_MASK)) &&
-		   gtk_text_buffer_get_selection_bounds(text_buffer,
-							&start, &end)){
-			search_selection();
-			return(TRUE);
-		}
-	}
+	if(text_buffer == NULL)
+		return;
+	if(gtk_text_buffer_get_selection_bounds(text_buffer, &start, &end) == FALSE)
+		return;
 
-	return(FALSE);
+	search_selection();
+}
+
+/* Called from the toplevel key_press_event handler before it steals the
+ * focus.  The key is no longer hard-wired to Enter: it is whatever the user
+ * configured for the "Search Selected Text" command (Enter by default). */
+gboolean main_view_shortcut_search(GdkEventKey *event)
+{
+	GtkTextIter start;
+	GtkTextIter end;
+
+	if(shortcut_command_matches("Search Selected Text", event) == FALSE)
+		return(FALSE);
+	if(gtk_text_buffer_get_selection_bounds(text_buffer, &start, &end) == FALSE)
+		return(FALSE);
+
+	search_selection();
+	return(TRUE);
 }
 
 void copy_to_clipboard()

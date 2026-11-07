@@ -713,9 +713,14 @@ void show_preference()
 			  NULL);
 
 
+	/* The notebook pane must claim the extra horizontal space when the
+	 * dialog is widened.  With expand/fill = FALSE the outer hbox left
+	 * that space unused at the right edge (a large empty gutter), while
+	 * vertical growth already worked because the hbox itself fills the
+	 * dialog vbox.  The tree column on the left stays fixed-width. */
 	vbox = gtk_vbox_new(FALSE,10);
 	gtk_box_pack_start (GTK_BOX(hbox)
-			    , vbox,FALSE, FALSE, 0);
+			    , vbox,TRUE, TRUE, 0);
 
 
 	note_pref = gtk_notebook_new();

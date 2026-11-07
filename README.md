@@ -142,7 +142,9 @@ Debian 仓库中的 `edict-fpw` 等包提供可用的 EPWING 数据。
 
 菜单里可以关掉 `Menu Bar`，但关掉之后就没菜单可用了。任选一种方式恢复：
 
-- **`Ctrl+M`**：硬编码的切换快捷键，不依赖快捷键配置，任何状态下都可用。
+- **`Ctrl+M`**：默认快捷键，绑定到 `Toggle Menu Bar` 命令。它是 `Tools → Options → Shortcut`
+  里的普通条目，可以随意改键或删除（不再是硬编码）。快捷键通过挂在主窗口上的
+  accel group 分发，所以菜单栏隐藏期间依然有效。
 - **右键 / 中键点击正文区域 → `Display` → `Menu bar`**：弹出菜单里的这一项只负责显示，不会再隐藏。
 - **改配置**：先**完全退出程序**，再编辑 `~/.ebview/preference.xml`，把
   `<show_menu_bar>0</show_menu_bar>` 改成 `1`。必须先退出，否则程序退出时
@@ -194,6 +196,55 @@ EBVIEW_BIN=/path/to/ebview ebview-format 日本           # 指定 ebview 路径
 配套还有 `ebdump`：一个从上游搬来的纯命令行 EB 文本区块底层 dump 工具
 （`ebdump <book-path> <subbook-index> <block-number(hex)>`），用于查 EB 光盘
 原始字节，不做任何词条解析。
+
+## 默认快捷键
+
+`Tools → Options → Shortcut` 里所有快捷键都可增删、改键。默认值定义在
+`data/shortcut.xml`（首次运行复制到 `~/.ebview/shortcut.xml`）：
+
+| 键 | 命令 |
+| --- | --- |
+| `Ctrl+M` | Toggle Menu Bar（显示 / 隐藏菜单栏） |
+| `Ctrl+=` | Increase Font Size（增大正文字号） |
+| `Ctrl+-` | Decrease Font Size（减小正文字号） |
+| `Enter` | Start Search（**搜索框**里按回车开始检索） |
+| `Enter` | Search Selected Text（**释义区**选中文字后按回车检索该词） |
+| `Ctrl+N` / `Ctrl+P` | Next Hit / Previous Hit |
+| `Ctrl+Q` | Quit Program |
+| `F1`–`F9` | 切换各种搜索模式 |
+
+其中 `Ctrl+M`、`Ctrl+=`、`Ctrl+-`、`Search Selected Text` 是本版新增的默认绑定。
+前三个命令上游就有（`Toggle Menu Bar` / `Increase Font Size` /
+`Decrease Font Size`），只是原来 `shortcut.xml` 没给它们分配按键。
+
+两个 `Enter` 是**同键不同上下文**：`Start Search` 在搜索框里生效，
+`Search Selected Text` 在"焦点在释义区且存在选区"时生效。两者都是
+`Options → Shortcut` 里的普通条目，**可以改键或删除**：
+
+- 裸 `Return` 永远不注册成全局加速键，否则会抢走搜索框 / 对话框的回车。
+- `Start Search` 的回车由 `GtkEntry` 的 `activate` 信号触发，但回调会先查配置：
+  只有该命令当前仍绑定裸 Enter 才执行。把它改绑到比如 `F5`，回车就不再检索，
+  `F5` 由 accel group 全局接管；删掉该条目则回车彻底不检索。
+- `Search Selected Text` 由主窗口按键处理按配置匹配，同样可改键 / 删除。
+
+以前这两处（搜索框回车、释义区选中文字回车）都是硬编码，且 `Start Search` 在
+快捷键设置里是个改了也没用的死条目；现在都走同一套可配置机制。
+
+命令表里还有这些**存在但没有默认按键**的操作，需要时自行在 `Options → Shortcut`
+里添加：
+
+`Copy To Clipboard`、`Paste From Clipboard`、`Expand Lines`、`Shrink Lines`、
+`Show Previous Text`、`Show Next Text`、`Toggle Status Bar`、
+`Toggle Dictionary Bar`、`Iconify Window`。
+
+**为什么 `Ctrl+C` / `Ctrl+V` 不设默认快捷键**：`GtkEntry` / `GtkTextView` 内建就
+处理这两个键（复制 / 粘贴）。给命令表里的 `Copy To Clipboard` /
+`Paste From Clipboard` 绑同一个键，全局 accel 会**抢占** GTK 内建而不是共存——实测
+绑了 `Ctrl+C` 后，在搜索框选中文字按 Ctrl+C 复制不到任何东西。所以默认不绑；
+`Copy To Clipboard` 仍可从释义区右键菜单使用，也可以自行绑到一个不冲突的键。
+
+> 注：`~/.ebview/shortcut.xml` 一旦生成就不会被新默认配置覆盖。老配置若想获得
+> 这几个默认键，在 `Options → Shortcut` 里手动添加即可。
 
 ## 目录结构
 

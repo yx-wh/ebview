@@ -1,8 +1,8 @@
-<?xml version="1.0" encoding="euc-jp"?>
+<?xml version="1.0" encoding="utf-8"?>
 <searchengine>
-  <group name="°ìÈÌ¥µ¡¼¥Á¥¨¥ó¥¸¥ó">
+  <group name="ä¸€èˆ¬ã‚µãƒ¼ãƒã‚¨ãƒ³ã‚¸ãƒ³">
     <engine>
-      <name>Google(¥Õ¥ì¡¼¥º:ÆüËÜ¸ì)</name>
+      <name>Google(ãƒ•ãƒ¬ãƒ¼ã‚º:æ—¥æœ¬èª)</name>
       <home>http://www.google.co.jp/</home>
       <pre>http://www.google.co.jp/search?q=%22%2B</pre>
       <post>%22&amp;hl=ja&amp;lr=lang_ja&amp;ie=euc-jp</post>
@@ -10,7 +10,7 @@
       <charcode>euc-jp</charcode>
     </engine>
     <engine>
-      <name>Google(¥Õ¥ì¡¼¥º:±Ñ¸ì)</name>
+      <name>Google(ãƒ•ãƒ¬ãƒ¼ã‚º:è‹±èª)</name>
       <home>http://www.google.com/</home>
       <pre>http://www.google.com/search?hl=en&amp;ie=UTF-8&amp;oe=UTF-8&amp;q=%22%2B</pre>
       <post>%22</post>
@@ -18,7 +18,7 @@
       <charcode>utf-8</charcode>
     </engine>
     <engine>
-      <name>Google(ÆüËÜ¸ì)</name>
+      <name>Google(æ—¥æœ¬èª)</name>
       <home>http://www.google.co.jp/</home>
       <pre>http://www.google.co.jp/search?q=</pre>
       <post>&amp;hl=ja&amp;lr=lang_ja&amp;ie=euc-jp</post>
@@ -50,7 +50,7 @@
       <charcode>euc-jp</charcode>
     </engine>
     <engine>
-      <name>¥Õ¥ì¥Ã¥·¥å¥¢¥¤</name>
+      <name>ãƒ•ãƒ¬ãƒƒã‚·ãƒ¥ã‚¢ã‚¤</name>
       <home>http://www.fresheye.com/</home>
       <pre>http://search.fresheye.com/?kw=</pre>
       <post>&amp;term=monthly</post>
@@ -66,9 +66,9 @@
       <charcode>euc-jp</charcode>
     </engine>
   </group>
-  <group name="±ÑÏÂ¼­Åµ">
+  <group name="è‹±å’Œè¾å…¸">
     <engine>
-      <name>Goo(EXCEED±ÑÏÂ¼­Åµ)</name>
+      <name>Goo(EXCEEDè‹±å’Œè¾å…¸)</name>
       <home>http://dictionary.goo.ne.jp/cgi-bin/ej-top.cgi</home>
       <pre>http://dictionary.goo.ne.jp/cgi-bin/dict_search.cgi?MT=</pre>
       <post>&amp;sw=0</post>
@@ -76,7 +76,7 @@
       <charcode>euc-jp</charcode>
     </engine>
     <engine>
-      <name>¥Ó¥¸¥Í¥¹±Ñ¸ì¼­½ñ(¥¢¥ë¥¯)</name>
+      <name>ãƒ“ã‚¸ãƒã‚¹è‹±èªè¾æ›¸(ã‚¢ãƒ«ã‚¯)</name>
       <home>http://home.alc.co.jp/db/owa/bdicn_sch</home>
       <pre>http://home.alc.co.jp/db/owa/bdicn_sch?stage=sch&amp;word_in=</pre>
       <post></post>
@@ -84,7 +84,7 @@
       <charcode>shift_jis</charcode>
     </engine>
     <engine>
-      <name>¥Ç¥¤¥ê¡¼¥³¥ó¥µ¥¤¥¹±ÑÏÂ¼­Åµ(Yahoo)</name>
+      <name>ãƒ‡ã‚¤ãƒªãƒ¼ã‚³ãƒ³ã‚µã‚¤ã‚¹è‹±å’Œè¾å…¸(Yahoo)</name>
       <home>http://www.yahoo.co.jp/</home>
       <pre>http://dic.yahoo.co.jp/bin/dsearch?d=edc&amp;t=c&amp;p=</pre>
       <post></post>
@@ -92,7 +92,7 @@
       <charcode>euc-jp</charcode>
     </engine>
     <engine>
-      <name>InfoSeek¥Ş¥ë¥Á¼­½ñ(±ÑÏÂ¼­½ñ)</name>
+      <name>InfoSeekãƒãƒ«ãƒè¾æ›¸(è‹±å’Œè¾æ›¸)</name>
       <home>http://jiten.www.infoseek.co.jp/Eiwa?pg=jiten_etop.html&amp;col=EW</home>
       <pre>http://jiten.www.infoseek.co.jp/Eiwa?qt=</pre>
       <post>&amp;sm=1&amp;pg=result_e.html&amp;col=EW</post>
@@ -100,9 +100,9 @@
       <charcode>euc-jp</charcode>
     </engine>
   </group>
-  <group name="ÏÂ±Ñ¼­Åµ">
+  <group name="å’Œè‹±è¾å…¸">
     <engine>
-      <name>Goo(EXCEEDÏÂ±Ñ¼­Åµ)</name>
+      <name>Goo(EXCEEDå’Œè‹±è¾å…¸)</name>
       <home>http://dictionary.goo.ne.jp/cgi-bin/je-top.cgi</home>
       <pre>http://dictionary.goo.ne.jp/cgi-bin/dict_search.cgi?MT=</pre>
       <post>&amp;sw=1</post>
@@ -110,7 +110,7 @@
       <charcode>euc-jp</charcode>
     </engine>
     <engine>
-      <name>¥Ç¥¤¥ê¡¼¥³¥ó¥µ¥¤¥¹ÏÂ±Ñ¼­Åµ(Yahoo)</name>
+      <name>ãƒ‡ã‚¤ãƒªãƒ¼ã‚³ãƒ³ã‚µã‚¤ã‚¹å’Œè‹±è¾å…¸(Yahoo)</name>
       <home>http://www.yahoo.co.jp/</home>
       <pre>http://dic.yahoo.co.jp/bin/dsearch?d=wdc&amp;t=c&amp;p=</pre>
       <post></post>
@@ -118,7 +118,7 @@
       <charcode>euc-jp</charcode>
     </engine>
     <engine>
-      <name>Infoseek¥Ş¥ë¥Á¼­½ñ(ÏÂ±Ñ¼­½ñ)</name>
+      <name>Infoseekãƒãƒ«ãƒè¾æ›¸(å’Œè‹±è¾æ›¸)</name>
       <home>http://jiten.www.infoseek.co.jp/Waei?pg=jiten_wtop.html&amp;col=WE</home>
       <pre>http://jiten.www.infoseek.co.jp/Waei?qt=</pre>
       <post>&amp;sm=1&amp;pg=result_w.html&amp;col=WE</post>
@@ -126,9 +126,9 @@
       <charcode>euc-jp</charcode>
     </engine>
   </group>
-  <group name="¹ñ¸ì¼­Åµ">
+  <group name="å›½èªè¾å…¸">
     <engine>
-      <name>Goo(Âç¼­ÎÓÂè2ÈÇ)</name>
+      <name>Goo(å¤§è¾æ—ç¬¬2ç‰ˆ)</name>
       <home>http://dictionary.goo.ne.jp/cgi-bin/jp-top.cgi</home>
       <pre>http://dictionary.goo.ne.jp/cgi-bin/dict_search.cgi?MT=</pre>
       <post>&amp;sw=2</post>
@@ -136,7 +136,7 @@
       <charcode>euc-jp</charcode>
     </engine>
     <engine>
-      <name>¿·¼­ÎÓ(Yahoo)</name>
+      <name>æ–°è¾æ—(Yahoo)</name>
       <home>http://www.yahoo.co.jp/</home>
       <pre>http://dic.yahoo.co.jp/bin/dsearch?d=snj&amp;t=c&amp;p=</pre>
       <post></post>
@@ -144,7 +144,7 @@
       <charcode>euc-jp</charcode>
     </engine>
     <engine>
-      <name>Infoseek¥Ş¥ë¥Á¼­½ñ(¹ñ¸ì¼­½ñ)</name>
+      <name>Infoseekãƒãƒ«ãƒè¾æ›¸(å›½èªè¾æ›¸)</name>
       <home>http://jiten.www.infoseek.co.jp/Kokugo?pg=jiten_ktop.html&amp;col=KO</home>
       <pre>http://jiten.www.infoseek.co.jp/Kokugo?qt=</pre>
       <post>&amp;sm=1&amp;pg=result_k.html&amp;col=KO</post>
@@ -152,7 +152,7 @@
       <charcode>euc-jp</charcode>
     </engine>
   </group>
-  <group name="±Ñ±Ñ¼­Åµ">
+  <group name="è‹±è‹±è¾å…¸">
     <engine>
       <name>Dictionary.com</name>
       <home>http://www.dictionary.com/</home>
@@ -178,7 +178,7 @@
       <charcode>euc-jp</charcode>
     </engine>
   </group>
-  <group name="¥·¥½¡¼¥é¥¹">
+  <group name="ã‚·ã‚½ãƒ¼ãƒ©ã‚¹">
     <engine>
       <name>Roget's II Thesaurus (Yahoo)</name>
       <home>http://education.yahoo.com/reference/thesaurus/</home>
@@ -188,7 +188,7 @@
       <charcode>euc-jp</charcode>
     </engine>
   </group>
-  <group name="É´²Ê¼­Åµ">
+  <group name="ç™¾ç§‘è¾å…¸">
     <engine>
       <name>Britanica</name>
       <home>http://www.britannica.com/</home>
@@ -230,7 +230,7 @@
       <charcode>euc-jp</charcode>
     </engine>
     <engine>
-      <name>¥¦¥£¥­¥Ú¥Ç¥£¥¢</name>
+      <name>ã‚¦ã‚£ã‚­ãƒšãƒ‡ã‚£ã‚¢</name>
       <home>http://ja.wikipedia.org/</home>
       <pre>http://ja.wikipedia.org/wiki/</pre>
       <post></post>
@@ -246,9 +246,9 @@
       <charcode>euc-jp</charcode>
     </engine>
   </group>
-  <group name="¿·¸ì¼­Åµ">
+  <group name="æ–°èªè¾å…¸">
     <engine>
-      <name>Goo(¥Ç¥¤¥ê¡¼¿·¸ì¼­Åµ)</name>
+      <name>Goo(ãƒ‡ã‚¤ãƒªãƒ¼æ–°èªè¾å…¸)</name>
       <home>http://dictionary.goo.ne.jp/cgi-bin/nw-top.cgi</home>
       <pre>http://dictionary.goo.ne.jp/cgi-bin/dict_search.cgi?MT=</pre>
       <post>&amp;sw=3</post>
@@ -256,7 +256,7 @@
       <charcode>euc-jp</charcode>
     </engine>
   </group>
-  <group name="²èÁü¸¡º÷">
+  <group name="ç”»åƒæ¤œç´¢">
     <engine>
       <name>Google Image Search</name>
       <home>http://images.google.com/</home>
@@ -266,9 +266,9 @@
       <charcode>utf-8</charcode>
     </engine>
   </group>
-  <group name="¥³¥ó¥Ô¥å¡¼¥¿¡¼">
+  <group name="ã‚³ãƒ³ãƒ”ãƒ¥ãƒ¼ã‚¿ãƒ¼">
     <engine>
-      <name>¥¢¥¹¥­¡¼¥Ç¥¸¥¿¥ëÍÑ¸ì¼­Åµ</name>
+      <name>ã‚¢ã‚¹ã‚­ãƒ¼ãƒ‡ã‚¸ã‚¿ãƒ«ç”¨èªè¾å…¸</name>
       <home>http://yougo.ascii24.com/</home>
       <pre>http://yougo.ascii24.com/gh/search/?pattern=</pre>
       <post></post>
@@ -276,7 +276,7 @@
       <charcode>shift_jis</charcode>
     </engine>
     <engine>
-      <name>¾ğÊó¡¦ÄÌ¿®Î¬¸ìÎÓ e-words</name>
+      <name>æƒ…å ±ãƒ»é€šä¿¡ç•¥èªæ— e-words</name>
       <home>http://e-words.jp/</home>
       <pre>http://e-words.jp/e.x?w=</pre>
       <post></post>
@@ -284,7 +284,7 @@
       <charcode>euc-jp</charcode>
     </engine>
     <engine>
-      <name>Yahoo ¥³¥ó¥Ô¥å¡¼¥¿ÍÑ¸ì¼­Åµ</name>
+      <name>Yahoo ã‚³ãƒ³ãƒ”ãƒ¥ãƒ¼ã‚¿ç”¨èªè¾å…¸</name>
       <home>http://computers.yahoo.co.jp/dict/</home>
       <pre>http://computers.yahoo.co.jp/bin/dict?p=</pre>
       <post></post>
@@ -300,7 +300,7 @@
       <charcode>shift_jis</charcode>
     </engine>
     <engine>
-      <name>³ÈÄ¥»Ò¼­Åµ</name>
+      <name>æ‹¡å¼µå­è¾å…¸</name>
       <home>http://www.jisyo.com/viewer/search/search.html</home>
       <pre>http://www.jisyo.com/cgibin/view.cgi?EXT=</pre>
       <post>&amp;submit=CALL</post>

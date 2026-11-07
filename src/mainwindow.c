@@ -366,14 +366,26 @@ static gint method_changed (GtkWidget *combo){
 }
 
 
-static gint entry_activate_event(GtkWidget *widget, GdkEventKey *event){
+/* GtkEntry emits "activate" for a bare Return all by itself, without ever
+ * consulting the shortcut table.  Only honour it while "Start Search" is
+ * actually configured for bare Return: once the user rebinds that command
+ * to another key (or removes it), Enter in the word entry must not start a
+ * search behind their back.  The new key is handled by the accel group in
+ * install_shortcut(), which is global and works from anywhere. */
+static void entry_activate_event(GtkWidget *widget, gpointer user_data)
+{
+	GdkEventKey enter = {0};
 
 	LOG(LOG_DEBUG, "IN : entry_activate_event()");
 
-	start_search();
+	enter.type = GDK_KEY_PRESS;
+	enter.keyval = GDK_Return;
+	enter.state = 0;
+
+	if(shortcut_command_matches("Start Search", &enter))
+		start_search();
 
 	LOG(LOG_DEBUG, "OUT : entry_activate_event()");
-	return(FALSE);
 }
 
 void show_about()
@@ -649,22 +661,20 @@ static void style_set_event( GtkWidget *widget,
 
 static gint key_press_event(GtkWidget *widget, GdkEventKey *event){
 
-	/* Hard-wired escape hatch: hiding the menu bar also hides the only
-	 * menu item that can bring it back. Ctrl+M works regardless of the
-	 * shortcut configuration (it is not bound to anything else). */
-	if((event->state & GDK_CONTROL_MASK) &&
-	   (event->keyval == GDK_m || event->keyval == GDK_M)){
-		toggle_menu_bar();
-		return(TRUE);
-	}
+	/* Ctrl+M is no longer hard-wired here: "Toggle Menu Bar" is a normal
+	 * shortcut command (see shortcut.xml), so the user can rebind or remove
+	 * it in Tools -> Options -> Shortcut.  install_shortcut() attaches an
+	 * accel group to the window itself, so it keeps working even when the
+	 * menu bar is hidden. */
 
 	if(entry_focus_in)
 		return(FALSE);
 
-	/* Enter in the text view: search the selected text before
-	 * the focus is moved back to the word entry. */
+	/* Search the selected text in the main view before the focus is moved
+	 * back to the word entry.  The key comes from the "Search Selected
+	 * Text" shortcut command (Enter by default), not from hard-coded code. */
 	if(gtk_window_get_focus(GTK_WINDOW(main_window)) == main_view &&
-	   main_view_enter_searches(event))
+	   main_view_shortcut_search(event))
 		return(TRUE);
 
 	if(ebook_search_method() != SEARCH_METHOD_MULTI){

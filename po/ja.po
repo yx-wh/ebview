@@ -1051,6 +1051,10 @@ msgid "Start Search"
 msgstr "検索を開始"
 
 #: src/pref_shortcut.c:94
+msgid "Search Selected Text"
+msgstr "選択文字を検索"
+
+#: src/pref_shortcut.c:94
 msgid "Go Back In History"
 msgstr "ヒストリを戻る"
 

@@ -978,6 +978,10 @@ msgid "Start Search"
 msgstr "開始檢索"
 
 #: src/pref_shortcut.c:94
+msgid "Search Selected Text"
+msgstr "檢索選取的文字"
+
+#: src/pref_shortcut.c:94
 msgid "Go Back In History"
 msgstr "歷史後退"
 
