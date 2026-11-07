@@ -1094,13 +1094,18 @@ EUC-JP，所以非日语一律回退英文（ASCII，两边都安全）。
 
 ## 14. Windows 分发包（拷到别的机器上跑）
 
-`bash tools/pack_win.sh` 生成 `build/dist/EBView/` 和 `build/dist/EBView-win64.zip`
-（约 32 MB 展开 / 14 MB 压缩）。这些文件全部来自 MSYS2 UCRT64 前缀，缺一个就启动
-失败或文字变豆腐块，**必须整目录拷，不能只拿 exe**：
+`bash tools/pack_win.sh` 生成 `build/dist/EBView/` 和
+`build/dist/EBView-0.4.0-win64-ucrt64.zip`（约 32 MB 展开 / 14 MB 压缩）。
+zip 名最后一段是**构筑系统**（工具链：`ucrt64` / `mingw64` / `clang64`…），
+由脚本从工具链前缀自动推断（§25）；包内 `BUILD-INFO.txt` 记了构筑系统、目标
+`_WIN32_WINNT`、gcc/GTK2/glib2 版本、libeb 路径、CRT、exe sha256 等溯源信息。
+这些文件全部来自 MSYS2 UCRT64 前缀，缺一个就启动失败或文字变豆腐块，
+**必须整目录拷，不能只拿 exe**：
 
 | 内容 | 为什么需要 |
 | --- | --- |
 | `ebview.exe` | 本体 |
+| `BUILD-INFO.txt` | 构筑系统 / 工具链溯源信息（不影响运行） |
 | 46 个 `*.dll` | GTK2/Pango/cairo/glib 等依赖闭包（`ldd` 递归结果，去掉系统 DLL） |
 | `share/ebview/` | `locate_package_dir()` 认 `share/ebview/shortcut.xml` 作标记；内含 gtkrc、searchengines、filter、endinglist、pixmaps、help |
 | `locale/<lang>/LC_MESSAGES/ebview.mo` | `locate_locale_dir()` 只认这个布局，否则界面回英文（§13） |
@@ -1827,6 +1832,11 @@ EBView 代码 / 无 IME 干预 / 无钩子）在 Win7 上也**同样冻结、计
 **最终状态**：Windows 构建 = 实验前的干净代码 + GUI 子系统。Win10 正常；
 Win7 冻结问题未解决，属该 VM 环境，不再追查。
 
+> **后续更正（2026-11-07，见 §26）**：换 MINGW64 重编后，完整包在**同一台
+> Win7 VM 上正常运行**。本节的「Win7 冻结未解决 / 属该 VM 环境 / 不再追查」
+> 与「放弃 Win7 适配」均已作废；真因是 UCRT64 工具链以 Win10 为目标
+> （§22–§23）。但「应用代码无罪、回滚全部实验改动」的判断成立，保留不动。
+
 ---
 
 ## §22 官方佐证：MSYS2 已系统性淘汰 Windows 7（2026-11-07 补）
@@ -1867,3 +1877,222 @@ fontconfig + 工具链 + CRT）在 2022–2024 年间系统性放弃 Win7，GTK2
 补齐工具链 + GTK2 需数 GB，C 盘仅剩 ~0.8 GiB；且用户已决定放弃 Win7 适配。
 若将来确需在 Win7 上跑 EBView，应优先试 MINGW64（或 2022-10-28 之前的旧
 MSYS2 快照），**而不是继续改应用代码**。
+
+---
+
+## §23 第二套 MSYS2（MINGW64）落地 + `_WIN32_WINNT` 实测（2026-11-07）
+
+**动机**：用户提出"再搞个更大的 C 盘虚拟机 / 换 mingw 试一次"。实际不必重建 VM ——
+MSYS2 安装器可指定任意安装目录，E 盘尚有 361 GiB，直接装第二套并存即可。
+
+### 安装结果
+- 安装器 `msys2-x86_64-20260927.exe`（85 046 168 B），从**清华 TUNA 镜像**下载
+  （官方 `repo.msys2.org` 仅 ~11 KB/s，TUNA ~5 MB/s，阿里云 ~2.9 MB/s）；
+  GitHub release 上的官方 `.sha256` 直连取到，校验一致（`416d506c…f0e`）。
+- 目标 `E:/msys64-mingw64`。GUI 安装器 CLI
+  （`in --confirm-command --accept-messages --root ...`）在本无交互环境被中断，
+  但**文件已铺全**（86 个 base 包、pacman/bash/msys-2.0.dll 齐全），
+  只缺 `uninstall.exe`（不影响使用），可继续用。
+- `mirrorlist.mingw`（新版合并了所有 mingw 环境，带 `$repo`）与 `mirrorlist.msys`
+  顶部插入 `Server = https://mirrors.tuna.tsinghua.edu.cn/msys2/...`。
+
+### 决定性实测：`_WIN32_WINNT`
+用同一份 4 行小程序分别让两套 gcc 编译运行：
+
+| 环境 | gcc | `_WIN32_WINNT` | 含义 |
+|---|---|---|---|
+| **MINGW64**（新建） | 16.2.0 | **0x0601** | Windows 7 |
+| **UCRT64**（原有） | 16.2.0 | **0x0A00** | Windows 10 |
+
+=> **§22 的推断被实测坐实**，且 UCRT64 当前默认值已比官方 2022 年新闻
+所说的 Win8.1（0x0603）**又高一档到 Win10**。整条 GTK2 依赖链的条件编译
+目标平台确实不同，"换 MINGW64 试试"是有依据的。
+
+### 坑：MINGW64 仓库已移除 GTK2
+`pacman -S mingw-w64-x86_64-gtk2` 报"未找到目标"。仓库索引
+（`mingw64.db`，zstd 格式，3228 条）里只有 `gtk3` / `gtk-doc` /
+`gtk-update-icon-cache`；GTK2 2.24.33-8 仅存于 ucrt64 / clang64 / clangarm64。
+但**镜像目录里仍留有包文件**：
+`mingw-w64-x86_64-gtk2-2.24.33-6-any.pkg.tar.zst`（5.8 MB），
+用 `pacman -U` 直接装回成功，依赖（adwaita-icon-theme / shared-mime-info /
+hicolor-icon-theme / libxml2 / librsvg 等）由当前仓库自动补齐。
+=> 已装齐 MINGW64 的 gcc / pkgconf / cmake 4.4.5 / ninja 1.13.2 /
+gtk2 2.24.33-6 / glib2 2.90.1 / cairo / pango / atk / gdk-pixbuf2 /
+zlib / gettext-runtime / libsystre / libiconv。
+
+### 遗留：pacman 密钥环
+安装器中断导致 `/etc/pacman.d/gnupg` 为空，`pacman-key --init` /
+`--populate` / 手工 `gpg --import` 在此无交互环境均卡住（gpg 依赖 agent/熵）。
+**临时方案**：另写 `/etc/pacman-nosig.conf`（仅把 `SigLevel = Required`
+改成 `Never`），装包时用 `pacman --config /etc/pacman-nosig.conf -S ...`；
+**主配置 `pacman.conf` 保持 Required 不变**。以后在交互式 MSYS2 终端跑
+`pacman-key --init && pacman-key --populate msys2` 即可彻底修复。
+
+### 产出（仓库外）
+`E:/msys2-install/EBView-GTK2-Probe-MINGW64.zip`（12.41 MiB，84 项）：
+用 MINGW64 gcc 编译的 `tools/gtk_input_probe.c`（GUI 子系统）+ 43 个 MINGW64 DLL
++ `etc/fonts` + `lib/gdk-pixbuf-2.0`。本机启动验证：进程存活、写出
+`probe.log`（`clicks=0 keys=0 motions=0`）、无缺 DLL 崩溃。
+主 CRT 是 `msvcrt.dll`；`ucrtbase.dll` 仅是系统 DLL 的传递依赖。
+
+**用途**：拿去 Win7 VM 双击，点几下看标题栏计数是否增长。
+- 计数增长 → MINGW64 路线有效，再重编 `libeb`（源码 `C:/Users/yx/src/eb-4.4.3/`，
+  补丁与步骤见 §1）与 EBView 本体，打完整 MINGW64 包；
+- 仍然冻 → 与 CRT / 目标版本无关，确认是 Win7 VM 环境，彻底收工。
+
+本节全部为仓库外的环境搭建，**未改动 EBView 源码与构建配置**。
+
+## §24 MINGW64 路线有效 → 重编 libeb + EBView，打完整 Win7 候选包（2026-11-07）
+
+**前提**：§23 的最小探针 `EBView-GTK2-Probe-MINGW64.zip` 在 Win7 VM 上点击/按键
+计数**会增长**（UCRT64 探针在同一 VM 上恒 0）。=> 冻结来自 UCRT64 那套二进制的
+目标平台（`_WIN32_WINNT=0x0A00` / Win10），不是 Win7 VM 输入栈本身。按 §23 的
+第一个分支继续。
+
+### 为什么连 libeb 也要重编
+`libeb` 是静态库 `libeb.a`，原先由 UCRT64 gcc 编译、引用 UCRT 符号；MINGW64 的
+exe 主 CRT 是 `msvcrt.dll`，混用两套 CRT 必然出 ABI/符号问题。源码树
+`C:/Users/yx/src/eb-4.4.3/` 已打过 §7/§9 两个补丁，无需重打，只要换工具链重编。
+
+### 步骤（均在 `MSYSTEM=MINGW64` 的 `E:/msys64-mingw64/usr/bin/bash -lc` 下）
+
+1. **configure 前先清残留 `conf*`**：旧树里有 `conf1751*` 等，第一次 `./configure`
+   报 `rm: cannot remove 'conf2003': Permission denied` 和
+   `config.log: Permission denied`；删干净后重跑即成功，并不是真的没有写权限。
+   ```bash
+   cd /c/Users/yx/src/eb-4.4.3
+   rm -rf config.log conf*
+   export CPPFLAGS="-DWIN32_LEAN_AND_MEAN -D_WIN32_WINNT=0x0601" LIBS="-lws2_32"
+   ./configure --prefix=/mingw64 --disable-ebnet --disable-nls
+   ```
+   沿用 §1 的 `--disable-ebnet --disable-nls`（`EB_Book` 布局必须和 exe 一致），
+   但 `_WIN32_WINNT` 用 `0x0601`（Win7）而不是 `0x0501`，与工具链默认值对齐。
+2. **绕开 libtool**（§9(d) 的 `Cannot create temporary file in C:\Windows\`）：
+   从 `eb/Makefile` 的 `libeb_la_SOURCES` 取 36 个 `.c`，逐个
+   `gcc -DHAVE_CONFIG_H -I. -I.. -DEB_BUILD_LIBRARY -DWIN32_LEAN_AND_MEAN
+   -D_WIN32_WINNT=0x0601 -g -O2 -DDLL_EXPORT -DPIC -c`，`ar rcs` 成新
+   `libeb.a` 装到 `/mingw64/lib/`，11 个头文件装到 `/mingw64/include/eb/`。
+   新 `config.h` 仍带 `#define _FILE_OFFSET_BITS 64`，与 CMakeLists 的
+   `target_compile_definitions(ebview PRIVATE _FILE_OFFSET_BITS=64)` 一致（§8 的
+   ABI 前提）。
+3. **EBView 用独立构建目录**，不覆盖 UCRT64 交付物：
+   ```bash
+   cmake -S . -B build-mingw64 -G Ninja -DCMAKE_BUILD_TYPE=Release \
+         -DCMAKE_PREFIX_PATH=E:/msys64-mingw64/mingw64
+   cmake --build build-mingw64 -j 8
+   ```
+   `EB_LIBRARY` 命中 `E:/msys64-mingw64/mingw64/lib/libeb.a`；`msgfmt` 用的是
+   MSYS2 `/usr/bin/msgfmt.exe`，ja / zh_CN / zh_TW 三种 `.mo` 都生成了。
+4. **`tools/pack_win.sh` 泛化**（默认值不变，UCRT64 老命令照常可用）：`BUILD`
+   可用环境变量覆盖、python 打包前用 `cygpath -w` 转 Windows 路径并把 zip 内
+   分隔符规范成 `/`（MINGW64 的 python 是原生 win32 版，不认 `/e/...`）。
+   构筑系统随后改成自动识别并写进文件名 / 包内，见 §25。
+   ```bash
+   UCRT=/mingw64 BUILD=/e/git/EBView/build-mingw64 \
+     bash tools/pack_win.sh E:/git/EBView/build-mingw64/dist
+   ```
+
+### 产出与验证
+
+- `build-mingw64/dist/EBView-0.4.0-win64-mingw64.zip`（13.7 MiB / 153 项，
+  展开 32 MiB），另复制一份到 `E:/msys2-install/` 方便拷进 VM。
+- 46 个顶层 MINGW64 DLL + 14 个 gdk-pixbuf loader DLL；`share/ebview`、三种
+  `locale`、`etc/fonts`、`lib/gdk-pixbuf-2.0` 齐全，zip 内路径全为 `/`；
+  153 项里比 §14 的旧包多一项 `BUILD-INFO.txt`（§25）。
+- exe 导入表 CRT 只有 `msvcrt.dll`，**没有** `api-ms-win-crt-*` /
+  `ucrtbase.dll`；把包内所有 exe/DLL 的直接导入取并集，CRT 也只有 `msvcrt.dll`。
+  PE32+ / Windows GUI 子系统 / VERSIONINFO `0.4.0.0` / ico 7 帧全在 / 无调试
+  字符串 / zip 内 exe 与构建产物 sha256 一致。
+- 本机 W10 从 dist 目录启动，且把 `PATH` 砍到只剩 `System32;C:\Windows` 时，
+  进程仍存活到超时被杀（无缺 DLL 崩溃）。日志只有
+  `Failed to bind the book 'W:\EBWinDict\...'` —— 本机没挂 W: 盘，是配置里
+  已有的词典路径，属环境提示，也顺带说明 libeb 链接与调用链正常。
+- **唯一 Win7 疑点**：`lib/gdk-pixbuf-2.0/2.10.0/loaders/pixbufloader_svg.dll`
+  导入 `api-ms-win-core-synch-l1-2-0.dll`（Win8+ API set，其余 60 个文件都没有）。
+  它只在加载 SVG 图片时被 gdk-pixbuf 动态 `LoadLibrary`，不影响启动/输入；
+  EPWING 插图通常是 BMP/JPEG/PNG。Win7 装了 `vc_redist.x64.exe` / KB2999226
+  会带一批 `api-ms-win-core-*` 转发 DLL，大概率也能解析。若 VM 上遇到 SVG 插图
+  报错，删掉该 loader 及 `loaders.cache` 中对应一行即可。
+- **Win7 VM 实测（用户 2026-11-07）**：完整包在同一台 Win7 VM 上**能正常
+  运行**，而此前的 UCRT64 版在这台机器上冻结。结论与那些 fix 的清算见 §26。
+  逐项功能回归（挂词典后 Search Disk / 词条 / 发音）仍待补。
+
+本节只改了 `tools/pack_win.sh`（向后兼容的打包参数）和本文档；`src/`、
+`CMakeLists.txt` 未动。
+
+## §25 打包脚本统一带构筑系统标识（2026-11-07）
+
+需求：「以后生成的 zip 除了现在的信息之外还加上构筑系统」。改动只在
+`tools/pack_win.sh`，`src/` / `CMakeLists.txt` 未动。
+
+1. **自动识别**：`UCRT` 前缀含 `mingw64` / `clang64` / `ucrt64` / `mingw32` /
+   `clang32` 就取对应名字，否则用 `basename`；可用 `SYSNAME=` 显式覆盖。
+2. **文件名**：`EBView-<版本>-win64-<构筑系统>[<SUFFIX>].zip`。`SUFFIX` 保留为
+   可选自定义标签。UCRT64 → `EBView-0.4.0-win64-ucrt64.zip`，
+   MINGW64 → `EBView-0.4.0-win64-mingw64.zip`，两套包不会再同名混淆。
+3. **包内 `BUILD-INFO.txt`**：build-system、toolchain-prefix、`_WIN32_WINNT`
+   与目标系统名、gcc / GTK2 / glib2 版本、libeb 静态库路径、exe 的 CRT 导入、
+   DLL 数、exe sha256、构建目录、打包时间。所有采集失败都回落 `n/a`，
+   不会因为缺 `objdump` / `pkg-config` 之类工具而打不出包。
+4. **顺手修掉一个会静默产坏包的坑**：UCRT64 终端里 `ldd` 打印的是
+   `/ucrt64/bin/x.dll` 这种 MSYS 挂载别名，而脚本原来用
+   `grep -i "/c/Users/yx/msys64/ucrt64"` 过滤，实测匹配数为 **0** —— 会打出
+   一个没有 DLL 却能成功生成的包。现在统一 `cygpath -w` 转成 Windows 路径再比
+   前缀；一个 DLL 都没匹配到就直接报错退出。
+5. **两套实测**（各重打一次，46 个 DLL 都齐）：
+
+   | 包 | 构筑系统 | `_WIN32_WINNT` | CRT | zip 条目 |
+   | --- | --- | --- | --- | --- |
+   | `build/dist/...-ucrt64.zip` | ucrt64 | `0x0A00` (Windows 10) | UCRT (`api-ms-win-crt-*`) | 153 |
+   | `build-mingw64/dist/...-mingw64.zip` | mingw64 | `0x0601` (Windows 7) | `msvcrt.dll` | 153 |
+
+   坑：头文件把 `_WIN32_WINNT` 展开成 `0xA00` / `0x601`（**省略前导零**），
+   按 `0x0A00` / `0x0601` 字符串匹配会一律落到 `unknown`；改成
+   `gcc -E -P` 展开后按数值判断，再规范成 4 位十六进制写进文件。
+
+---
+
+## §26 最终结论：Win7 冻结是 UCRT64 工具链，不是应用代码（2026-11-07 用户实测）
+
+**实测**：把 §24 的 `EBView-0.4.0-win64-mingw64.zip` 完整包拷到**同一台**
+Win7 VM，**能正常运行**。探针（§23）与完整包两级对照指向同一个变量：
+
+| 二进制 | Win7 VM | Win10 VM |
+| --- | --- | --- |
+| UCRT64 探针 / EBView（§16–§21 期间） | 冻结：输入计数恒 0 / 主界面点不动 | 正常 |
+| MINGW64 探针（§23） | 计数增长 | 正常 |
+| MINGW64 完整包（§24） | **正常** | 正常 |
+
+唯一变量是工具链：MINGW64 默认 `_WIN32_WINNT=0x0601`（Win7）、主 CRT 为
+`msvcrt.dll`；UCRT64 默认 `0x0A00`（Win10）、主 CRT 为 UCRT（§23 / §25）。
+两份包的 **EBView 源码完全相同**（实验代码已在 `2cd1a10` 回滚到 `250f248`，
+之后只改过打包脚本和本文档）。所以冻结既不在 EBView 应用代码，也不在那台
+VM 的输入 / 显示 / TSF 栈，而是 UCRT64 那套二进制的目标平台。
+
+### 那些「Win7 fix」的清算
+
+§17–§20 期间为 Win7 做过的全部改动，事后看**都不是解决卡死的必要条件**：
+
+| 改动 | 实际作用 | 与卡死的关系 |
+| --- | --- | --- |
+| PRIMARY 选区延迟 claim / Windows 跳过 PRIMARY | 无 | 已证伪（§20） |
+| `GTK_IM_MODULE=gtk-im-context-simple`、`ImmDisableIME(0)` | 引入新的 splash 前冻结 | 已证伪并回滚（§20） |
+| `EBVIEW_DEBUG_LOG` 落盘、启动插桩、主循环心跳、GDK 事件计数、`WH_GETMESSAGE` 钩子、窗口枚举 | 观测手段 | 只产出 400 KB 狂暴日志，不治病 |
+| 控制台 → **GUI 子系统**（`add_executable(ebview WIN32 ...)`） | 消除双击时的黑框 | **唯一保留**，纯 UX 改进；换不换都不影响会不会卡死 |
+| `vc_redist.x64.exe` / KB2999226 | 补 UCRT，让 UCRT64 包能启动 | 只解决「缺 DLL 不能启动」，不解决冻结 |
+
+用户原话：「换成 mingw 编译的就能运行了……去掉命令提示符界面还是有用的，
+只是不影响会不会卡死」。
+
+=> §21 的「放弃 Win7 适配 / 属该 VM 环境，不再追查」作废；
+「应用代码无罪、回滚全部实验代码」仍成立，而且正因为回滚得干净，这次才能在
+两份包之间做单一变量对照。§16–§20 那些被逐条证伪的假设保留作教训，不删。
+
+### 今后的分发口径
+
+- **Windows 7 x64**：用 `EBView-<版本>-win64-mingw64.zip`（§24 / §25）。
+- **Windows 10/11 x64**：`EBView-<版本>-win64-ucrt64.zip` 继续可用。
+- 文件名与包内 `BUILD-INFO.txt` 的 `build-system` / `_WIN32_WINNT` 已能直接
+  区分两套包，不用再靠目录位置猜（§25）。
+- 尚未逐项回归：Win7 上挂载词典后 Search Disk / 词条 / 发音，以及 §24 提到的
+  `pixbufloader_svg.dll` 的 Win8+ API set。
