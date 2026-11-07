@@ -82,9 +82,10 @@ static void search_selection()
 		grep_search(euc_str);
 	} else {
 		clear_message();
+		/* ebook_search() is asynchronous: watch_thread() reports "No hit."
+		 * after the worker finishes.  Checking search_result here would
+		 * always be true and duplicate the message. */
 		ebook_search(euc_str, method);
-		if(search_result == NULL)
-			push_message(_("No hit."));
 	}
 
 	save_word_history(text);

@@ -124,9 +124,10 @@ void start_search(void){
 			grep_search(euc_str);
 		} else {
 			clear_message();
+			/* ebook_search() spawns a worker and returns immediately; the
+			 * result list is not ready yet.  watch_thread() reports "No hit."
+			 * once the worker is done -- do not check search_result here. */
 			ebook_search(euc_str, method);
-			if(search_result == NULL)
-				push_message(_("No hit."));
 		}
 		save_word_history(word);
 		gtk_editable_select_region(GTK_EDITABLE(word_entry), 
