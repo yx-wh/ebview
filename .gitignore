@@ -13,3 +13,6 @@ build-*/
 
 # local agent scratch state (per-machine notes, not project content)
 .workbuddy/
+
+# Vim undo files (e.g. .about.en.in.un~)
+.un~

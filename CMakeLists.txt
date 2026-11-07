@@ -60,6 +60,8 @@ configure_file(config.h.in "${CMAKE_CURRENT_BINARY_DIR}/config.h" @ONLY)
 file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/data")
 configure_file(data/about.en.in "${CMAKE_CURRENT_BINARY_DIR}/data/about.en" @ONLY)
 configure_file(data/about.jp.in "${CMAKE_CURRENT_BINARY_DIR}/data/about.jp" @ONLY)
+configure_file(data/about.zh.in "${CMAKE_CURRENT_BINARY_DIR}/data/about.zh" @ONLY)
+configure_file(data/about.zh_TW.in "${CMAKE_CURRENT_BINARY_DIR}/data/about.zh_TW" @ONLY)
 # AppStream metadata: the release version tracks PROJECT_VERSION so the
 # software centre never shows a stale version.
 configure_file(data/ebview.metainfo.xml.in
@@ -151,6 +153,8 @@ file(COPY
 file(COPY
     "${CMAKE_CURRENT_BINARY_DIR}/data/about.en"
     "${CMAKE_CURRENT_BINARY_DIR}/data/about.jp"
+    "${CMAKE_CURRENT_BINARY_DIR}/data/about.zh"
+    "${CMAKE_CURRENT_BINARY_DIR}/data/about.zh_TW"
     DESTINATION "${EBVIEW_RUN_DATADIR}")
 file(COPY "${CMAKE_CURRENT_SOURCE_DIR}/pixmaps/" DESTINATION "${EBVIEW_RUN_DATADIR}/pixmaps")
 file(COPY "${CMAKE_CURRENT_SOURCE_DIR}/doc/en" DESTINATION "${EBVIEW_RUN_DATADIR}/help")
@@ -182,6 +186,8 @@ install(TARGETS ebview RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 install(FILES
     "${CMAKE_CURRENT_BINARY_DIR}/data/about.en"
     "${CMAKE_CURRENT_BINARY_DIR}/data/about.jp"
+    "${CMAKE_CURRENT_BINARY_DIR}/data/about.zh"
+    "${CMAKE_CURRENT_BINARY_DIR}/data/about.zh_TW"
     "${CMAKE_CURRENT_SOURCE_DIR}/data/endinglist.xml"
     "${CMAKE_CURRENT_SOURCE_DIR}/data/endinglist-ja.xml"
     "${CMAKE_CURRENT_SOURCE_DIR}/data/filter.xml"

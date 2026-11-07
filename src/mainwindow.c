@@ -382,11 +382,17 @@ void show_about()
 
 	LOG(LOG_DEBUG, "IN : show_about()");
 
-	/* Only about.en and about.jp exist, and the text view expects EUC-JP,
-	 * which cannot carry Chinese at all, so everything but Japanese falls
-	 * back to the English file. */
-	if(strcmp(ui_language(), "ja") == 0)
+	const gchar *lang = ui_language();
+
+	/* Japanese, Simplified Chinese and Traditional Chinese ship UTF-8
+	 * about files; the renderer treats binfo==NULL text as UTF-8, so every
+	 * language displays correctly.  Anything else falls back to English. */
+	if(strcmp(lang, "ja") == 0)
 		sprintf(filename, "%s%sabout.jp", package_dir, DIR_DELIMITER);
+	else if(strcmp(lang, "zh_TW") == 0)
+		sprintf(filename, "%s%sabout.zh_TW", package_dir, DIR_DELIMITER);
+	else if(strncmp(lang, "zh", 2) == 0)
+		sprintf(filename, "%s%sabout.zh", package_dir, DIR_DELIMITER);
 	else
 		sprintf(filename, "%s%sabout.en", package_dir, DIR_DELIMITER);
 

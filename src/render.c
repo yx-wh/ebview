@@ -158,7 +158,7 @@ GdkPixbuf *load_xbm(BOOK_INFO *binfo, gchar *name, gint *w, gint *h, gchar *colo
 	return(pixbuf);
 }
 
-static void draw_string2(CANVAS *canvas, DRAW_TEXT *text, TAG *tag)
+static void draw_string2(CANVAS *canvas, DRAW_TEXT *text, TAG *tag, gboolean utf8)
 {
 	gchar *euc_str;
 	gchar *utf_str;
@@ -169,7 +169,14 @@ static void draw_string2(CANVAS *canvas, DRAW_TEXT *text, TAG *tag)
 	//LOG(LOG_DEBUG, "IN : draw_string2()");
 
 	euc_str = g_strndup(text->text, text->length);
-	utf_str = iconv_convert("euc-jp", "utf-8", euc_str);
+	if(utf8){
+		/* Text is already UTF-8 (the about dialog ships UTF-8
+		 * files); insert it as-is instead of decoding as EUC-JP. */
+		utf_str = euc_str;
+		euc_str = NULL;
+	} else {
+		utf_str = iconv_convert("euc-jp", "utf-8", euc_str);
+	}
 
 	/* Replace [[gbrg:XXXX]] markers (GB2312 characters) by UTF-8 text. */
 	{
@@ -322,7 +329,7 @@ static void draw_string2(CANVAS *canvas, DRAW_TEXT *text, TAG *tag)
 
 }
 
-static void draw_string(CANVAS *canvas, DRAW_TEXT *text, TAG *tag, gchar *word)
+static void draw_string(CANVAS *canvas, DRAW_TEXT *text, TAG *tag, gchar *word, gboolean utf8)
 {
 	gchar *p;
 	gchar *p0;
@@ -339,7 +346,7 @@ static void draw_string(CANVAS *canvas, DRAW_TEXT *text, TAG *tag, gchar *word)
 	l_tag.size=0;
 
 	if((word == NULL) || (bemphasize_keyword == FALSE))
-		draw_string2(canvas, text, tag);
+		draw_string2(canvas, text, tag, utf8);
 	else {
 		if(tag){
 			l_tag = *tag;
@@ -357,11 +364,11 @@ static void draw_string(CANVAS *canvas, DRAW_TEXT *text, TAG *tag, gchar *word)
 				if(p0 != p){
 					l_text.text = p0;
 					l_text.length = r - p0;
-					draw_string2(canvas, &l_text, tag);
+					draw_string2(canvas, &l_text, tag, utf8);
 				}
 				l_text.text = p;
 				l_text.length = len;
-				draw_string2(canvas, &l_text, &l_tag);
+				draw_string2(canvas, &l_text, &l_tag, utf8);
 				p0 = p + len;
 				p = p + len;
 				continue;
@@ -377,7 +384,7 @@ static void draw_string(CANVAS *canvas, DRAW_TEXT *text, TAG *tag, gchar *word)
 		if(p0 != p){
 			l_text.text = p0;
 			l_text.length = p - p0;
-			draw_string2(canvas, &l_text, tag);
+			draw_string2(canvas, &l_text, tag, utf8);
 		}
 
 	}
@@ -553,6 +560,7 @@ void draw_content(CANVAS *canvas, DRAW_TEXT *text, BOOK_INFO *binfo, TAG *tag, g
 	gchar *p;
 	gchar start_tag[512];
 	gchar end_tag[512];
+	gboolean utf8 = (binfo == NULL);
 	gchar tag_name[512];
 	gchar attr[512];
 	gchar code[16];
@@ -593,7 +601,7 @@ void draw_content(CANVAS *canvas, DRAW_TEXT *text, BOOK_INFO *binfo, TAG *tag, g
 			if(body_length != 0){
 				l_text.text = body;
 				l_text.length = body_length;
-				draw_string(canvas, &l_text, tag, word);
+				draw_string(canvas, &l_text, tag, word, utf8);
 				body_length = 0;
 			}
 
@@ -908,7 +916,7 @@ void draw_content(CANVAS *canvas, DRAW_TEXT *text, BOOK_INFO *binfo, TAG *tag, g
 	if(body_length != 0){
 		l_text.text = body;
 		l_text.length = body_length;
-		draw_string(canvas, &l_text, tag, word);
+		draw_string(canvas, &l_text, tag, word, utf8);
 	}
 
 	//LOG(LOG_DEBUG, "OUT : draw_content()");

@@ -1,11 +1,14 @@
 
 <center><keyword>@PACKAGE_STRING@</keyword></center>
-
 <center>(C) Copyright 2001-2003</center>
-<center>Author : ��ƣ ���� (Kenichi SUTO)</center>
+<center>Author : 須藤 賢一 (Kenichi SUTO)</center>
 <center>E-Mail : deep_blue@users.sourceforge.net</center>
 <center>Homepage: http://ebview.sourceforge.net/</center>
 
-���Υץ������ϥե꡼���եȥ������Ǥ������ʤ��ϡ�Free Software Foundation ����ɽ���� GNU General Public License (GNU ���̸�ͭ���ѵ���) �С������ 2 ���뤤�Ϥ���ʹߤγƥС��������椫�餤���줫�����򤷡����ΥС������������˽��ä��ܥץ�����������ۤޤ����ѹ����뤳�Ȥ��Ǥ��ޤ���
+<center><keyword>GTK2 modernized port</keyword></center>
+<center>Author : 楊 微粒 (Yang Weili)</center>
+<center>Homepage: https://github.com/yx-wh/</center>
 
-���Υץ�������ͭ�ѤȤϻפ��ޤ��������ۤˤ����äƤϡ��Ծ����ڤ�������ŪŬ�����ˤĤ��Ƥΰ��ۤ��ݾڤ�ޤ�ơ������ʤ��ݾڤ�Ԥʤ��ޤ��󡣾ܺ٤ˤĤ��Ƥ� GNU General Public License ���ɤߤ���������
+このプログラムはフリーソフトウェアです。あなたは、Free Software Foundation が公表した GNU General Public License (GNU 一般公有使用許諾) バージョン 2 あるいはそれ以降の各バージョンの中からいずれかを選択し、そのバージョンが定める条項に従って本プログラムを再頒布または変更することができます。
+
+このプログラムは有用とは思いますが、頒布にあたっては、市場性及び特定目的適合性についての暗黙の保証を含めて、いかなる保証も行ないません。詳細については GNU General Public License をお読みください。
