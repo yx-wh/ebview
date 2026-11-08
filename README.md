@@ -128,6 +128,52 @@ Windows 免安装包，需在 MSYS2 UCRT64 环境下执行（会收集依赖 DLL
 bash tools/pack_win.sh                  # -> build/dist/EBView-win64.zip
 ```
 
+### 发版清单
+
+版本号只在 `CMakeLists.txt` 的 `VERSION` 一处改，它同时驱动 `PACKAGE_VERSION`、
+AppStream 元数据和 Windows 的 VERSIONINFO，所以不用再改别的地方。
+
+```sh
+# 1. 改版本号：CMakeLists.txt 的 VERSION、NEWS 新增一段、README 里的示例命令；然后编译手测
+./build.sh
+
+# 2. 提交、打标签、推送
+git commit -am "chore(release): bump version to 0.4.1"
+git tag -a v0.4.1 -m "EBView 0.4.1"
+git push origin main v0.4.1
+
+# 3. 打包（deb 与源码包在 Linux 侧，Windows zip 在 MSYS2 侧产出后拷进来）
+bash tools/make_deb.sh
+git archive --format=tar --prefix=ebview-0.4.1/ v0.4.1 -- . ':(exclude)upstream' \
+    | xz -9e > build/dist/ebview-0.4.1.tar.xz
+
+# 4. 校验和：在 build/dist/ 内、只列本次要发布的文件
+sha256sum ebview_0.4.1_amd64.deb ebview-0.4.1.tar.xz \
+          EBView-0.4.1-win64-ucrt64.zip EBView-0.4.1-win64-mingw64.zip > SHA256SUMS
+sha256sum -c SHA256SUMS
+
+# 5. 发布（需要 gh 且已 gh auth login）
+gh release create v0.4.1 --title "EBView 0.4.1" --notes-file /tmp/relnotes.md \
+    build/dist/ebview_0.4.1_amd64.deb build/dist/ebview-0.4.1.tar.xz \
+    build/dist/EBView-0.4.1-win64-ucrt64.zip \
+    build/dist/EBView-0.4.1-win64-mingw64.zip build/dist/SHA256SUMS
+
+# 6. 核对附件都在
+gh release view v0.4.1 --json assets -q '.assets[] | "\(.name)  \(.state)"'
+```
+
+几个容易踩的点：
+
+- 标签要先打再 `git archive`，否则 `v0.4.1` 解析不到；标签一旦推送就别再改指向，
+  重发只能往上加版本；
+- `data/` 下的文件由 `file(COPY ...)` 在 **configure** 阶段拷进
+  `build/share/ebview/`，改了 `data/shortcut.xml` 之类必须重跑 `./build.sh`，
+  只 `cmake --build` 不会刷新；
+- 用户配置 `~/.ebview/*.xml` 只在文件缺失时才从安装目录复制，**新增的默认快捷键
+  对老用户不生效**，发布说明里要写清（删文件重生成，或到设置里手动绑定）；
+- 发布前清掉 `build/dist/` 里的旧版本产物，避免和 `SHA256SUMS` 对不上；该目录
+  不入库（`.gitignore` 忽略了 `build/`）。
+
 首次运行会在 `~/.ebview/` 生成 `preference.xml`、`dictgroup.xml`、
 `shortcut.xml`、`searchengines.xml`、`filter.xml` 等配置文件。
 
