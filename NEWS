@@ -1,3 +1,25 @@
+What's new in version 0.4.1
+New features
+  * Dictionary group page: select several dictionaries (Ctrl/Shift click) and
+    move them with Up/Down, Remove or Delete as one block.
+  * Reorder dictionaries and groups by dragging; drop a dictionary on a group
+    name to move it into that group, which is also the only way to fill a
+    group that has no dictionaries yet.
+  * Ctrl+` turns all dictionaries of the current group on or off, and
+    Alt+1..0 switch between searching only dictionary no. N and searching
+    everything except it.  Both can be rebound in the Shortcut page.
+  * The preferences dialog has a Cancel button; closing the window or
+    pressing Escape discards the changes instead of saving them.
+
+Bug-fix
+  * Crash after removing several dictionaries at once.
+  * Up/Down and the property panel did nothing on the dictionary group page
+    once it allowed multiple selection.
+
+Build
+  * ENABLE_ASAN option and "build.sh --asan" for an AddressSanitizer build.
+
+
 What's new in version 0.4.0
 New features
   * Search a word directly from the command line: ebview WORD.

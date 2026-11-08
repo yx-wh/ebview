@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.16)
 
 project(ebview
-    VERSION 0.4.0
+    VERSION 0.4.1
     DESCRIPTION "EPWING CD-ROM dictionary viewer (modernized build)"
     LANGUAGES C)
 

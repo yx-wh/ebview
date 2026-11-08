@@ -111,14 +111,14 @@ Debian / Ubuntu 二进制包。脚本会用一个独立的 `build-deb/` 以 `--p
 
 ```sh
 bash tools/make_deb.sh                  # -> build/dist/ebview_<version>_<arch>.deb
-sudo apt install ./build/dist/ebview_0.4.0_amd64.deb
+sudo apt install ./build/dist/ebview_0.4.1_amd64.deb
 ```
 
 发布用源码 tarball，内容与 git 标签完全一致（排除仅作对照用的 `upstream/`）：
 
 ```sh
-git archive --format=tar --prefix=ebview-0.4.0/ v0.4.0 -- . ':(exclude)upstream' \
-    | xz -9e > build/dist/ebview-0.4.0.tar.xz
+git archive --format=tar --prefix=ebview-0.4.1/ v0.4.1 -- . ':(exclude)upstream' \
+    | xz -9e > build/dist/ebview-0.4.1.tar.xz
 ```
 
 Windows 免安装包，需在 MSYS2 UCRT64 环境下执行（会收集依赖 DLL、gdk-pixbuf
