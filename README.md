@@ -121,12 +121,22 @@ git archive --format=tar --prefix=ebview-0.4.1/ v0.4.1 -- . ':(exclude)upstream'
     | xz -9e > build/dist/ebview-0.4.1.tar.xz
 ```
 
-Windows 免安装包，需在 MSYS2 UCRT64 环境下执行（会收集依赖 DLL、gdk-pixbuf
-加载器与 fontconfig 配置）：
+Windows 免安装包，需在 MSYS2 环境下执行（会收集依赖 DLL、gdk-pixbuf 加载器与
+fontconfig 配置）。默认按 UCRT64 工具链打包；要出 **Windows 7 可用**的包，需要换
+MINGW64 工具链单独编译，再用环境变量覆盖工具链前缀与构建目录：
 
 ```sh
-bash tools/pack_win.sh                  # -> build/dist/EBView-win64.zip
+# UCRT64：Windows 10/11
+bash tools/pack_win.sh                  # -> build/dist/EBView-<version>-win64-ucrt64.zip
+
+# MINGW64：Windows 7 及以上
+UCRT=/mingw64 BUILD=/e/git/EBView/build-mingw64 \
+    bash tools/pack_win.sh E:/git/EBView/build-mingw64/dist
+                                        # -> ...-win64-mingw64.zip
 ```
+
+两套 CRT 的差别就在系统要求：UCRT64 包依赖 `ucrtbase.dll`，只能在 Windows 10 及以上
+运行；MINGW64 包用的是 msvcrt，Windows 7 也能跑，介意老系统兼容时发这个。
 
 ### 发版清单
 
