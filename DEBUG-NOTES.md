@@ -1844,7 +1844,10 @@ Win7 冻结问题未解决，属该 VM 环境，不再追查。
 用户收尾时判断"更像是 GTK2 抛弃了 Win7"——方向对，但精确说是
 **整套 MSYS2 UCRT64 发行栈**（GTK2 + glib2 + gdk-pixbuf2 + pango + cairo +
 fontconfig + 工具链 + CRT）在 2022–2024 年间系统性放弃 Win7，GTK2 只是其中一员。
-依据：MSYS2 官方 `docs/windows_support/` 与官网 news（2026-11-07 查询）。
+2026 年更进一步：连唯一还能 target Win7 的 MINGW64 环境也进入弃用，
+Win7 构建从「官方支持的老路线」变成「包供给正在消失的遗产路线」。
+依据：MSYS2 官方 `docs/windows_support/` / `docs/environments/` 与官网 news
+（2026-11-07 查询）。
 
 - **2020**：GTK2 上游 2.24.33 为最后版本，此后 EOL，`gdk/win32` 后端基本冻结。
   本机 `mingw-w64-ucrt-x86_64-gtk2` 为 **2.24.33-8，构建于 2025-10-05**
@@ -1865,6 +1868,47 @@ fontconfig + 工具链 + CRT）在 2022–2024 年间系统性放弃 Win7，GTK2
   All others allow targeting Windows 10+**"。Win7 只能用 2022-10-28 的旧
   installer，且"Many Mingw packages will no longer work though"。
 
+### 2026 续补：MINGW64 环境本身也进入弃用
+
+上表记到 2024 年为止。2026 年官方又走三步，逻辑从「不再支持老系统」推进到
+「不再需要非 UCRT 环境」（官网 news 三条，2026-11-07 查询）：
+
+- **2026-02-28 停止支持 Windows 8.1**：官方统计用户占比 <0.05%、Firefox 同日
+  停止支持，此后不再修老系统特有问题。
+- **2026-03-15 宣布弃用 MINGW64 环境**：公告原文 "As support for Windows
+  8.1 has been dropped, there is no longer a need for non-UCRT environments
+  such as MINGW64"。起步措施是不再往该环境加新包、现有 leaf 包出问题即移除，
+  建议迁往 UCRT64 / CLANG64。这也让上面「当前策略」里 "MINGW64 allow
+  targeting Windows 7+ still" 的长期承诺**不再可靠**：target 能力还在，
+  但包供给正在消失。
+- **2026-10-24 弃用更新**：常规更新时即从 leaf 包移除 MINGW64 构建（不再等
+  到出问题）；`setup-msys2` GitHub Action v2.33.0 起对弃用环境发警告，
+  官方另给 `migrate.sh` 把 `mingw-w64-x86_64-*` 换成 `mingw-w64-ucrt-x86_64-*`。
+
+=> §23 里「MINGW64 仓库已无 `mingw-w64-x86_64-gtk2`，只能从镜像残留捞
+`gtk2-2.24.33-6`」不是偶然的镜像故障，正是这条政策的直接后果。
+另注：2022-10-29 改默认时官方给的理由是「约 97% 用户已在带 UCRT 的系统上」
+——Win7 不是被某个技术硬门槛挡住的，UCRT 本身可再分发（§14 装 vc_redist
+即可补上），是维护成本的选择。
+
+### 约束：Win7 包是「可复现的遗产构建」，MINGW64 环境要冻结
+
+- `E:/msys64-mingw64` 已属 Legacy Environments。**不要 `pacman -Syu`**：
+  升级只会让 leaf 包继续消失，还会换掉当前已验证可复现的 gcc 16.2.0 +
+  GTK2 2.24.33-6 组合。
+- 保留已下载的 `.pkg.tar.zst`（尤其 `mingw-w64-x86_64-gtk2-2.24.33-6`）
+  以及 `/mingw64/lib/libeb.a` + 11 个头文件；真要重建优先离线 `pacman -U`
+  装回，别指望仓库还有。
+- 分发口径不变（§26）：Win7 用 `EBView-0.4.0-win64-mingw64.zip`，
+  Win10/11 用 `-ucrt64.zip`。前者按遗产构建维护，不追新工具链。
+- MSYS2 安装器自身已要求 64 位 Win10 1809+，所以这套是**在 Win10 上交叉
+  产出 Win7 程序**，不是能装进 Win7 的开发环境。
+
+**关于 `_WIN32_WINNT`**：上表 2022-12-26 记的是官方当时的 Win8.1（0x0603）
+目标；§23 已在本机实测当前 UCRT64 为 **0x0A00 / Windows 10**、MINGW64 为
+**0x0601 / Windows 7**。§21 更正注记里「UCRT64=Win8.1」同样指当时的公告值，
+以 §23 实测为准。
+
 **对 §21 的更正**：§21 曾以"两种环境 GTK2 是同一份后端源码、仅 CRT 不同"
 为由判定换 MINGW64 无意义——**该判断错误**。除 CRT 外还有 `_WIN32_WINNT`
 目标版本差异（Win7 vs Win8.1），会影响条件编译分支、结构体布局与消息泵路径；
@@ -1877,6 +1921,12 @@ fontconfig + 工具链 + CRT）在 2022–2024 年间系统性放弃 Win7，GTK2
 补齐工具链 + GTK2 需数 GB，C 盘仅剩 ~0.8 GiB；且用户已决定放弃 Win7 适配。
 若将来确需在 Win7 上跑 EBView，应优先试 MINGW64（或 2022-10-28 之前的旧
 MSYS2 快照），**而不是继续改应用代码**。
+
+> **后续更正（见 §23 / §24 / §26）**：第二套 MINGW64 已装在 E 盘，
+> libeb 4.4.3 与 EBView 本体均已用 MINGW64 重编打包，完整包在**同一台
+> Win7 VM 上正常运行**（用户 2026-11-07 实测确认）。本段「未执行 /
+> 放弃 Win7 适配」，以及上面「对 §21 的更正」中「若将来确需」的假设语气
+> 均已作废；保留原文作当时的成本判断与推理链记录。
 
 ---
 
