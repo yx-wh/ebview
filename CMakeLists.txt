@@ -247,6 +247,7 @@ target_compile_definitions(ebdump PRIVATE _FILE_OFFSET_BITS=64)
 target_link_libraries(ebdump PRIVATE
     PkgConfig::GLIB
     ${EB_LIBRARY}
+    ZLIB::ZLIB
     m)
 install(TARGETS ebdump RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 
