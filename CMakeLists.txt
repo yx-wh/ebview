@@ -28,6 +28,21 @@ endif()
 # Keep the build warning-clean without hiding real errors.
 add_compile_options(-Wall -Wno-deprecated-declarations)
 
+# AddressSanitizer: reports use-after-free / out-of-bounds with a stack trace
+# instead of the random crashes they cause in a normal build.  Off by default;
+# it is instrumented at compile time, so it needs its own build directory:
+#
+#   cmake -S . -B build-asan -DENABLE_ASAN=ON -DCMAKE_BUILD_TYPE=Debug
+#   cmake --build build-asan
+#   ./build.sh --asan            # same thing
+#
+# Expect it to be 2-5x slower and to use considerably more memory.
+option(ENABLE_ASAN "Build with AddressSanitizer" OFF)
+if(ENABLE_ASAN)
+    add_compile_options(-fsanitize=address -fno-omit-frame-pointer -g)
+    add_link_options(-fsanitize=address)
+endif()
+
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(GTK2 REQUIRED IMPORTED_TARGET gtk+-2.0>=2.10 gthread-2.0)
 find_package(Threads REQUIRED)

@@ -22,6 +22,9 @@
 
 GtkWidget *pref_start_dictgroup();
 gboolean pref_end_dictgroup();
+/* Put dict_store back to the state it had when the page was built.  Called by
+ * the preferences dialog's Cancel button and by closing the window. */
+void pref_cancel_dictgroup(void);
 
 /* Scan dirname (recursing up to depth levels) for EPWING/EB books and add
  * every usable one to dict_store.  Returns the number added; *skipped (may

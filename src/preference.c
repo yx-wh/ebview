@@ -553,6 +553,25 @@ static gboolean ok_pref(GtkWidget *widget,gpointer *data){
 	return(FALSE);
 }
 
+/* Discard: no end_func is called, so nothing is written to the configuration
+ * files, and the main window is not restarted (that is what applies things
+ * like the font).  Pages that edit a global model in place have to roll it
+ * back themselves. */
+static gboolean cancel_pref(GtkWidget *widget, gpointer *data)
+{
+	LOG(LOG_DEBUG, "IN : cancel_pref()");
+
+	pref_cancel_dictgroup();
+
+	gtk_grab_remove(pref_dlg);
+	gtk_widget_destroy(pref_dlg);
+	close_popup(NULL, NULL);
+	auto_lookup_resume();
+
+	LOG(LOG_DEBUG, "OUT : cancel_pref()");
+	return(FALSE);
+}
+
 
 void calculate_font_size(void)
 {
@@ -608,7 +627,8 @@ static gboolean delete_event( GtkWidget *widget,
 
 	LOG(LOG_DEBUG, "IN : delete_event()");
 	
-	ret = ok_pref(NULL, NULL);
+	/* Closing the window discards the changes, like Cancel. */
+	ret = cancel_pref(NULL, NULL);
 
 	LOG(LOG_DEBUG, "OUT : delete_event()");
 	return(ret);
@@ -774,6 +794,12 @@ void show_preference()
 	g_signal_connect(G_OBJECT (button), "clicked",
 			 G_CALLBACK(ok_pref), (gpointer)pref_dlg);
 	gtk_widget_grab_default (button);
+
+	button = gtk_button_new_with_label(_("Cancel"));
+	gtk_box_pack_start (GTK_BOX (GTK_DIALOG (pref_dlg)->action_area), button,
+			    TRUE, TRUE, 0);
+	g_signal_connect(G_OBJECT (button), "clicked",
+			 G_CALLBACK(cancel_pref), (gpointer)pref_dlg);
 
 
 	gtk_widget_show_all(pref_dlg);
