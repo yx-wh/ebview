@@ -2146,3 +2146,87 @@ VM 的输入 / 显示 / TSF 栈，而是 UCRT64 那套二进制的目标平台�
   区分两套包，不用再靠目录位置猜（§25）。
 - 尚未逐项回归：Win7 上挂载词典后 Search Disk / 词条 / 发音，以及 §24 提到的
   `pixbufloader_svg.dll` 的 Win8+ API set。
+
+---
+
+## §27 合并两份重复的 package_dir 探测逻辑（2026-11-08，纯重构）
+
+### 起因：一次误判，值得留档
+
+用户报「打好的包菜单点不开」，我先入为主地以为 GTK2 的 `package_dir` 是硬编码
+`<exe>\data`，于是把 GTK3 仓库（`E:\git\sina-ht\ebview-gtk3`）的 `60ed9d0
+fix(win32): resolve package_dir instead of assuming <exe>\data` 平移过来，还顺手把
+打包布局从 `share/ebview` 改成 `data`。
+
+**这个判断是错的。** 翻 `git show HEAD:src/preference.c` 可以看到，GTK2 的 Windows
+分支（第 402 行起）本来就在探测：
+
+```c
+candidates[0] = g_build_filename(home_dir, "data", NULL);
+candidates[1] = g_build_filename(home_dir, "share", "ebview", NULL);
+candidates[2] = g_build_filename(home_dir, "..", "share", "ebview", NULL);
+```
+
+GTK2 是 11-05 的 `e8d9c48`（Windows/MSYS2 移植）就已经改成探测式；GTK3 那边是从
+2009 年 `ebview-0.3.6` 直系导入的老底子，硬编码一直留到 `60ed9d0` 才补上。
+**`60ed9d0` 是 GTK3 的补课，不是 GTK2 缺的东西。** 移植已全部 `git checkout --`
+回退，远程从未被推过（`git show origin/main:src/preference.c` 一直是原状）。
+
+### 本次实际做的：消除重复实现（行为等价）
+
+GTK2 里 `package_dir` 的解析存在**两份**：
+
+1. `locate_package_dir()`（被 `#ifndef __WIN32__` 包住，只在非 Windows 编译），
+   候选 `share/ebview` → `../share/ebview` → `PACKAGEDIR`；
+2. Windows 分支里一段内联探测（`home_dir/data` → `share/ebview` →
+   `../share/ebview` → `PACKAGEDIR`）。
+
+两份逻辑几乎一样却各自演化，容易改一处漏一处。现合并为一份：
+
+- 去掉 `locate_package_dir()` 的 `#ifndef __WIN32__` 包裹，两个平台共用。
+- 候选顺序统一为 `$EBVIEW_DATADIR` → `<exe>/data`（Windows 包布局）→
+  `<exe>/share/ebview`（构建树 / unix 包）→ `<exe>/../share/ebview` →
+  `PACKAGEDIR`，与 GTK3 的 `locate_package_dir()` 完全一致。
+- Windows 分支删掉内联探测块，改为调用该函数。
+
+### 一个容易踩的顺序坑
+
+Windows 分支会把 `exe_path` **原地截断**成可执行文件所在目录（`*p = '\0'`），
+而 `locate_package_dir()` 内部是用 `g_path_get_dirname(exe_path)` 求目录的。所以
+必须在截断**之前**调用，否则取到的是上一级目录：
+
+```c
+#ifdef __WIN32__
+	/* locate_package_dir() derives the directory from exe_path, so call it
+	 * before exe_path is truncated to the executable's directory below. */
+	package_dir = locate_package_dir();
+
+	p = strrchr(exe_path, '\\');
+	...
+```
+
+GTK3 的 `60ed9d0` 里也有同样的注释，这个顺序是那次提交真正的技术要点。
+
+### 顺手修掉的一个小泄漏
+
+旧的内联实现里，命中的候选是 `package_dir = candidates[i]`（指针直接移交），
+未命中的才 `g_free`；循环里 `break` 之后剩下未遍历的候选也没释放。统一后的版本
+`result = g_strdup(candidates[i])` 然后无条件释放全部候选，路径唯一、无泄漏。
+
+### 验证
+
+`g_path_get_dirname()` 在 Windows 路径上此前只有非 Windows 分支在用，合并后首次
+在 Windows 上跑，所以单独实测了三种布局（MINGW64 下用 GLib 复刻候选逻辑）：
+
+| 布局 | `exe_dir/data` | `exe_dir/share/ebview` | `../share/ebview` | 解析结果 |
+| --- | --- | --- | --- | --- |
+| 现有包（`dist/EBView`，发 `share/ebview`） | miss | **HIT** | miss | `share/ebview` |
+| `data/` 布局（模拟 GTK3 包） | **HIT** | miss | miss | `data` |
+| 构建树（`build-mingw64`） | miss | **HIT** | miss | `share/ebview` |
+
+含混合分隔符的路径（`E:/...\EBView\data`）也判定正常。两套工具链重编 rc=0，
+重打包后各 155 项、干净 `PATH` 下启动存活（exit 124）、无调试字符串。
+**打包脚本未改**，GTK2 包继续发 `share/ebview`（命中第 2 个候选），与已发布的
+包布局保持一致；`data` 只是多一条兼容候选，不改变现有行为。
+
+改动仅 `src/preference.c`。
