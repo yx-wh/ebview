@@ -315,7 +315,7 @@ HiddenWndProc (HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
     LRESULT retval;
     HANDLE hText;
     char *pText;
-    gchar *str;
+    gchar *str = NULL;
 
 
     switch (msg) {
@@ -329,14 +329,21 @@ HiddenWndProc (HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 
 	    if(hText != NULL) {
 		    pText = GlobalLock(hText);
-		    GlobalUnlock(hText);
+		    if(pText != NULL) {
+			    /* CF_TEXT can be absent (an image or a
+			     * CF_UNICODETEXT-only clipboard), and the pointer
+			     * returned by GlobalLock is only valid until
+			     * GlobalUnlock, so convert first and unlock after. */
+			    str = iconv_convert(fs_codeset, "utf-8", pText);
+			    GlobalUnlock(hText);
+		    }
 	    }
 	    CloseClipboard();
 
-	    //remove_space(pText);
-	    str = iconv_convert(fs_codeset, "utf-8", pText);
-	    search_selected(str);
-	    g_free(str);
+	    if(str != NULL) {
+		    search_selected(str);
+		    g_free(str);
+	    }
 
 	    if(next_hwnd != NULL)
 		    SendMessage(next_hwnd, msg, wParam, lParam);
