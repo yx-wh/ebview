@@ -10,11 +10,19 @@ New features
     everything except it.  Both can be rebound in the Shortcut page.
   * The preferences dialog has a Cancel button; closing the window or
     pressing Escape discards the changes instead of saving them.
+  * Search from a terminal without opening the window: --exact-terminal WORD
+    runs an exact-word search over the active group and prints the raw entry,
+    --method/-m chooses the search method used at start-up (otherwise the one
+    from the previous session is restored), and tools/ebview-format renders
+    that output with ANSI colours.
 
 Bug-fix
   * Crash after removing several dictionaries at once.
   * Up/Down and the property panel did nothing on the dictionary group page
     once it allowed multiple selection.
+  * Crash when the clipboard held no text, for example after copying an image:
+    the window procedure converted an uninitialised pointer, and the clipboard
+    memory was unlocked before it had been read (Windows).
 
 Build
   * ENABLE_ASAN option and "build.sh --asan" for an AddressSanitizer build.
