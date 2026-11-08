@@ -147,6 +147,61 @@
     <command>Toggle Dictionary No. 10</command>
   </shortcut>
   <shortcut>
+    <modifier>0x0004</modifier>
+    <value>0x0060</value>
+    <command>Toggle All Dictionaries</command>
+  </shortcut>
+  <shortcut>
+    <modifier>0x0008</modifier>
+    <value>0x0031</value>
+    <command>Search Only Dictionary No. 1</command>
+  </shortcut>
+  <shortcut>
+    <modifier>0x0008</modifier>
+    <value>0x0032</value>
+    <command>Search Only Dictionary No. 2</command>
+  </shortcut>
+  <shortcut>
+    <modifier>0x0008</modifier>
+    <value>0x0033</value>
+    <command>Search Only Dictionary No. 3</command>
+  </shortcut>
+  <shortcut>
+    <modifier>0x0008</modifier>
+    <value>0x0034</value>
+    <command>Search Only Dictionary No. 4</command>
+  </shortcut>
+  <shortcut>
+    <modifier>0x0008</modifier>
+    <value>0x0035</value>
+    <command>Search Only Dictionary No. 5</command>
+  </shortcut>
+  <shortcut>
+    <modifier>0x0008</modifier>
+    <value>0x0036</value>
+    <command>Search Only Dictionary No. 6</command>
+  </shortcut>
+  <shortcut>
+    <modifier>0x0008</modifier>
+    <value>0x0037</value>
+    <command>Search Only Dictionary No. 7</command>
+  </shortcut>
+  <shortcut>
+    <modifier>0x0008</modifier>
+    <value>0x0038</value>
+    <command>Search Only Dictionary No. 8</command>
+  </shortcut>
+  <shortcut>
+    <modifier>0x0008</modifier>
+    <value>0x0039</value>
+    <command>Search Only Dictionary No. 9</command>
+  </shortcut>
+  <shortcut>
+    <modifier>0x0008</modifier>
+    <value>0x0030</value>
+    <command>Search Only Dictionary No. 10</command>
+  </shortcut>
+  <shortcut>
     <modifier>0x0008</modifier>
     <value>0xff51</value>
     <command>Go Back In History</command>

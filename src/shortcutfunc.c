@@ -309,6 +309,50 @@ void toggle_dictionary10(){
 	toggle_dictionary(10);
 }
 
+void toggle_all_dictionaries(){
+	toggle_all_dict_buttons();
+}
+
+void toggle_only_dictionary1(){
+	toggle_only_dict_button(1);
+}
+
+void toggle_only_dictionary2(){
+	toggle_only_dict_button(2);
+}
+
+void toggle_only_dictionary3(){
+	toggle_only_dict_button(3);
+}
+
+void toggle_only_dictionary4(){
+	toggle_only_dict_button(4);
+}
+
+void toggle_only_dictionary5(){
+	toggle_only_dict_button(5);
+}
+
+void toggle_only_dictionary6(){
+	toggle_only_dict_button(6);
+}
+
+void toggle_only_dictionary7(){
+	toggle_only_dict_button(7);
+}
+
+void toggle_only_dictionary8(){
+	toggle_only_dict_button(8);
+}
+
+void toggle_only_dictionary9(){
+	toggle_only_dict_button(9);
+}
+
+void toggle_only_dictionary10(){
+	toggle_only_dict_button(10);
+}
+
 void go_back(){
 	history_back();
 }

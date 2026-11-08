@@ -81,6 +81,19 @@ void toggle_dict_bar(){
 	LOG(LOG_DEBUG, "OUT : toggle_dict_bar()");
 }
 
+/* Setting N toggle buttons in a row would save the configuration and rebuild
+ * the multi view N times.  Bulk callers raise this flag, and refresh once
+ * through dict_bar_after_toggle() when they are done. */
+static gboolean dict_bulk_update = FALSE;
+
+static void dict_bar_after_toggle(void)
+{
+	if(ebook_search_method() == SEARCH_METHOD_MULTI)
+		show_multi();
+
+	save_dictgroup();
+}
+
 static void dict_toggled(GtkWidget *widget, gpointer data)
 {
 	gboolean active;
@@ -124,11 +137,142 @@ static void dict_toggled(GtkWidget *widget, gpointer data)
 	}
 
  END:
-	if(ebook_search_method() == SEARCH_METHOD_MULTI)
-		show_multi();
+	if(dict_bulk_update == FALSE)
+		dict_bar_after_toggle();
 
-	save_dictgroup();
 	LOG(LOG_DEBUG, "OUT : dict_toggled()");
+}
+
+/* Every toggle button in dict_box in display order; index 0 is the first
+ * dictionary of the current group.  The caller owns the list. */
+static GList *dict_bar_buttons(void)
+{
+	GList *rows, *row, *buttons, *child, *all = NULL;
+
+	rows = gtk_container_get_children(GTK_CONTAINER(dict_box));
+	for(row = rows; row != NULL; row = row->next){
+		buttons = gtk_container_get_children(GTK_CONTAINER(row->data));
+		for(child = buttons; child != NULL; child = child->next){
+			if(GTK_IS_BUTTON(child->data))
+				all = g_list_append(all, child->data);
+		}
+		g_list_free(buttons);
+	}
+	g_list_free(rows);
+
+	return(all);
+}
+
+/* Unavailable dictionaries are insensitive; toggling them would enable books
+ * that cannot be searched. */
+static gboolean dict_button_usable(GtkWidget *button)
+{
+	return(gtk_widget_get_sensitive(button));
+}
+
+/* Turn every usable dictionary off if they are all on, otherwise turn them all
+ * on.  Bound to Ctrl+` by default. */
+void toggle_all_dict_buttons(void)
+{
+	GList *buttons, *node;
+	gint usable = 0;
+	gboolean all_on = TRUE;
+	gboolean target;
+
+	LOG(LOG_DEBUG, "IN : toggle_all_dict_buttons()");
+
+	if(dict_box == NULL){
+		LOG(LOG_DEBUG, "OUT : toggle_all_dict_buttons() (no dict bar)");
+		return;
+	}
+
+	buttons = dict_bar_buttons();
+
+	for(node = buttons; node != NULL; node = node->next){
+		if(dict_button_usable((GtkWidget *)node->data) == FALSE)
+			continue;
+		usable++;
+		if(gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(node->data)) == FALSE)
+			all_on = FALSE;
+	}
+
+	if(usable > 0){
+		target = !all_on;
+
+		dict_bulk_update = TRUE;
+		for(node = buttons; node != NULL; node = node->next){
+			if(dict_button_usable((GtkWidget *)node->data) == FALSE)
+				continue;
+			gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(node->data),
+						     target);
+		}
+		dict_bulk_update = FALSE;
+
+		dict_bar_after_toggle();
+	}
+
+	g_list_free(buttons);
+
+	LOG(LOG_DEBUG, "OUT : toggle_all_dict_buttons()");
+}
+
+/* Switch between "search only this dictionary" and "search everything but this
+ * one".  Any other state is treated as the former, so pressing the key always
+ * converges on one of the two.  Bound to Alt+1..0 by default. */
+void toggle_only_dict_button(gint number)
+{
+	GList *buttons, *node;
+	GtkWidget *button = NULL;
+	gint idx = 0, active_count = 0;
+	gboolean only_this;
+
+	LOG(LOG_DEBUG, "IN : toggle_only_dict_button(%d)", number);
+
+	if(dict_box == NULL){
+		LOG(LOG_DEBUG, "OUT : toggle_only_dict_button() (no dict bar)");
+		return;
+	}
+
+	buttons = dict_bar_buttons();
+
+	for(node = buttons; node != NULL; node = node->next){
+		idx++;
+		if(idx == number)
+			button = (GtkWidget *)node->data;
+		if(dict_button_usable((GtkWidget *)node->data) == FALSE)
+			continue;
+		if(gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(node->data)))
+			active_count++;
+	}
+
+	if(button == NULL || dict_button_usable(button) == FALSE){
+		g_list_free(buttons);
+		LOG(LOG_DEBUG, "OUT : toggle_only_dict_button() (no such dictionary)");
+		return;
+	}
+
+	only_this = (active_count == 1 &&
+		     gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(button)));
+
+	dict_bulk_update = TRUE;
+	idx = 0;
+	for(node = buttons; node != NULL; node = node->next){
+		idx++;
+		if(dict_button_usable((GtkWidget *)node->data) == FALSE)
+			continue;
+		/* "only this" -> everything else off; otherwise everything but
+		 * this one on. */
+		gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(node->data),
+					     only_this ? (idx != number)
+						       : (idx == number));
+	}
+	dict_bulk_update = FALSE;
+
+	dict_bar_after_toggle();
+
+	g_list_free(buttons);
+
+	LOG(LOG_DEBUG, "OUT : toggle_only_dict_button()");
 }
 
 static void add_dict_buttons(GtkWidget *bar)

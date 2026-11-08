@@ -26,4 +26,10 @@ void toggle_dict_bar();
 void update_dict_bar();
 GtkWidget *create_dict_bar();
 
+/* Turn all usable dictionaries of the current group on/off together. */
+void toggle_all_dict_buttons(void);
+/* Switch between "search only dictionary no. `number`" and "search everything
+ * but that one".  `number` is 1-based, in the order of the buttons. */
+void toggle_only_dict_button(gint number);
+
 #endif /* __DICTBAR_H__ */

@@ -38,6 +38,18 @@ void toggle_dictionary8();
 void toggle_dictionary9();
 void toggle_dictionary10();
 
+void toggle_all_dictionaries();
+void toggle_only_dictionary1();
+void toggle_only_dictionary2();
+void toggle_only_dictionary3();
+void toggle_only_dictionary4();
+void toggle_only_dictionary5();
+void toggle_only_dictionary6();
+void toggle_only_dictionary7();
+void toggle_only_dictionary8();
+void toggle_only_dictionary9();
+void toggle_only_dictionary10();
+
 void go_back();
 void go_forward();
 
