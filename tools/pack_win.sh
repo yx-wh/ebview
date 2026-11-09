@@ -87,6 +87,11 @@ mkdir -p "$DEST/lib"
 cp -r "$UCRT/lib/gdk-pixbuf-2.0" "$DEST/lib/"
 rm -f "$DEST"/lib/gdk-pixbuf-2.0/*/loaders/*.dll.a
 
+# 依赖闭包：gdk-pixbuf 图片加载器（pixbufloader_svg.dll 等）是运行时被 dlopen 的，
+# 它们的依赖（librsvg、libxml2 …）ldd ebview.exe 抓不到，这里补进来，否则 SVG
+# 加载器会因缺 DLL 断言崩溃 / 图标全丢。见 tools/close_dlls.sh。
+bash "$(dirname "$0")/close_dlls.sh" "$DEST" "$UCRT"
+
 # fontconfig 需要 fonts.conf，否则初始化失败、所有文字变豆腐块
 mkdir -p "$DEST/etc"
 cp -r "$UCRT/etc/fonts" "$DEST/etc/"

@@ -23,6 +23,11 @@ Bug-fix
   * Crash when the clipboard held no text, for example after copying an image:
     the window procedure converted an uninitialised pointer, and the clipboard
     memory was unlocked before it had been read (Windows).
+  * Windows: the package now ships the GDK-PixBuf SVG loader's run-time
+    dependencies (librsvg/libxml2, etc.) via a dependency closure, so icons are
+    not lost and the loader cannot assert on a missing DLL; fatal errors are
+    also written to ebview-error.log next to the executable instead of being
+    silently swallowed.
 
 Build
   * ENABLE_ASAN option and "build.sh --asan" for an AddressSanitizer build.
